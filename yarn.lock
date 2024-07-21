@@ -1716,7 +1716,15 @@
     consola "^2.15.0"
     node-fetch "^2.6.1"
 
-"@nx/devkit@19.5.1":
+"@nx-go/nx-go@^3.2.0":
+  version "3.2.0"
+  resolved "https://registry.yarnpkg.com/@nx-go/nx-go/-/nx-go-3.2.0.tgz#e6614c952ad71b62a088eaf80769dd619116d884"
+  integrity sha512-oGr7kCBta/PdLKKPa2pRGWHxzPAbTvS1eZA+3NqEniw7JScVn+2w+6A/dctyPRidBQMwlpUO4mgfHzbwwt0xiQ==
+  dependencies:
+    "@nx/devkit" "^17.0.0 || ^18.0.0 || ^19.0.0"
+    tslib "^2.3.0"
+
+"@nx/devkit@19.5.1", "@nx/devkit@^17.0.0 || ^18.0.0 || ^19.0.0":
   version "19.5.1"
   resolved "https://registry.yarnpkg.com/@nx/devkit/-/devkit-19.5.1.tgz#a30aaef06c11b2ae7745695d30f62c72a7e61eb6"
   integrity sha512-Vj8wwzNIR5VIWmuLHhOi4aUVq7eVV5YTbctnEewKT+V/O4LZj+hClGyVNyT8s6b8JIjNWoIO4HXStLnH8rDOlw==

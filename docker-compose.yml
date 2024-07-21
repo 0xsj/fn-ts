@@ -1,0 +1,72 @@
+# region Networks
+networks:
+  mongo:
+    driver: bridge
+  apps:
+    driver: bridge
+  rabbitmq:
+    driver: bridge
+
+# region Volumes
+volumes:
+  mongo_volume:
+  rabbitmq_volume:
+  redis_volume: # corrected typo
+
+services:
+  # region Store
+  mongo-primary:
+    image: mongo:latest
+    container_name: conduit-mongo-primary
+    hostname: conduit-mongo-primary
+    volumes:
+      - mongo_volume:/data/db
+    networks:
+      - mongo
+    ports:
+      - ${MONGO_PORT:-27017}:27017
+    command: mongod --replSet rs0
+    healthcheck:
+      test: |
+        mongosh --eval "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }).ok }"
+      start_period: 0s
+      interval: 500ms
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:latest
+    container_name: conduit-redis
+    hostname: conduit-redis
+    volumes:
+      - redis_volume:/data
+    networks:
+      - apps
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    mem_limit: 256m
+    memswap_limit: 512m
+    restart: always
+
+  rabbitmq:
+    image: rabbitmq:latest
+    container_name: conduit-rabbitmq
+    hostname: conduit-rabbitmq
+    volumes:
+      - rabbitmq_volume:/var/lib/rabbitmq # added volume for persistence
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'status']
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 3
+    ports:
+      - ${RABBITMQ_PORT:-5672}:5672
+      - ${RABBITMQ_MGT_PORT:-15672}:15672
+      - ${RABBITMQ_MQTT_PORT:-1883}:1883
+      - ${RABBITMQ_WS_PORT:-15675}:15675
+    networks:
+      - rabbitmq
+    restart: always
+
+  # region Services

@@ -1,7 +1,7 @@
 {
-  "name": "conduit",
+  "name": "auth",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/conduit/src",
+  "sourceRoot": "apps/auth/src",
   "projectType": "application",
   "tags": [],
   "targets": {
@@ -10,14 +10,14 @@
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "conduit:build"
+        "buildTarget": "auth:build"
       },
       "configurations": {
         "development": {
-          "buildTarget": "conduit:build:development"
+          "buildTarget": "auth:build:development"
         },
         "production": {
-          "buildTarget": "conduit:build:production"
+          "buildTarget": "auth:build:production"
         }
       }
     }

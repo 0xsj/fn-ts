@@ -12,7 +12,10 @@
       "!{projectRoot}/src/test-setup.[jt]s",
       "!{projectRoot}/test-setup.[jt]s"
     ],
-    "sharedGlobals": ["{workspaceRoot}/.github/workflows/ci.yml"]
+    "sharedGlobals": [
+      "{workspaceRoot}/.github/workflows/ci.yml",
+      "{workspaceRoot}/go.work"
+    ]
   },
   "plugins": [
     {
@@ -34,7 +37,8 @@
       "options": {
         "targetName": "test"
       }
-    }
+    },
+    "@nx-go/nx-go"
   ],
   "nxCloudAccessToken": "YjlmNDMzZTgtMzZiMC00MTExLWIyNWUtNWQ2ODdjNzM1NTdifHJlYWQtd3JpdGU="
 }

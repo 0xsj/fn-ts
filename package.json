@@ -15,6 +15,7 @@
   "devDependencies": {
     "@nestjs/schematics": "^10.0.1",
     "@nestjs/testing": "^10.0.2",
+    "@nx-go/nx-go": "^3.2.0",
     "@nx/eslint": "19.5.1",
     "@nx/eslint-plugin": "19.5.1",
     "@nx/jest": "19.5.1",
