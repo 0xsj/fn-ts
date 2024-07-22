@@ -11,7 +11,7 @@ networks:
 volumes:
   mongo_volume:
   rabbitmq_volume:
-  redis_volume: # corrected typo
+  redis_volume:
 
 services:
   # region Store
@@ -70,3 +70,6 @@ services:
     restart: always
 
   # region Services
+  auth-service:
+    image:
+  conduit-gateway:

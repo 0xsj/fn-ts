@@ -5,7 +5,4 @@ FROM sjtommylee/conduit:nx-base AS deps
 RUN yarn add ts-node
 RUN yarn add tslib
 
-
-
-
 CMD ["node", "./dist/apps/auth/main.js"]

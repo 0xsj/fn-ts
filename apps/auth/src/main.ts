@@ -3,18 +3,25 @@
  * This is only a minimal backend to get started.
  */
 
-import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from '@nestjs/platform-fastify';
 import { AppModule } from './app/app.module';
+import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule);
+  const logger = new Logger();
+  // const logger = app.get(Logger);
+  app.useLogger(logger);
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
-  const port = process.env.PORT || 3000;
+
+  const port = process.env.AUTH_SERVICE_PORT || 3000;
   await app.listen(port);
-  Logger.log(
+  logger.log(
     `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`
   );
 }

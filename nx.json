@@ -1,7 +1,10 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
-    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "default": [
+      "{projectRoot}/**/*",
+      "sharedGlobals"
+    ],
     "production": [
       "default",
       "!{projectRoot}/.eslintrc.json",
@@ -38,7 +41,16 @@
         "targetName": "test"
       }
     },
-    "@nx-go/nx-go"
+    "@nx-go/nx-go",
+    {
+      "plugin": "@nx/next/plugin",
+      "options": {
+        "startTargetName": "start",
+        "buildTargetName": "build",
+        "devTargetName": "dev",
+        "serveStaticTargetName": "serve-static"
+      }
+    }
   ],
   "nxCloudAccessToken": "YjlmNDMzZTgtMzZiMC00MTExLWIyNWUtNWQ2ODdjNzM1NTdifHJlYWQtd3JpdGU="
 }

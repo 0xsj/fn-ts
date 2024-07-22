@@ -14,7 +14,12 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
-    "paths": {}
+    "paths": {
+      "@hrms/microservices": ["libs/microservices/src/index.ts"],
+      "@hrms/mongo": ["libs/microservices/mongo/src/index.ts"],
+      "@hrms/redis": ["libs/microservices/redis/src/index.ts"],
+      "@hrms/shared": ["libs/shared/src/index.ts"]
+    }
   },
   "exclude": ["node_modules", "tmp"]
 }
