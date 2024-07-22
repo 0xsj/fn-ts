@@ -4,6 +4,8 @@ networks:
     driver: bridge
   apps:
     driver: bridge
+  pulsar:
+    driver: bridge
   rabbitmq:
     driver: bridge
 
@@ -14,25 +16,114 @@ volumes:
   redis_volume:
 
 services:
-  # region Store
-  mongo-primary:
-    image: mongo:latest
-    container_name: conduit-mongo-primary
-    hostname: conduit-mongo-primary
-    volumes:
-      - mongo_volume:/data/db
+  # region Pulsar Components
+  zookeeper:
+    image: apachepulsar/pulsar:latest
+    container_name: zookeeper
+    restart: on-failure
     networks:
-      - mongo
-    ports:
-      - ${MONGO_PORT:-27017}:27017
-    command: mongod --replSet rs0
+      - pulsar
+    volumes:
+      - ./data/zookeeper:/pulsar/data/zookeeper
+    environment:
+      - metadataStoreUrl=zk:zookeeper:2181
+      - PULSAR_MEM=-Xms256m -Xmx256m -XX:MaxDirectMemorySize=256m
+    command: >
+      bash -c "bin/apply-config-from-env.py conf/zookeeper.conf && \
+               bin/generate-zookeeper-config.sh conf/zookeeper.conf && \
+               exec bin/pulsar zookeeper"
     healthcheck:
-      test: |
-        mongosh --eval "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }).ok }"
-      start_period: 0s
-      interval: 500ms
+      test: ['CMD', 'bin/pulsar-zookeeper-ruok.sh']
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 30
+
+  pulsar-init:
+    container_name: pulsar-init
+    hostname: pulsar-init
+    image: apachepulsar/pulsar:latest
+    networks:
+      - pulsar
+    command: >
+      bin/pulsar initialize-cluster-metadata \
+               --cluster cluster-a \
+               --zookeeper zookeeper:2181 \
+               --configuration-store zookeeper:2181 \
+               --web-service-url http://broker:8080 \
+               --broker-service-url pulsar://broker:6650
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+
+  bookie:
+    image: apachepulsar/pulsar:latest
+    container_name: bookie
+    restart: on-failure
+    networks:
+      - pulsar
+    environment:
+      - clusterName=cluster-a
+      - zkServers=zookeeper:2181
+      - metadataServiceUri=metadata-store:zk:zookeeper:2181
+      - advertisedAddress=bookie
+      - BOOKIE_MEM=-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+      pulsar-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./data/bookkeeper:/pulsar/data/bookkeeper
+    command: >
+      bash -c "bin/apply-config-from-env.py conf/bookkeeper.conf && exec bin/pulsar bookie"
+
+  broker:
+    image: apachepulsar/pulsar:latest
+    container_name: broker
+    hostname: broker
+    restart: on-failure
+    networks:
+      - pulsar
+    environment:
+      - metadataStoreUrl=zk:zookeeper:2181
+      - zookeeperServers=zookeeper:2181
+      - clusterName=cluster-a
+      - managedLedgerDefaultEnsembleSize=1
+      - managedLedgerDefaultWriteQuorum=1
+      - managedLedgerDefaultAckQuorum=1
+      - advertisedAddress=broker
+      - advertisedListeners=external:pulsar://127.0.0.1:6650
+      - PULSAR_MEM=-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+      bookie:
+        condition: service_started
+    ports:
+      - '6650:6650'
+      - '8080:8080'
+    command: >
+      bash -c "bin/apply-config-from-env.py conf/broker.conf && exec bin/pulsar broker"
+
+  # region Data Stores
+  # mongo-primary:
+  #   image: mongo:latest
+  #   container_name: conduit-mongo-primary
+  #   hostname: conduit-mongo-primary
+  #   volumes:
+  #     - mongo_volume:/data/db
+  #   networks:
+  #     - mongo
+  #   ports:
+  #     - ${MONGO_PORT:-27017}:27017
+  #   command: mongod --replSet rs0
+  #   healthcheck:
+  #     test: |
+  #       mongosh --eval "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }).ok }"
+  #     start_period: 0s
+  #     interval: 500ms
+  #     timeout: 5s
+  #     retries: 5
 
   redis:
     image: redis:latest
@@ -48,28 +139,25 @@ services:
     memswap_limit: 512m
     restart: always
 
-  rabbitmq:
-    image: rabbitmq:latest
-    container_name: conduit-rabbitmq
-    hostname: conduit-rabbitmq
-    volumes:
-      - rabbitmq_volume:/var/lib/rabbitmq # added volume for persistence
-    healthcheck:
-      test: ['CMD', 'rabbitmq-diagnostics', 'status']
-      interval: 10s
-      timeout: 15s
-      start_period: 30s
-      retries: 3
-    ports:
-      - ${RABBITMQ_PORT:-5672}:5672
-      - ${RABBITMQ_MGT_PORT:-15672}:15672
-      - ${RABBITMQ_MQTT_PORT:-1883}:1883
-      - ${RABBITMQ_WS_PORT:-15675}:15675
-    networks:
-      - rabbitmq
-    restart: always
+  # region Client Services
+  # auth-service:
+  #   build:
+  #     context: .
+  #     dockerfile: ./apps/auth/Dockerfile
+  #   image: sjtommylee/conduit-auth:latest
+  #   container_name: conduit-auth
+  #   networks:
+  #     - apps
+  #   ports:
+  #     - ${AUTH_SERVICE_PORT:-3010}:3010
 
-  # region Services
-  auth-service:
-    image:
-  conduit-gateway:
+  # conduit-gateway:
+  #   build:
+  #     context: .
+  #     dockerfile: ./apps/conduit/Dockerfile
+  #   image: sjtommylee/conduit-gateway:latest
+  #   container_name: conduit-gateway
+  #   networks:
+  #     - apps
+  #   ports:
+  #     - ${GATEWAY_PORT:-3333}:3333

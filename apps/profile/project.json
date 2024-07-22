@@ -1,0 +1,24 @@
+{
+  "name": "profile",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/profile/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "serve": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "profile:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "profile:build:development"
+        },
+        "production": {
+          "buildTarget": "profile:build:production"
+        }
+      }
+    }
+  }
+}
