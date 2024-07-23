@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AuthService } from './auth.service';
+import { AuthResolver } from './auth.resolver';
 
 @Module({
+  controllers: [],
   imports: [
     ClientsModule.register([
       {
@@ -20,6 +22,6 @@ import { AuthService } from './auth.service';
       },
     ]),
   ],
-  providers: [AuthService],
+  providers: [AuthService, AuthResolver],
 })
 export class AuthModule {}

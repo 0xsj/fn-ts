@@ -17,6 +17,7 @@ networks:
 volumes:
   # mongo-volume:
   # rabbitmq-volume:
+  cassandra-volume:
   redis-volume:
   kafka-volume:
   zookeeper-data:
@@ -115,7 +116,7 @@ services:
       - CASSANDRA_USER=admin
       - CASSANDRA_PASSWORD=admin
     volumes:
-      - cassandra:/var/lib/cassandra
+      - cassandra-volume:/var/lib/cassandra
 
   # region Client Services
   # auth-service:
