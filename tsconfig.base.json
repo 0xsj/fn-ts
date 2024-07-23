@@ -15,13 +15,14 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@hrms/env": ["libs/microservices/env/src/index.ts"],
-      "@hrms/kafka": ["libs/microservices/kafka/src/index.ts"],
-      "@hrms/microservices": ["libs/microservices/src/index.ts"],
-      "@hrms/mongo": ["libs/microservices/mongo/src/index.ts"],
-      "@hrms/pulsar": ["libs/microservices/pulsar/src/index.ts"],
-      "@hrms/redis": ["libs/microservices/redis/src/index.ts"],
-      "@hrms/shared": ["libs/shared/src/index.ts"]
+      "@fromis/env": ["libs/microservices/env/src/index.ts"],
+      "@fromis/microservices": ["libs/microservices/src/index.ts"],
+      "@fromis/mongo": ["libs/microservices/mongo/src/index.ts"],
+      "@fromis/pulsar": ["libs/microservices/pulsar/src/index.ts"],
+      "@fromis/redis": ["libs/microservices/redis/src/index.ts"],
+      "@fromis/shared": ["libs/shared/src/index.ts"],
+      "@fromis/cassandra": ["libs/microservices/cassandra/src/index.ts"],
+      "@fromis/repositories": ["libs/repositories/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

@@ -1,136 +1,103 @@
 # region Networks
 networks:
-  mongo:
-    driver: bridge
+  # mongo:
+  #   driver: bridge
   apps:
     driver: bridge
-  pulsar:
+  # pulsar:
+  #   driver: bridge
+  # rabbitmq:
+  #   driver: bridge
+  cassandra:
     driver: bridge
-  rabbitmq:
+  kafka:
     driver: bridge
 
 # region Volumes
 volumes:
-  mongo_volume:
-  rabbitmq_volume:
-  redis_volume:
+  # mongo-volume:
+  # rabbitmq-volume:
+  redis-volume:
+  kafka-volume:
+  zookeeper-data:
 
 services:
-  # region Pulsar Components
   zookeeper:
-    image: apachepulsar/pulsar:latest
+    image: bitnami/zookeeper:latest
     container_name: zookeeper
-    restart: on-failure
-    networks:
-      - pulsar
-    volumes:
-      - ./data/zookeeper:/pulsar/data/zookeeper
-    environment:
-      - metadataStoreUrl=zk:zookeeper:2181
-      - PULSAR_MEM=-Xms256m -Xmx256m -XX:MaxDirectMemorySize=256m
-    command: >
-      bash -c "bin/apply-config-from-env.py conf/zookeeper.conf && \
-               bin/generate-zookeeper-config.sh conf/zookeeper.conf && \
-               exec bin/pulsar zookeeper"
-    healthcheck:
-      test: ['CMD', 'bin/pulsar-zookeeper-ruok.sh']
-      interval: 10s
-      timeout: 5s
-      retries: 30
-
-  pulsar-init:
-    container_name: pulsar-init
-    hostname: pulsar-init
-    image: apachepulsar/pulsar:latest
-    networks:
-      - pulsar
-    command: >
-      bin/pulsar initialize-cluster-metadata \
-               --cluster cluster-a \
-               --zookeeper zookeeper:2181 \
-               --configuration-store zookeeper:2181 \
-               --web-service-url http://broker:8080 \
-               --broker-service-url pulsar://broker:6650
-    depends_on:
-      zookeeper:
-        condition: service_healthy
-
-  bookie:
-    image: apachepulsar/pulsar:latest
-    container_name: bookie
-    restart: on-failure
-    networks:
-      - pulsar
-    environment:
-      - clusterName=cluster-a
-      - zkServers=zookeeper:2181
-      - metadataServiceUri=metadata-store:zk:zookeeper:2181
-      - advertisedAddress=bookie
-      - BOOKIE_MEM=-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m
-    depends_on:
-      zookeeper:
-        condition: service_healthy
-      pulsar-init:
-        condition: service_completed_successfully
-    volumes:
-      - ./data/bookkeeper:/pulsar/data/bookkeeper
-    command: >
-      bash -c "bin/apply-config-from-env.py conf/bookkeeper.conf && exec bin/pulsar bookie"
-
-  broker:
-    image: apachepulsar/pulsar:latest
-    container_name: broker
-    hostname: broker
-    restart: on-failure
-    networks:
-      - pulsar
-    environment:
-      - metadataStoreUrl=zk:zookeeper:2181
-      - zookeeperServers=zookeeper:2181
-      - clusterName=cluster-a
-      - managedLedgerDefaultEnsembleSize=1
-      - managedLedgerDefaultWriteQuorum=1
-      - managedLedgerDefaultAckQuorum=1
-      - advertisedAddress=broker
-      - advertisedListeners=external:pulsar://127.0.0.1:6650
-      - PULSAR_MEM=-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m
-    depends_on:
-      zookeeper:
-        condition: service_healthy
-      bookie:
-        condition: service_started
     ports:
-      - '6650:6650'
-      - '8080:8080'
-    command: >
-      bash -c "bin/apply-config-from-env.py conf/broker.conf && exec bin/pulsar broker"
+      - '2181:2181'
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: 'yes'
+      # ZOO_ENABLE_AUTH: 'yes'
+      ZOO_SERVER_USERS: ${KAFKA_DEFAULT_USERS:-}
+      ZOO_SERVER_PASSWORDS: ${KAFKA_DEFAULT_PASSWORDS:-}
+      ZOO_CLIENT_USER: ${KAFKA_DEFAULT_USERS:-}
+      ZOO_CLIENT_PASSWORD: ${KAFKA_DEFAULT_PASSWORDS:-}
+    volumes:
+      - zookeeper-data:/bitnami/zookeeper
+    restart: 'no'
+    networks:
+      - kafka
 
-  # region Data Stores
-  # mongo-primary:
-  #   image: mongo:latest
-  #   container_name: conduit-mongo-primary
-  #   hostname: conduit-mongo-primary
-  #   volumes:
-  #     - mongo_volume:/data/db
-  #   networks:
-  #     - mongo
-  #   ports:
-  #     - ${MONGO_PORT:-27017}:27017
-  #   command: mongod --replSet rs0
-  #   healthcheck:
-  #     test: |
-  #       mongosh --eval "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }).ok }"
-  #     start_period: 0s
-  #     interval: 500ms
-  #     timeout: 5s
-  #     retries: 5
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka
+    networks:
+      - kafka
+    ports:
+      - 9092:9092
+      - 9093:9093
+    environment:
+      ALLOW_PLAINTEXT_LISTENER: 'yes'
+      KAFKA_BROKER_ID: 1
+      KAFKA_ENABLE_KRAFT: 'no'
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CFG_LISTENERS: INTERNAL://:9092,CLIENT://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,CLIENT://localhost:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: CLIENT
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SASL_PLAINTEXT,CLIENT:SASL_PLAINTEXT
+      KAFKA_CFG_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      KAFKA_CLIENT_USERS: ${KAFKA_DEFAULT_USERS:-}
+      KAFKA_CLIENT_PASSWORDS: ${KAFKA_DEFAULT_PASSWORDS:-}
+      KAFKA_INTER_BROKER_USER: ${KAFKA_DEFAULT_USERS:-}
+      KAFKA_INTER_BROKER_PASSWORD: ${KAFKA_DEFAULT_PASSWORDS:-}
+      KAFKA_ZOOKEEPER_PROTOCOL: SASL
+      KAFKA_ZOOKEEPER_USER: ${KAFKA_DEFAULT_USERS:-}
+      KAFKA_ZOOKEEPER_PASSWORD: ${KAFKA_DEFAULT_PASSWORDS:-}
+    volumes:
+      - kafka-volume:/bitnami/kafka
+    restart: 'no'
 
+  kafka-ui:
+    image: provectuslabs/kafka-ui:${KAFKA_UI_VERSION}
+    container_name: kafkaui
+    ports:
+      - 8080:8080
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: PLAIN
+      KAFKA_CLUSTERS_0_PROPERTIES_CLIENT_DNS_LOOKUP: use_all_dns_ips
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required username='${KAFKA_DEFAULT_USERS:-}' password='${KAFKA_DEFAULT_PASSWORDS:-}';"
+      KAFKA_CLUSTERS_0_DISABLELOGDIRSCOLLECTION: 'true'
+    networks:
+      - kafka
+    depends_on:
+      - zookeeper
+      - kafka
+    restart: 'no'
+
+  # region Store
   redis:
     image: redis:latest
     container_name: conduit-redis
     hostname: conduit-redis
     volumes:
-      - redis_volume:/data
+      - redis-volume:/data
     networks:
       - apps
     ports:
@@ -138,6 +105,17 @@ services:
     mem_limit: 256m
     memswap_limit: 512m
     restart: always
+
+  cassandra:
+    image: cassandra:latest
+    container_name: cassandra
+    ports:
+      - '9042:9042'
+    environment:
+      - CASSANDRA_USER=admin
+      - CASSANDRA_PASSWORD=admin
+    volumes:
+      - cassandra:/var/lib/cassandra
 
   # region Client Services
   # auth-service:

@@ -1,5 +1,5 @@
 {
-  "name": "@hrms/source",
+  "name": "@fromis/source",
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
@@ -52,6 +52,8 @@
     "fastify": "^4.28.1",
     "fp-ts": "^2.16.8",
     "graphql": "^16.9.0",
+    "grpc-tools": "^1.12.4",
+    "grpc_tools_node_protoc_ts": "^5.3.3",
     "io-ts": "^2.2.21",
     "ioredis": "^5.4.1",
     "kafkajs": "^2.2.4",

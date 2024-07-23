@@ -24,6 +24,13 @@
           "buildTarget": "conduit:build:production"
         }
       }
+    },
+    "compile-protobufs": {
+      "executor": "../../tools/executors/compile-proto:compile",
+      "options": {
+        "protoSrc": "protos",
+        "output": "libs/types"
+      }
     }
   }
 }

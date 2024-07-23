@@ -4,7 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { LoggerModule } from 'nestjs-pino';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { PulsarModule } from '@hrms/pulsar';
+import { PulsarModule } from '@fromis/pulsar';
 
 @Module({
   imports: [
