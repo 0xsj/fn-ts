@@ -5,7 +5,7 @@
   "scripts": {
     "init": "",
     "serve:frontend": "",
-    "serve:backend": "nx run-many --target=serve --projects=auth,conduit",
+    "serve:backend": "nx run-many --target=serve --projects=auth,conduit,notification,profile",
     "build:docker:base": "docker build . -t sjtommylee/conduit:nx-base",
     "build:docker": "",
     "docker:push:base": "docker push sjtommylee/conduit:nx-base",
@@ -54,6 +54,7 @@
     "graphql": "^16.9.0",
     "io-ts": "^2.2.21",
     "ioredis": "^5.4.1",
+    "kafkajs": "^2.2.4",
     "mercurius": "^14.1.0",
     "mongoos": "^0.0.1-security",
     "mongoose": "^8.5.1",
