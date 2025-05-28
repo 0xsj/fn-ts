@@ -1,9 +1,0 @@
-{
-  "name": "pulsar",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/microservices/pulsar/src",
-  "projectType": "library",
-  "tags": [],
-  "// targets": "to see all targets run: nx show project pulsar --web",
-  "targets": {}
-}
