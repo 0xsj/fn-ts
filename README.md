@@ -97,3 +97,490 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+## project plan
+
+```
+src/
+├── common/
+│   ├── constants/
+│   │   ├── error-codes.constant.ts
+│   │   ├── roles.constant.ts
+│   │   ├── permissions.constant.ts
+│   │   ├── cache-keys.constant.ts
+│   │   ├── queue-names.constant.ts
+│   │   └── socket-events.constant.ts
+│   ├── decorators/
+│   │   ├── api-response.decorator.ts
+│   │   ├── auth.decorator.ts
+│   │   ├── permissions.decorator.ts
+│   │   ├── roles.decorator.ts
+│   │   ├── user.decorator.ts
+│   │   ├── validation.decorator.ts
+│   │   ├── cache.decorator.ts
+│   │   └── socket-auth.decorator.ts
+│   ├── dto/
+│   │   ├── base-query.dto.ts
+│   │   ├── pagination.dto.ts
+│   │   ├── base-response.dto.ts
+│   │   └── socket-response.dto.ts
+│   ├── enums/
+│   │   ├── user-status.enum.ts
+│   │   ├── notification-type.enum.ts
+│   │   ├── permission.enum.ts
+│   │   ├── audit-action.enum.ts
+│   │   ├── task-status.enum.ts
+│   │   ├── socket-event.enum.ts
+│   │   └── process-type.enum.ts
+│   ├── errors/
+│   │   ├── base.error.ts
+│   │   ├── business.error.ts
+│   │   ├── validation.error.ts
+│   │   ├── not-found.error.ts
+│   │   ├── unauthorized.error.ts
+│   │   ├── forbidden.error.ts
+│   │   ├── conflict.error.ts
+│   │   ├── rate-limit.error.ts
+│   │   └── external-service.error.ts
+│   ├── filters/
+│   │   ├── result-response.filter.ts
+│   │   ├── global-error.filter.ts
+│   │   └── socket-error.filter.ts
+│   ├── guards/
+│   │   ├── jwt-auth.guard.ts
+│   │   ├── roles.guard.ts
+│   │   ├── permissions.guard.ts
+│   │   ├── rate-limit.guard.ts
+│   │   └── socket-auth.guard.ts
+│   ├── interceptors/
+│   │   ├── logging.interceptor.ts
+│   │   ├── result-transform.interceptor.ts
+│   │   ├── audit.interceptor.ts
+│   │   ├── cache.interceptor.ts
+│   │   └── correlation-id.interceptor.ts
+│   ├── interfaces/
+│   │   ├── base-entity.interface.ts
+│   │   ├── paginated-response.interface.ts
+│   │   ├── jwt-payload.interface.ts
+│   │   ├── audit-log.interface.ts
+│   │   ├── notification-payload.interface.ts
+│   │   ├── task-payload.interface.ts
+│   │   ├── socket-client.interface.ts
+│   │   └── process-message.interface.ts
+│   ├── middleware/
+│   │   ├── correlation-id.middleware.ts
+│   │   ├── security-headers.middleware.ts
+│   │   ├── request-logging.middleware.ts
+│   │   └── rate-limit.middleware.ts
+│   ├── pipes/
+│   │   ├── validation.pipe.ts
+│   │   ├── parse-uuid.pipe.ts
+│   │   ├── sanitization.pipe.ts
+│   │   └── result-validation.pipe.ts
+│   ├── types/
+│   │   ├── express.d.ts
+│   │   ├── jwt.types.ts
+│   │   ├── result.types.ts
+│   │   ├── error.types.ts
+│   │   ├── socket.types.ts
+│   │   ├── task.types.ts
+│   │   └── common.types.ts
+│   └── utils/
+│       ├── result.util.ts
+│       ├── crypto.util.ts
+│       ├── date.util.ts
+│       ├── string.util.ts
+│       ├── validation.util.ts
+│       ├── retry.util.ts
+│       └── process.util.ts
+├── config/
+│   ├── app.config.ts
+│   ├── database.config.ts
+│   ├── auth.config.ts
+│   ├── cache.config.ts
+│   ├── redis.config.ts
+│   ├── queue.config.ts
+│   ├── email.config.ts
+│   ├── storage.config.ts
+│   ├── socket.config.ts
+│   ├── worker.config.ts
+│   └── index.ts
+├── database/
+│   ├── migrations/
+│   ├── seeders/
+│   │   ├── user.seeder.ts
+│   │   ├── role.seeder.ts
+│   │   ├── permission.seeder.ts
+│   │   └── organization.seeder.ts
+│   ├── entities/
+│   │   ├── base.entity.ts
+│   │   ├── user.entity.ts
+│   │   ├── role.entity.ts
+│   │   ├── permission.entity.ts
+│   │   ├── organization.entity.ts
+│   │   ├── audit-log.entity.ts
+│   │   ├── setting.entity.ts
+│   │   ├── task.entity.ts
+│   │   ├── notification.entity.ts
+│   │   └── file.entity.ts
+│   └── repositories/
+│       ├── base.repository.ts
+│       ├── user.repository.ts
+│       ├── task.repository.ts
+│       └── audit.repository.ts
+├── modules/
+│   ├── auth/
+│   │   ├── dto/
+│   │   │   ├── login.dto.ts
+│   │   │   ├── register.dto.ts
+│   │   │   ├── refresh-token.dto.ts
+│   │   │   ├── reset-password.dto.ts
+│   │   │   ├── change-password.dto.ts
+│   │   │   └── mfa.dto.ts
+│   │   ├── guards/
+│   │   │   ├── local-auth.guard.ts
+│   │   │   ├── jwt-auth.guard.ts
+│   │   │   └── mfa.guard.ts
+│   │   ├── strategies/
+│   │   │   ├── local.strategy.ts
+│   │   │   ├── jwt.strategy.ts
+│   │   │   └── jwt-refresh.strategy.ts
+│   │   ├── interfaces/
+│   │   │   ├── auth-response.interface.ts
+│   │   │   └── jwt-payload.interface.ts
+│   │   ├── errors/
+│   │   │   ├── invalid-credentials.error.ts
+│   │   │   ├── account-locked.error.ts
+│   │   │   └── token-expired.error.ts
+│   │   ├── auth.controller.ts
+│   │   ├── auth.service.ts
+│   │   └── auth.module.ts
+│   ├── user/
+│   │   ├── dto/
+│   │   │   ├── create-user.dto.ts
+│   │   │   ├── update-user.dto.ts
+│   │   │   ├── user-query.dto.ts
+│   │   │   └── user-response.dto.ts
+│   │   ├── entities/
+│   │   │   └── user.entity.ts
+│   │   ├── errors/
+│   │   │   ├── user-not-found.error.ts
+│   │   │   ├── user-already-exists.error.ts
+│   │   │   └── user-inactive.error.ts
+│   │   ├── user.controller.ts
+│   │   ├── user.service.ts
+│   │   └── user.module.ts
+│   ├── roles/
+│   │   ├── dto/
+│   │   │   ├── create-role.dto.ts
+│   │   │   ├── update-role.dto.ts
+│   │   │   └── assign-role.dto.ts
+│   │   ├── entities/
+│   │   │   └── role.entity.ts
+│   │   ├── errors/
+│   │   │   ├── role-not-found.error.ts
+│   │   │   └── role-already-exists.error.ts
+│   │   ├── roles.controller.ts
+│   │   ├── roles.service.ts
+│   │   └── roles.module.ts
+│   ├── permissions/
+│   │   ├── dto/
+│   │   │   ├── create-permission.dto.ts
+│   │   │   └── assign-permission.dto.ts
+│   │   ├── entities/
+│   │   │   └── permission.entity.ts
+│   │   ├── errors/
+│   │   │   └── permission-denied.error.ts
+│   │   ├── permissions.controller.ts
+│   │   ├── permissions.service.ts
+│   │   └── permissions.module.ts
+│   ├── organizations/
+│   │   ├── dto/
+│   │   │   ├── create-organization.dto.ts
+│   │   │   ├── update-organization.dto.ts
+│   │   │   └── organization-query.dto.ts
+│   │   ├── entities/
+│   │   │   └── organization.entity.ts
+│   │   ├── errors/
+│   │   │   ├── organization-not-found.error.ts
+│   │   │   └── organization-limit-exceeded.error.ts
+│   │   ├── organizations.controller.ts
+│   │   ├── organizations.service.ts
+│   │   └── organizations.module.ts
+│   ├── audit/
+│   │   ├── dto/
+│   │   │   ├── audit-query.dto.ts
+│   │   │   └── audit-response.dto.ts
+│   │   ├── entities/
+│   │   │   └── audit-log.entity.ts
+│   │   ├── audit.controller.ts
+│   │   ├── audit.service.ts
+│   │   └── audit.module.ts
+│   ├── notifications/
+│   │   ├── dto/
+│   │   │   ├── send-notification.dto.ts
+│   │   │   ├── notification-query.dto.ts
+│   │   │   └── notification-response.dto.ts
+│   │   ├── providers/
+│   │   │   ├── email.provider.ts
+│   │   │   ├── sms.provider.ts
+│   │   │   ├── push.provider.ts
+│   │   │   └── websocket.provider.ts
+│   │   ├── templates/
+│   │   │   ├── welcome.template.ts
+│   │   │   ├── password-reset.template.ts
+│   │   │   └── notification.template.ts
+│   │   ├── entities/
+│   │   │   └── notification.entity.ts
+│   │   ├── errors/
+│   │   │   ├── notification-failed.error.ts
+│   │   │   └── template-not-found.error.ts
+│   │   ├── notifications.controller.ts
+│   │   ├── notifications.service.ts
+│   │   └── notifications.module.ts
+│   ├── files/
+│   │   ├── dto/
+│   │   │   ├── upload-file.dto.ts
+│   │   │   ├── file-query.dto.ts
+│   │   │   └── file-response.dto.ts
+│   │   ├── entities/
+│   │   │   └── file.entity.ts
+│   │   ├── interceptors/
+│   │   │   └── file-upload.interceptor.ts
+│   │   ├── errors/
+│   │   │   ├── file-too-large.error.ts
+│   │   │   ├── invalid-file-type.error.ts
+│   │   │   └── file-not-found.error.ts
+│   │   ├── files.controller.ts
+│   │   ├── files.service.ts
+│   │   └── files.module.ts
+│   ├── settings/
+│   │   ├── dto/
+│   │   │   ├── create-setting.dto.ts
+│   │   │   ├── update-setting.dto.ts
+│   │   │   └── setting-query.dto.ts
+│   │   ├── entities/
+│   │   │   └── setting.entity.ts
+│   │   ├── errors/
+│   │   │   └── setting-not-found.error.ts
+│   │   ├── settings.controller.ts
+│   │   ├── settings.service.ts
+│   │   └── settings.module.ts
+│   ├── tasks/
+│   │   ├── dto/
+│   │   │   ├── create-task.dto.ts
+│   │   │   ├── task-query.dto.ts
+│   │   │   └── task-response.dto.ts
+│   │   ├── entities/
+│   │   │   └── task.entity.ts
+│   │   ├── processors/
+│   │   │   ├── email-task.processor.ts
+│   │   │   ├── data-export.processor.ts
+│   │   │   ├── cleanup.processor.ts
+│   │   │   └── report-generation.processor.ts
+│   │   ├── workers/
+│   │   │   ├── cpu-intensive.worker.ts
+│   │   │   ├── file-processing.worker.ts
+│   │   │   └── data-migration.worker.ts
+│   │   ├── errors/
+│   │   │   ├── task-failed.error.ts
+│   │   │   └── worker-timeout.error.ts
+│   │   ├── tasks.controller.ts
+│   │   ├── tasks.service.ts
+│   │   └── tasks.module.ts
+│   ├── websocket/
+│   │   ├── dto/
+│   │   │   ├── socket-message.dto.ts
+│   │   │   └── room-join.dto.ts
+│   │   ├── guards/
+│   │   │   └── ws-auth.guard.ts
+│   │   ├── gateways/
+│   │   │   ├── chat.gateway.ts
+│   │   │   ├── notifications.gateway.ts
+│   │   │   └── real-time.gateway.ts
+│   │   ├── middleware/
+│   │   │   └── ws-auth.middleware.ts
+│   │   ├── websocket.service.ts
+│   │   └── websocket.module.ts
+│   ├── monitoring/
+│   │   ├── dto/
+│   │   │   ├── health-check.dto.ts
+│   │   │   └── metrics.dto.ts
+│   │   ├── health/
+│   │   │   ├── database.health.ts
+│   │   │   ├── redis.health.ts
+│   │   │   ├── queue.health.ts
+│   │   │   └── external-service.health.ts
+│   │   ├── metrics/
+│   │   │   ├── api.metrics.ts
+│   │   │   ├── system.metrics.ts
+│   │   │   ├── business.metrics.ts
+│   │   │   └── custom.metrics.ts
+│   │   ├── monitoring.controller.ts
+│   │   ├── monitoring.service.ts
+│   │   └── monitoring.module.ts
+│   └── templates/
+│       ├── dto/
+│       │   ├── create-template.dto.ts
+│       │   ├── render-template.dto.ts
+│       │   └── template-query.dto.ts
+│       ├── entities/
+│       │   └── template.entity.ts
+│       ├── engines/
+│       │   ├── handlebars.engine.ts
+│       │   ├── mustache.engine.ts
+│       │   └── liquid.engine.ts
+│       ├── errors/
+│       │   ├── template-not-found.error.ts
+│       │   └── template-render.error.ts
+│       ├── templates.controller.ts
+│       ├── templates.service.ts
+│       └── templates.module.ts
+├── shared/
+│   ├── logging/
+│   │   ├── logging.service.ts
+│   │   ├── logging.module.ts
+│   │   ├── winston.config.ts
+│   │   └── correlation.logger.ts
+│   ├── cache/
+│   │   ├── cache.service.ts
+│   │   ├── cache.module.ts
+│   │   ├── redis.service.ts
+│   │   ├── providers/
+│   │   │   ├── redis.provider.ts
+│   │   │   ├── memory.provider.ts
+│   │   │   └── distributed.provider.ts
+│   │   └── decorators/
+│   │       ├── cacheable.decorator.ts
+│   │       └── cache-evict.decorator.ts
+│   ├── queue/
+│   │   ├── queue.service.ts
+│   │   ├── queue.module.ts
+│   │   ├── bull.config.ts
+│   │   ├── processors/
+│   │   │   ├── email.processor.ts
+│   │   │   ├── notification.processor.ts
+│   │   │   ├── audit.processor.ts
+│   │   │   ├── file-processing.processor.ts
+│   │   │   └── data-sync.processor.ts
+│   │   ├── jobs/
+│   │   │   ├── email.job.ts
+│   │   │   ├── cleanup.job.ts
+│   │   │   ├── backup.job.ts
+│   │   │   └── report.job.ts
+│   │   └── workers/
+│   │       ├── cpu-worker.ts
+│   │       ├── io-worker.ts
+│   │       └── background-worker.ts
+│   ├── storage/
+│   │   ├── storage.service.ts
+│   │   ├── storage.module.ts
+│   │   └── providers/
+│   │       ├── local.provider.ts
+│   │       ├── s3.provider.ts
+│   │       ├── gcs.provider.ts
+│   │       └── azure.provider.ts
+│   ├── email/
+│   │   ├── email.service.ts
+│   │   ├── email.module.ts
+│   │   └── providers/
+│   │       ├── smtp.provider.ts
+│   │       ├── sendgrid.provider.ts
+│   │       ├── ses.provider.ts
+│   │       └── mailgun.provider.ts
+│   ├── scheduler/
+│   │   ├── scheduler.service.ts
+│   │   ├── scheduler.module.ts
+│   │   └── tasks/
+│   │       ├── cleanup.task.ts
+│   │       ├── backup.task.ts
+│   │       ├── health-check.task.ts
+│   │       └── maintenance.task.ts
+│   ├── events/
+│   │   ├── event-emitter.service.ts
+│   │   ├── event-emitter.module.ts
+│   │   ├── handlers/
+│   │   │   ├── user-created.handler.ts
+│   │   │   ├── password-reset.handler.ts
+│   │   │   └── audit-log.handler.ts
+│   │   └── events/
+│   │       ├── user.events.ts
+│   │       ├── auth.events.ts
+│   │       └── system.events.ts
+│   ├── external/
+│   │   ├── http.service.ts
+│   │   ├── http.module.ts
+│   │   └── clients/
+│   │       ├── payment.client.ts
+│   │       ├── sms.client.ts
+│   │       └── analytics.client.ts
+│   └── process/
+│       ├── process-manager.service.ts
+│       ├── process-manager.module.ts
+│       ├── worker-pool.service.ts
+│       ├── cluster.service.ts
+│       └── ipc/
+│           ├── message-broker.ts
+│           └── worker-communication.ts
+├── workers/
+│   ├── main.worker.ts
+│   ├── cpu-intensive.worker.ts
+│   ├── file-processing.worker.ts
+│   ├── data-export.worker.ts
+│   └── email-batch.worker.ts
+├── app.controller.ts
+├── app.service.ts
+├── app.module.ts
+└── main.ts
+
+test/
+├── unit/
+│   ├── common/
+│   ├── modules/
+│   └── shared/
+├── integration/
+│   ├── auth/
+│   ├── user/
+│   └── tasks/
+├── e2e/
+│   ├── auth.e2e-spec.ts
+│   ├── user.e2e-spec.ts
+│   └── websocket.e2e-spec.ts
+├── fixtures/
+│   ├── users.fixture.ts
+│   ├── roles.fixture.ts
+│   └── organizations.fixture.ts
+└── helpers/
+    ├── test-database.helper.ts
+    ├── auth.helper.ts
+    └── result.helper.ts
+
+docs/
+├── api/
+│   ├── swagger.json
+│   └── postman/
+├── architecture/
+│   ├── result-types.md
+│   ├── error-handling.md
+│   ├── caching-strategy.md
+│   ├── queue-processing.md
+│   └── websocket-design.md
+└── deployment/
+    ├── docker/
+    ├── kubernetes/
+    └── monitoring/
+
+scripts/
+├── build.sh
+├── deploy.sh
+├── seed.sh
+├── worker.sh
+└── migrate.sh
+
+docker/
+├── Dockerfile
+├── docker-compose.yml
+├── docker-compose.prod.yml
+└── workers/
+    └── Dockerfile.worker
+```
