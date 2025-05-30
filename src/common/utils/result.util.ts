@@ -124,3 +124,51 @@ export function fold<T, E, U>(
 ): U {
   return match(result, onSuccess, onFailure);
 }
+
+/**
+ * Extract the success value or throw an error
+ * @param result The Result to unwrap
+ * @returns The success value
+ * @throws Error if Result is Failure
+ */
+
+export function unwrap<T, E>(result: Result<T, E>): T {
+  if (isSuccess(result)) {
+    return result.value;
+  }
+
+  throw new Error(`Called unwrap on failure: ${JSON.stringify(result.error)}`);
+}
+
+/**
+ * Extract the success value or return a default value
+ * @param result The Result to unwrap
+ * @param defaultValue Value to return if Result is Failure
+ * @returns The success value or default value
+ */
+
+export function unwrapOr<T, E>(result: Result<T, E>, defaultValue: T): T {
+  if (isSuccess(result)) {
+    return result.value;
+  }
+
+  return defaultValue;
+}
+
+/**
+ * Extract the success value or compute a default value from the error
+ * @param result The Result to unwrap
+ * @param defaultFn Function to compute default value from error
+ * @returns The success value or computed default value
+ */
+
+export function unwrapOrElse<T, E>(
+  result: Result<T, E>,
+  defaultFn: (error: E) => T,
+): T {
+  if (isSuccess(result)) {
+    return result.value;
+  }
+
+  return defaultFn(result.error);
+}
