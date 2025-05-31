@@ -1,4 +1,11 @@
 import {
+  IsDateString,
+  IsEntityId,
+  IsInt,
+  IsOptional,
+  Min,
+} from 'src/common/decorators/validation.decorator';
+import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
@@ -8,18 +15,21 @@ import {
 
 export abstract class BaseEntity {
   @PrimaryGeneratedColumn('uuid')
+  @IsEntityId()
   id!: string;
 
   @CreateDateColumn({
     type: 'timestamptz',
     name: 'created_at',
   })
+  @IsDateString()
   createdAt!: Date;
 
   @UpdateDateColumn({
     type: 'timestamptz',
     name: 'updated_at',
   })
+  @IsDateString()
   updatedAt!: Date;
 
   @DeleteDateColumn({
@@ -27,12 +37,16 @@ export abstract class BaseEntity {
     name: 'deleted_at',
     nullable: true,
   })
+  @IsOptional()
+  @IsDateString()
   deletedAt?: Date | null;
 
   @VersionColumn({
     name: 'version',
     default: 1,
   })
+  @IsInt()
+  @Min(1)
   version!: number;
 
   public isDeleted(): boolean {
