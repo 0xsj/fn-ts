@@ -1,61 +1,47 @@
-import {
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  DeleteDateColumn,
-  VersionColumn,
-} from 'typeorm';
+export interface IBaseEntity {
+  readonly id: string;
 
-export abstract class BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  readonly createdAt: Date;
 
-  @CreateDateColumn({
-    type: 'timestamptz',
-    name: 'created_at',
-  })
-  createdAt!: Date;
+  readonly updatedAt: Date;
 
-  @UpdateDateColumn({
-    type: 'timestamptz',
-    name: 'updated_at',
-  })
-  updatedAt!: Date;
+  readonly version: Date | null;
 
-  @DeleteDateColumn({
-    type: 'timestamptz',
-    name: 'deleted_at',
-    nullable: true,
-  })
-  deletedAt?: Date | null;
+  isDeleted(): boolean;
 
-  @VersionColumn({
-    name: 'version',
-    default: 1,
-  })
-  version!: number;
+  isRecentlyCreated(): boolean;
 
-  public isDeleted(): boolean {
-    return this.deletedAt !== null && this.deletedAt !== undefined;
-  }
+  isRecentlyUpdated(): boolean;
 
-  public isRecentlyCreated(): boolean {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    return this.createdAt > oneHourAgo;
-  }
-
-  public isRecentlyUpdated(): boolean {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    return this.updatedAt > oneHourAgo;
-  }
-
-  public toJSON(): Record<string, unknown> {
-    return {
-      id: this.id,
-      createdAt: this.createdAt.toISOString(),
-      updatedAt: this.updatedAt.toISOString(),
-      deletedAt: this.deletedAt?.toISOString() || null,
-      version: this.version,
-    };
-  }
+  toJSON(): Record<string, unknown>;
 }
+
+export type CreateEntityData<T extends IBaseEntity> = Omit<
+  T,
+  | 'id'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'deletedAt'
+  | 'version'
+  | 'isDeleted'
+  | 'isRecentlyCreated'
+  | 'isRecentlyUpdated'
+  | 'toJSON'
+>;
+
+export type UpdateEntityData<T extends IBaseEntity> = Partial<
+  Omit<
+    T,
+    | 'id'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'deletedAt'
+    | 'version'
+    | 'isDeleted'
+    | 'isRecentlyCreated'
+    | 'isRecentlyUpdated'
+    | 'toJSON'
+  >
+>;
+
+export type EntityId = Pick<IBaseEntity, 'id'>;
