@@ -1,27 +1,220 @@
+/**
+ * Configuration file generator
+ * Generates .env files, .env.example, and environment-specific files
+ *
+ * File: src/config/configuration.generator.ts
+ */
+
 import * as fs from 'fs';
 import * as path from 'path';
 import { environmentMapping, AppConfiguration } from './configuration.schema';
 import { ConfigurationFactory } from './configuration.factory';
 
-export interface GenerateEnvOptions {}
+/**
+ * Environment file generation options
+ */
+export interface GenerateEnvOptions {
+  outputPath?: string;
+  filename?: string;
+  includeComments?: boolean;
+  includeSecrets?: boolean;
+  overwrite?: boolean;
+  environment?: string;
+}
 
+/**
+ * Configuration file generator
+ * Generates various environment files from schema or existing config
+ */
 export class ConfigurationGenerator {
-  static generateExample() {}
+  private static readonly DEFAULT_OUTPUT_PATH = process.cwd();
 
-  static generateForEnvironment() {}
+  /**
+   * Generate .env.example file with all possible configuration options
+   */
+  static generateExample(options: GenerateEnvOptions = {}): string {
+    const {
+      outputPath = ConfigurationGenerator.DEFAULT_OUTPUT_PATH,
+      filename = '.env.example',
+      includeComments = true,
+      overwrite = true,
+    } = options;
 
-  static generateFromConfig() {}
+    const content =
+      ConfigurationGenerator.createExampleContent(includeComments);
+    const filePath = path.join(outputPath, filename);
 
-  static generateDevelopment() {}
+    ConfigurationGenerator.writeFile(filePath, content, overwrite);
+    return filePath;
+  }
 
-  static generateTest() {}
+  /**
+   * Generate environment-specific .env file
+   */
+  static generateForEnvironment(
+    environment: string,
+    options: GenerateEnvOptions = {},
+  ): string {
+    const {
+      outputPath = ConfigurationGenerator.DEFAULT_OUTPUT_PATH,
+      filename = `.env.${environment}`,
+      includeComments = true,
+      includeSecrets = false,
+      overwrite = false,
+    } = options;
 
-  static generateProductionTemplate() {}
+    const config = ConfigurationFactory.createForEnvironment(environment);
+    const content = ConfigurationGenerator.createFromConfig(
+      config,
+      includeComments,
+      includeSecrets,
+    );
+    const filePath = path.join(outputPath, filename);
 
-  static generateAll() {}
+    ConfigurationGenerator.writeFile(filePath, content, overwrite);
+    return filePath;
+  }
 
-  static validateEnvFile() {}
+  /**
+   * Generate .env file from existing configuration
+   */
+  static generateFromConfig(
+    config: AppConfiguration,
+    options: GenerateEnvOptions = {},
+  ): string {
+    const {
+      outputPath = ConfigurationGenerator.DEFAULT_OUTPUT_PATH,
+      filename = '.env',
+      includeComments = false,
+      includeSecrets = true,
+      overwrite = false,
+    } = options;
 
+    const content = ConfigurationGenerator.createFromConfig(
+      config,
+      includeComments,
+      includeSecrets,
+    );
+    const filePath = path.join(outputPath, filename);
+
+    ConfigurationGenerator.writeFile(filePath, content, overwrite);
+    return filePath;
+  }
+
+  /**
+   * Generate development environment file with sensible defaults
+   */
+  static generateDevelopment(options: GenerateEnvOptions = {}): string {
+    return ConfigurationGenerator.generateForEnvironment('development', {
+      filename: '.env.development',
+      includeComments: true,
+      includeSecrets: true,
+      overwrite: true,
+      ...options,
+    });
+  }
+
+  /**
+   * Generate test environment file
+   */
+  static generateTest(options: GenerateEnvOptions = {}): string {
+    return ConfigurationGenerator.generateForEnvironment('test', {
+      filename: '.env.test',
+      includeComments: true,
+      includeSecrets: false,
+      overwrite: true,
+      ...options,
+    });
+  }
+
+  /**
+   * Generate production template (without secrets)
+   */
+  static generateProductionTemplate(options: GenerateEnvOptions = {}): string {
+    return ConfigurationGenerator.generateForEnvironment('production', {
+      filename: '.env.production.template',
+      includeComments: true,
+      includeSecrets: false,
+      overwrite: true,
+      ...options,
+    });
+  }
+
+  /**
+   * Generate all environment files
+   */
+  static generateAll(outputPath?: string): string[] {
+    const generatedFiles: string[] = [];
+
+    // Generate .env.example
+    generatedFiles.push(ConfigurationGenerator.generateExample({ outputPath }));
+
+    // Generate environment-specific files
+    const environments = ['development', 'test'];
+    environments.forEach((env) => {
+      generatedFiles.push(
+        ConfigurationGenerator.generateForEnvironment(env, { outputPath }),
+      );
+    });
+
+    // Generate production template
+    generatedFiles.push(
+      ConfigurationGenerator.generateProductionTemplate({ outputPath }),
+    );
+
+    return generatedFiles;
+  }
+
+  /**
+   * Validate existing .env file against schema
+   */
+  static validateEnvFile(filePath: string): {
+    valid: boolean;
+    errors?: string[];
+  } {
+    try {
+      if (!fs.existsSync(filePath)) {
+        return { valid: false, errors: ['File does not exist'] };
+      }
+
+      // Load the env file
+      const envContent = fs.readFileSync(filePath, 'utf8');
+      const envVars = ConfigurationGenerator.parseEnvContent(envContent);
+
+      // Set env vars temporarily
+      const originalEnv = { ...process.env };
+      Object.assign(process.env, envVars);
+
+      try {
+        // Try to create configuration
+        ConfigurationFactory.create({ validate: true });
+        return { valid: true };
+      } catch (error) {
+        return {
+          valid: false,
+          errors: [
+            error instanceof Error ? error.message : 'Unknown validation error',
+          ],
+        };
+      } finally {
+        // Restore original env vars
+        process.env = originalEnv;
+      }
+    } catch (error) {
+      return {
+        valid: false,
+        errors: [error instanceof Error ? error.message : 'Unknown error'],
+      };
+    }
+  }
+
+  // ============================================================================
+  // Private Helper Methods
+  // ============================================================================
+
+  /**
+   * Create example content with all possible env vars
+   */
   private static createExampleContent(includeComments: boolean): string {
     const examples = {
       // App configuration
@@ -225,15 +418,99 @@ export class ConfigurationGenerator {
     return content;
   }
 
-  private static createFromConfig() {}
+  /**
+   * Create content from existing configuration
+   */
+  private static createFromConfig(
+    config: AppConfiguration,
+    includeComments: boolean,
+    includeSecrets: boolean,
+  ): string {
+    const envVars: Record<string, string> = {};
 
-  private static getNestedValue() {}
+    // Map config back to env vars
+    Object.entries(environmentMapping).forEach(([envKey, configPath]) => {
+      const value = ConfigurationGenerator.getNestedValue(config, configPath);
+      if (value !== undefined) {
+        // Handle sensitive values
+        if (!includeSecrets && ConfigurationGenerator.isSensitiveKey(envKey)) {
+          envVars[envKey] = 'CHANGE_ME';
+        } else {
+          envVars[envKey] = ConfigurationGenerator.formatValue(value);
+        }
+      }
+    });
 
-  private static formatValue() {}
+    let content = includeComments
+      ? `# Environment Configuration for ${config.app.environment}\n# Generated at ${new Date().toISOString()}\n\n`
+      : '';
 
-  private static isSensitiveKey() {}
+    Object.entries(envVars).forEach(([key, value]) => {
+      content += `${key}=${value}\n`;
+    });
 
-  private static writeFile() {}
+    return content;
+  }
 
-  private static parseEnvContent() {}
+  /**
+   * Get nested value from object using dot notation
+   */
+  private static getNestedValue(obj: any, path: string): any {
+    return path.split('.').reduce((current, key) => current?.[key], obj);
+  }
+
+  /**
+   * Format value for env file
+   */
+  private static formatValue(value: any): string {
+    if (Array.isArray(value)) {
+      return value.join(',');
+    }
+    return String(value);
+  }
+
+  /**
+   * Check if environment key is sensitive
+   */
+  private static isSensitiveKey(key: string): boolean {
+    const sensitiveKeys = ['PASSWORD', 'SECRET', 'KEY', 'TOKEN', 'PASS'];
+    return sensitiveKeys.some((sensitive) => key.includes(sensitive));
+  }
+
+  /**
+   * Write file with error handling
+   */
+  private static writeFile(
+    filePath: string,
+    content: string,
+    overwrite: boolean,
+  ): void {
+    if (fs.existsSync(filePath) && !overwrite) {
+      throw new Error(
+        `File ${filePath} already exists. Use overwrite: true to replace it.`,
+      );
+    }
+
+    fs.writeFileSync(filePath, content, 'utf8');
+    console.log(`✅ Generated: ${filePath}`);
+  }
+
+  /**
+   * Parse .env file content into object
+   */
+  private static parseEnvContent(content: string): Record<string, string> {
+    const envVars: Record<string, string> = {};
+
+    content.split('\n').forEach((line) => {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#')) {
+        const [key, ...valueParts] = trimmed.split('=');
+        if (key && valueParts.length > 0) {
+          envVars[key] = valueParts.join('=');
+        }
+      }
+    });
+
+    return envVars;
+  }
 }
