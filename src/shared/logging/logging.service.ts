@@ -355,7 +355,7 @@ export class LoggingService {
       errorName: error.name,
       errorMessage: error.message,
       errorStack: error.stack,
-      ...(error as any).toJSON?.(), // If error has toJSON method (our custom errors)
+      ...(error as any).toJSON?.(),
     };
   }
 
