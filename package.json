@@ -1,0 +1,16 @@
+{
+  "name": "fn-ts",
+  "version": "1.0.0",
+  "description": "firenotifications",
+  "main": "dist/server.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [
+    "express",
+    "typescript",
+    "socket.io"
+  ],
+  "author": "0xsj",
+  "license": "MIT"
+}
