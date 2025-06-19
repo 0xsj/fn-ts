@@ -1,6 +1,6 @@
-import { Kysely, MysqlDialect } from "kysely";
-import { createPool } from "mysql2";
-import type { Database } from "./types";
+import { Kysely, MysqlDialect } from 'kysely';
+import { createPool } from 'mysql2';
+import type { Database } from './types';
 
 export function createDatabase(): Kysely<Database> {
   const pool = createPool({
