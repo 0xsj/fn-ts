@@ -1,2 +1,2 @@
-export * from './error-serializer'
-export * from './logger'
+export * from './error-serializer';
+export * from './logger';

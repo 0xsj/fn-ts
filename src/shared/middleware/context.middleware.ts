@@ -10,11 +10,7 @@ declare global {
   }
 }
 
-export function contextMiddleware(
-  req: Request, 
-  _res: Response, 
-  next: NextFunction
-): void {
+export function contextMiddleware(req: Request, _res: Response, next: NextFunction): void {
   req.context = new RequestContext(req);
   next();
 }

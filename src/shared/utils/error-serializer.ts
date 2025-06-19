@@ -17,24 +17,24 @@ export function serializeError(error: unknown): SerializedError | unknown {
       message: error.message,
       stack: error.stack,
     };
-    
+
     if ('code' in error) serialized.code = String(error.code);
     if ('statusCode' in error) serialized.statusCode = Number(error.statusCode);
     if ('kind' in error) serialized.kind = String(error.kind);
     if ('cause' in error && error.cause) {
       serialized.cause = serializeError(error.cause);
     }
-    
+
     return serialized;
   }
-  
+
   return error;
 }
 
 export function errorToLogContext(
-  error: unknown, 
+  error: unknown,
   correlationId?: string,
-  meta?: Record<string, unknown>
+  meta?: Record<string, unknown>,
 ): Record<string, unknown> {
   return {
     error: serializeError(error),
