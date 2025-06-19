@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Request } from 'express';
-import type { ApiResponseType } from './types';
+import { ApiResponseType } from '../response/types';
 
 export interface RequestMetadata {
   userId?: string;
