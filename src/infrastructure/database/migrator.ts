@@ -6,7 +6,7 @@ import { logger } from '../../shared/utils/logger';
 
 export async function runMigrations(db: Kysely<any>): Promise<void> {
   const migrationFolder = path.join(__dirname, 'migrations');
-  
+
   // Check if migrations folder exists
   try {
     await fs.access(migrationFolder);

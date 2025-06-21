@@ -27,39 +27,20 @@ export async function initializeApp(): Promise<void> {
     
     app.use('/api/v1', createV1Routes());
     
+    app.use((_req: Request, res: Response) => {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'The requested resource was not found',
+      });
+    });
+
+    app.use(errorHandlerMiddleware);
+    
     logger.info('App initialized successfully');
   } catch (error) {
     logger.error('Failed to initialize app', error);
     throw error;
   }
 }
-
-// Health check
-app.get('/health', async (_req: Request, res: Response) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  });
-});
-
-// Root endpoint
-app.get('/', (_req: Request, res: Response) => {
-  res.json({
-    message: 'API is running',
-    version: '1.0.0',
-  });
-});
-
-// 404 handler
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({
-    error: 'Not Found',
-    message: 'The requested resource was not found',
-  });
-});
-
-// Error handler middleware (must be last)
-app.use(errorHandlerMiddleware);
 
 export default app;
