@@ -35,8 +35,8 @@ export const UpdateUserSchema = z.object({
   lastName: z.string().min(1).optional(),
   email: z.string().email().optional(),
   phone: z.string().min(10).optional(),
-  password: z.string().min(8).optional()
-})
+  password: z.string().min(8).optional(),
+});
 
 export type UserDB = z.infer<typeof UserDBSchema>;
 export type User = z.infer<typeof UserSchema>;

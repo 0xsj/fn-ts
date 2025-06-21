@@ -10,7 +10,8 @@ export interface IUserRepository {
     correlationId?: string,
   ): AsyncResult<User>;
   update(
-    id: string, updates: Partial<Omit<User, 'id' | 'createdAt'>>,
+    id: string,
+    updates: Partial<Omit<User, 'id' | 'createdAt'>>,
     correlationId?: string,
   ): AsyncResult<User | null>;
   delete(id: string, correlationid?: string): AsyncResult<boolean>;

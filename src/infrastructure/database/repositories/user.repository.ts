@@ -20,7 +20,7 @@ export class UserRepository implements IUserRepository {
       return new DatabaseError('findByEmail', error, correlationId);
     }
   }
-  
+
   async create(
     input: CreateUserInput & { passwordHash: string },
     correlationId?: string,
