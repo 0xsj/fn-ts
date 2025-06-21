@@ -1,7 +1,7 @@
 import { Kysely } from 'kysely';
 import type { IUserRepository } from '../../../domain/repositories/user.repository.interface';
 import { Database } from '../types';
-import { User, UserDB } from '../../../domain/entities';
+import { User, UserDB, UserSchema } from '../../../domain/entities';
 import { AsyncResult, DatabaseError, ResponseBuilder } from '../../../shared/response';
 
 export class UserRepository implements IUserRepository {
@@ -10,7 +10,7 @@ export class UserRepository implements IUserRepository {
   async findById(id: string, correlationid?: string): AsyncResult<User | null> {
     try {
       const row = await this.db
-        .selectFrom('user')
+        .selectFrom('users')
         .selectAll()
         .where('id', '=', id)
         .executeTakeFirst();
@@ -21,12 +21,16 @@ export class UserRepository implements IUserRepository {
   }
 
   private mapToEntity(row: UserDB): User {
-    return {
+    const user = {
       id: row.id,
       email: row.email,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      phone: row.phone,
       passwordHash: row.password_hash,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+    return UserSchema.parse(user);
   }
 }
