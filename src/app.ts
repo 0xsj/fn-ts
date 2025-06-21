@@ -24,9 +24,9 @@ app.use(responseLoggerMiddleware);
 export async function initializeApp(): Promise<void> {
   try {
     await DIContainer.initialize();
-    
+
     app.use('/api/v1', createV1Routes());
-    
+
     logger.info('App initialized successfully');
   } catch (error) {
     logger.error('Failed to initialize app', error);

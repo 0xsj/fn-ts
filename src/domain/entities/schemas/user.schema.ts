@@ -23,10 +23,22 @@ export const UserSchema = z.object({
 });
 
 export const CreateUserSchema = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
   email: z.string().email(),
+  phone: z.string().min(10),
   password: z.string().min(8),
 });
+
+export const UpdateUserSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().min(10).optional(),
+  password: z.string().min(8).optional()
+})
 
 export type UserDB = z.infer<typeof UserDBSchema>;
 export type User = z.infer<typeof UserSchema>;
 export type CreateUserInput = z.infer<typeof CreateUserSchema>;
+export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;

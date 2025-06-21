@@ -51,4 +51,4 @@ export class DIContainer {
   }
 }
 
-export {container}
+export { container };
