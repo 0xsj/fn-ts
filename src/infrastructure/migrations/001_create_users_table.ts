@@ -10,19 +10,13 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('email', 'varchar(255)', (col) => col.notNull().unique())
     .addColumn('phone', 'varchar(20)', (col) => col.notNull())
     .addColumn('password_hash', 'varchar(255)', (col) => col.notNull())
-    .addColumn('created_at', 'timestamp', (col) => 
-      col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
-    )
-    .addColumn('updated_at', 'timestamp', (col) => 
-      col.notNull().defaultTo(sql`CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`)
+    .addColumn('created_at', 'timestamp', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+    .addColumn('updated_at', 'timestamp', (col) =>
+      col.notNull().defaultTo(sql`CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`),
     )
     .execute();
 
-  await db.schema
-    .createIndex('idx_users_email')
-    .on('users')
-    .column('email')
-    .execute();
+  await db.schema.createIndex('idx_users_email').on('users').column('email').execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
