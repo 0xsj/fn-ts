@@ -19,6 +19,8 @@ export class DIContainer {
     await this.registerDatabase();
     this.registerRepositories();
     this.registerServices();
+    this.initialized = true;
+    logger.info('DI Container intialized successfully');
   }
 
   private static async registerDatabase(): Promise<void> {
