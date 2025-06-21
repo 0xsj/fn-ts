@@ -2,7 +2,10 @@ import { z } from 'zod';
 
 export const UserDBSchema = z.object({
   id: z.string().uuid(),
+  first_name: z.string(),
+  last_name: z.string(),
   email: z.string().email(),
+  phone: z.string(),
   password_hash: z.string(),
   created_at: z.date(),
   updated_at: z.date(),
@@ -10,7 +13,10 @@ export const UserDBSchema = z.object({
 
 export const UserSchema = z.object({
   id: z.string().uuid(),
+  firstName: z.string(),
+  lastName: z.string(),
   email: z.string().email(),
+  phone: z.string(),
   passwordHash: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),
