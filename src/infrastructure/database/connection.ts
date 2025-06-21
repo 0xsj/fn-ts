@@ -1,7 +1,8 @@
-import { Kysely, MysqlDialect, MysqlQueryCompiler } from 'kysely';
+// src/infrastructure/database/connection.ts
+import { Kysely, MysqlDialect } from 'kysely';
 import { createPool } from 'mysql2';
 import type { Database } from './types';
-import { logger } from '../../shared/utils';
+import { logger } from '../../shared/utils/logger';
 import { runMigrations } from './migrator';
 
 let db: Kysely<Database> | null = null;
@@ -20,22 +21,32 @@ export async function createDatabase(): Promise<Kysely<Database>> {
     queueLimit: 0,
   });
 
+  // Test connection
+  try {
+    const connection = await pool.promise().getConnection();
+    await connection.ping();
+    connection.release();
+    logger.info('Database connection successful');
+  } catch (error) {
+    logger.error('Database connection failed:', error);
+    throw error;
+  }
+
   db = new Kysely<Database>({
     dialect: new MysqlDialect({ pool }),
   });
 
-  if (process.env.NOD_ENV !== 'production') {
-    logger.info('Running database migration');
-    await runMigrations(db);
+  // Run migrations in development
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      logger.info('Running database migrations...');
+      await runMigrations(db);
+    } catch (error) {
+      logger.error('Migration failed:', error);
+      throw error;
+    }
   }
 
-  logger.info('Database connected successfully');
-  return db;
-}
-
-export function getDatabase(): Kysely<Database> {
-  if (!db) {
-    throw new Error('Database not initialized. Call createDatabase() first.');
-  }
+  logger.info('Database initialized successfully');
   return db;
 }

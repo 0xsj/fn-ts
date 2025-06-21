@@ -12,7 +12,9 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "type-check": "tsc --noEmit",
-    "validate": "npm run type-check && npm run lint && npm run format:check"
+    "validate": "npm run type-check && npm run lint && npm run format:check",
+    "migrate": "tsx src/scripts/migrate.ts",
+    "migrate:down": "tsx src/scripts/migrate.ts down"
   },
   "keywords": [
     "express",
@@ -22,6 +24,7 @@
   "author": "0xsj",
   "license": "MIT",
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.0.3",
@@ -41,6 +44,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",

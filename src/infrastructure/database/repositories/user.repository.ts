@@ -1,11 +1,17 @@
 import { Kysely } from 'kysely';
 import type { IUserRepository } from '../../../domain/repositories/user.repository.interface';
 import { Database } from '../types';
-import { User, UserDB, UserSchema } from '../../../domain/entities';
+import { CreateUserInput, User, UserDB, UserSchema } from '../../../domain/entities';
 import { AsyncResult, DatabaseError, ResponseBuilder } from '../../../shared/response';
 
 export class UserRepository implements IUserRepository {
   constructor(private db: Kysely<Database>) {}
+  findByEmail(email: string, correlationId?: string): AsyncResult<User | null> {
+    throw new Error('Method not implemented.');
+  }
+  create(input: CreateUserInput & { passwordHash: string; }, correlationId?: string): AsyncResult<User> {
+    throw new Error('Method not implemented.');
+  }
 
   async findById(id: string, correlationid?: string): AsyncResult<User | null> {
     try {
