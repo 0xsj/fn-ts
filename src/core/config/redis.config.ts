@@ -6,12 +6,12 @@ const RedisConfigSchema = z.object({
   host: z.string().default('localhost'),
   port: z.coerce.number().default(6379),
   password: z.string().optional(),
-  db: z.number().default(0),
+  db: z.coerce.number().default(0),
   
   // Connection options
   connection: z.object({
     enableReadyCheck: z.boolean().default(true),
-    maxRetriesPerRequest: z.number().default(3),
+    maxRetriesPerRequest: z.coerce.number().default(3),
     retryStrategy: z.boolean().default(true),
     reconnectOnError: z.boolean().default(true),
   }),
@@ -33,8 +33,8 @@ const RedisConfigSchema = z.object({
   // Bull Queue settings
   queue: z.object({
     prefix: z.string().default('fn:queue:'),
-    stalledInterval: z.number().default(30000),
-    maxStalledCount: z.number().default(1),
+    stalledInterval: z.coerce.number().default(30000),
+    maxStalledCount: z.coerce.number().default(1),
   }),
   
   // Pub/Sub settings
@@ -46,10 +46,17 @@ const RedisConfigSchema = z.object({
 type RedisConfig = z.infer<typeof RedisConfigSchema>;
 
 export const redisConfig: RedisConfig = RedisConfigSchema.parse({
-  host: process.env.REDIS_HOST,
+  host: process.env.REDIS_HOST || 'localhost',
   port: process.env.REDIS_PORT,
   password: process.env.REDIS_PASSWORD,
   db: process.env.REDIS_DB,
+  
+  connection: {
+    enableReadyCheck: process.env.REDIS_ENABLE_READY_CHECK !== 'false',
+    maxRetriesPerRequest: process.env.REDIS_MAX_RETRIES,
+    retryStrategy: process.env.REDIS_RETRY_STRATEGY !== 'false',
+    reconnectOnError: process.env.REDIS_RECONNECT_ON_ERROR !== 'false',
+  },
   
   cache: {
     ttl: process.env.CACHE_TTL,
@@ -64,5 +71,11 @@ export const redisConfig: RedisConfig = RedisConfigSchema.parse({
   
   queue: {
     prefix: process.env.QUEUE_PREFIX,
+    stalledInterval: process.env.QUEUE_STALLED_INTERVAL,
+    maxStalledCount: process.env.QUEUE_MAX_STALLED_COUNT,
+  },
+  
+  pubsub: {
+    prefix: process.env.PUBSUB_PREFIX,
   },
 });

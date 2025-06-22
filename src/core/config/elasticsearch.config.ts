@@ -12,8 +12,8 @@ const ElasticsearchConfigSchema = z.object({
   // Index settings
   indices: z.object({
     prefix: z.string().default('fn_'),
-    numberOfShards: z.number().default(1),
-    numberOfReplicas: z.number().default(0),
+    numberOfShards: z.coerce.number().default(1),
+    numberOfReplicas: z.coerce.number().default(0),
     
     // Specific indices
     incidents: z.string().default('incidents'),
@@ -24,31 +24,48 @@ const ElasticsearchConfigSchema = z.object({
   
   // Search settings
   search: z.object({
-    defaultSize: z.number().default(20),
-    maxSize: z.number().default(100),
+    defaultSize: z.coerce.number().default(20),
+    maxSize: z.coerce.number().default(100),
     scrollTimeout: z.string().default('1m'),
   }),
   
   // Bulk operations
   bulk: z.object({
-    size: z.number().default(1000),
-    flushInterval: z.number().default(5000), // ms
-    concurrency: z.number().default(2),
+    size: z.coerce.number().default(1000),
+    flushInterval: z.coerce.number().default(5000), // ms
+    concurrency: z.coerce.number().default(2),
   }),
 });
 
 type ElasticsearchConfig = z.infer<typeof ElasticsearchConfigSchema>;
 
 export const elasticsearchConfig: ElasticsearchConfig = ElasticsearchConfigSchema.parse({
-  node: process.env.ELASTICSEARCH_URL,
+  node: process.env.ELASTICSEARCH_URL || 'http://localhost:9200',
   auth: process.env.ELASTICSEARCH_USERNAME ? {
     username: process.env.ELASTICSEARCH_USERNAME,
     password: process.env.ELASTICSEARCH_PASSWORD,
+    apiKey: process.env.ELASTICSEARCH_API_KEY,
   } : undefined,
   
   indices: {
     prefix: process.env.ES_INDEX_PREFIX,
     numberOfShards: process.env.ES_NUMBER_OF_SHARDS,
     numberOfReplicas: process.env.ES_NUMBER_OF_REPLICAS,
+    incidents: process.env.ES_INDEX_INCIDENTS,
+    users: process.env.ES_INDEX_USERS,
+    notifications: process.env.ES_INDEX_NOTIFICATIONS,
+    logs: process.env.ES_INDEX_LOGS,
+  },
+  
+  search: {
+    defaultSize: process.env.ES_SEARCH_DEFAULT_SIZE,
+    maxSize: process.env.ES_SEARCH_MAX_SIZE,
+    scrollTimeout: process.env.ES_SEARCH_SCROLL_TIMEOUT,
+  },
+  
+  bulk: {
+    size: process.env.ES_BULK_SIZE,
+    flushInterval: process.env.ES_BULK_FLUSH_INTERVAL,
+    concurrency: process.env.ES_BULK_CONCURRENCY,
   },
 });

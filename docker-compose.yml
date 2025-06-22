@@ -5,10 +5,10 @@ services:
     container_name: fn-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${DB_NAME:-fn_db}
-      MYSQL_USER: ${DB_USER:-fn_user}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-fn_password}
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: fn_db
+      MYSQL_USER: fn_user
+      MYSQL_PASSWORD: fn_password
     ports:
       - '3306:3306'
     volumes:

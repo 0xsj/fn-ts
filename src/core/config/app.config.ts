@@ -14,14 +14,14 @@ const AppConfigSchema = z.object({
     prefix: z.string().default('/api'),
     version: z.string().default('v1'),
     pagination: z.object({
-      defaultLimit: z.number().default(20),
-      maxLimit: z.number().default(100),
+      defaultLimit: z.coerce.number().default(20),
+      maxLimit: z.coerce.number().default(100),
     }),
   }),
   
   // Security
   security: z.object({
-    bcryptRounds: z.number().min(10).default(10),
+    bcryptRounds: z.coerce.number().min(10).default(10),
     jwtSecret: z.string().min(32),
     jwtExpiresIn: z.string().default('7d'),
     refreshTokenExpiresIn: z.string().default('30d'),
@@ -30,8 +30,8 @@ const AppConfigSchema = z.object({
   
   // Rate Limiting
   rateLimit: z.object({
-    windowMs: z.number().default(60000), // 1 minute
-    max: z.number().default(100), // requests per window
+    windowMs: z.coerce.number().default(60000), // 1 minute
+    max: z.coerce.number().default(100), // requests per window
     skipSuccessfulRequests: z.boolean().default(false),
   }),
   
@@ -47,6 +47,7 @@ type AppConfig = z.infer<typeof AppConfigSchema>;
 export const appConfig: AppConfig = AppConfigSchema.parse({
   env: process.env.NODE_ENV || 'development',
   port: process.env.PORT,
+  host: process.env.HOST,
   
   api: {
     prefix: process.env.API_PREFIX,
@@ -59,7 +60,7 @@ export const appConfig: AppConfig = AppConfigSchema.parse({
   
   security: {
     bcryptRounds: process.env.BCRYPT_ROUNDS,
-    jwtSecret: process.env.JWT_SECRET || 'change-this-secret-in-production',
+    jwtSecret: process.env.JWT_SECRET || 'change-this-secret-in-production-min-32-chars',
     jwtExpiresIn: process.env.JWT_EXPIRES_IN,
     refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN,
     corsOrigins: process.env.CORS_ORIGINS?.split(','),
@@ -68,6 +69,7 @@ export const appConfig: AppConfig = AppConfigSchema.parse({
   rateLimit: {
     windowMs: process.env.RATE_LIMIT_WINDOW_MS,
     max: process.env.RATE_LIMIT_MAX,
+    skipSuccessfulRequests: process.env.RATE_LIMIT_SKIP_SUCCESSFUL === 'true',
   },
   
   logging: {
@@ -76,6 +78,7 @@ export const appConfig: AppConfig = AppConfigSchema.parse({
   },
 });
 
-if (appConfig.env === 'production' && appConfig.security.jwtSecret === 'change-this-secret-in-production') {
+// Development environment checks
+if (appConfig.env === 'production' && appConfig.security.jwtSecret === 'change-this-secret-in-production-min-32-chars') {
   throw new Error('JWT_SECRET must be set in production');
 }

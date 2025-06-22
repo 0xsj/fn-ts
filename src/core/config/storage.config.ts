@@ -12,7 +12,7 @@ const StorageConfigSchema = z.object({
   
   // URL settings
   publicUrl: URLSchema.optional(), // CDN or public URL
-  signedUrlExpiry: z.number().default(3600), // 1 hour
+  signedUrlExpiry: z.coerce.number().default(3600), // 1 hour
   
   // S3/MinIO configuration
   s3: z.object({
@@ -27,12 +27,12 @@ const StorageConfigSchema = z.object({
   local: z.object({
     basePath: z.string().default('./uploads'),
     serveStatic: z.boolean().default(true),
-    maxFileSize: z.number().default(10 * 1024 * 1024), // 10MB
+    maxFileSize: z.coerce.number().default(10 * 1024 * 1024), // 10MB
   }),
   
   // Upload settings
   upload: z.object({
-    maxFileSize: z.number().default(10 * 1024 * 1024), // 10MB
+    maxFileSize: z.coerce.number().default(10 * 1024 * 1024), // 10MB
     allowedMimeTypes: z.array(z.string()).default([
       'image/jpeg',
       'image/png',
@@ -45,11 +45,11 @@ const StorageConfigSchema = z.object({
     
     // Image processing
     image: z.object({
-      maxWidth: z.number().default(2048),
-      maxHeight: z.number().default(2048),
-      quality: z.number().min(1).max(100).default(85),
+      maxWidth: z.coerce.number().default(2048),
+      maxHeight: z.coerce.number().default(2048),
+      quality: z.coerce.number().min(1).max(100).default(85),
       generateThumbnail: z.boolean().default(true),
-      thumbnailSize: z.number().default(200),
+      thumbnailSize: z.coerce.number().default(200),
     }),
   }),
   
@@ -64,7 +64,7 @@ const StorageConfigSchema = z.object({
   // Cleanup settings
   cleanup: z.object({
     enabled: z.boolean().default(true),
-    tempFileExpiry: z.number().default(24 * 60 * 60 * 1000), // 24 hours
+    tempFileExpiry: z.coerce.number().default(24 * 60 * 60 * 1000), // 24 hours
     schedule: z.string().default('0 3 * * *'), // 3 AM daily
   }),
 });
@@ -72,7 +72,7 @@ const StorageConfigSchema = z.object({
 type StorageConfig = z.infer<typeof StorageConfigSchema>;
 
 export const storageConfig: StorageConfig = StorageConfigSchema.parse({
-  provider: process.env.STORAGE_PROVIDER,
+  provider: process.env.STORAGE_PROVIDER as any,
   defaultBucket: process.env.STORAGE_DEFAULT_BUCKET,
   publicBucket: process.env.STORAGE_PUBLIC_BUCKET,
   publicUrl: process.env.STORAGE_PUBLIC_URL,
@@ -88,6 +88,7 @@ export const storageConfig: StorageConfig = StorageConfigSchema.parse({
   
   local: {
     basePath: process.env.LOCAL_STORAGE_PATH,
+    serveStatic: process.env.LOCAL_SERVE_STATIC !== 'false',
     maxFileSize: process.env.LOCAL_MAX_FILE_SIZE,
   },
   
@@ -99,7 +100,15 @@ export const storageConfig: StorageConfig = StorageConfigSchema.parse({
       maxHeight: process.env.IMAGE_MAX_HEIGHT,
       quality: process.env.IMAGE_QUALITY,
       generateThumbnail: process.env.IMAGE_GENERATE_THUMBNAIL !== 'false',
+      thumbnailSize: process.env.IMAGE_THUMBNAIL_SIZE,
     },
+  },
+  
+  paths: {
+    incidents: process.env.STORAGE_PATH_INCIDENTS,
+    users: process.env.STORAGE_PATH_USERS,
+    temp: process.env.STORAGE_PATH_TEMP,
+    exports: process.env.STORAGE_PATH_EXPORTS,
   },
   
   cleanup: {

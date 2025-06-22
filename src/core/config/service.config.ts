@@ -53,9 +53,9 @@ const ServicesConfigSchema = z.object({
   
   // Webhook configuration
   webhook: z.object({
-    timeout: z.number().default(30000), // 30 seconds
-    maxRetries: z.number().default(3),
-    retryDelay: z.number().default(5000), // 5 seconds
+    timeout: z.coerce.number().default(30000), // 30 seconds
+    maxRetries: z.coerce.number().default(3),
+    retryDelay: z.coerce.number().default(5000), // 5 seconds
     signatureHeader: z.string().default('x-webhook-signature'),
     secret: z.string().optional(),
   }),
@@ -80,7 +80,7 @@ type ServicesConfig = z.infer<typeof ServicesConfigSchema>;
 
 export const servicesConfig: ServicesConfig = ServicesConfigSchema.parse({
   email: {
-    provider: process.env.EMAIL_PROVIDER,
+    provider: process.env.EMAIL_PROVIDER as any,
     from: {
       name: process.env.EMAIL_FROM_NAME,
       email: process.env.EMAIL_FROM_ADDRESS,
@@ -101,7 +101,7 @@ export const servicesConfig: ServicesConfig = ServicesConfigSchema.parse({
   },
   
   sms: {
-    provider: process.env.SMS_PROVIDER,
+    provider: process.env.SMS_PROVIDER as any,
     from: process.env.SMS_FROM_NUMBER,
     twilio: {
       accountSid: process.env.TWILIO_ACCOUNT_SID,
@@ -111,7 +111,7 @@ export const servicesConfig: ServicesConfig = ServicesConfigSchema.parse({
   },
   
   push: {
-    provider: process.env.PUSH_PROVIDER,
+    provider: process.env.PUSH_PROVIDER as any,
     fcm: {
       projectId: process.env.FCM_PROJECT_ID,
       privateKey: process.env.FCM_PRIVATE_KEY?.replace(/\\n/g, '\n'), // Handle newlines
@@ -122,6 +122,8 @@ export const servicesConfig: ServicesConfig = ServicesConfigSchema.parse({
   webhook: {
     timeout: process.env.WEBHOOK_TIMEOUT,
     maxRetries: process.env.WEBHOOK_MAX_RETRIES,
+    retryDelay: process.env.WEBHOOK_RETRY_DELAY,
+    signatureHeader: process.env.WEBHOOK_SIGNATURE_HEADER,
     secret: process.env.WEBHOOK_SECRET,
   },
   
