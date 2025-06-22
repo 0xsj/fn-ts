@@ -13,8 +13,11 @@
     "format:check": "prettier --check \"src/**/*.ts\"",
     "type-check": "tsc --noEmit",
     "validate": "npm run type-check && npm run lint && npm run format:check",
-    "migrate": "tsx src/scripts/migrate.ts",
-    "migrate:down": "tsx src/scripts/migrate.ts down"
+    "migration:create": "tsx src/scripts/create-migration.ts",
+    "migration:status": "tsx src/scripts/migrate-status.ts",
+    "migrate": "tsx src/scripts/migrate.ts up",
+    "migrate:down": "tsx src/scripts/migrate.ts down",
+    "migrate:fresh": "npm run migrate:down && npm run migrate"
   },
   "keywords": [
     "express",
