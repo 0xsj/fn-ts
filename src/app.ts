@@ -1,47 +1,46 @@
+// src/app.ts
 import express, { type Application, type Request, type Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import { logger } from './shared/utils/logger';
+import { contextMiddleware } from './shared/middleware/context.middleware';
+import { responseLoggerMiddleware } from './shared/middleware/response-logger.middleware';
+import { errorHandlerMiddleware } from './shared/middleware/error-handler.middleware';
+import { createV1Routes } from './api/v1/routes';
+import { DIContainer } from './core/di/container';
 
 const app: Application = express();
 
+// Basic middleware
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use((req: Request, _res: Response, next) => {
-  logger.info(
-    {
-      method: req.method,
-      url: req.url,
-      userAgent: req.get('user-agent'),
-    },
-    'Incoming Request',
-  );
-  next();
-});
+// Custom middleware
+app.use(contextMiddleware);
+app.use(responseLoggerMiddleware);
 
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  });
-});
+export async function initializeApp(): Promise<void> {
+  try {
+    await DIContainer.initialize();
+    
+    app.use('/api/v1', createV1Routes());
+    
+    app.use((_req: Request, res: Response) => {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'The requested resource was not found',
+      });
+    });
 
-app.get('/', (_req: Request, res: Response) => {
-  res.json({
-    message: 'foo',
-    version: '1.0.0',
-  });
-});
-
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({
-    error: 'Not Found',
-    message: 'The requested resource was not found',
-  });
-});
+    app.use(errorHandlerMiddleware);
+    
+    logger.info('App initialized successfully');
+  } catch (error) {
+    logger.error('Failed to initialize app', error);
+    throw error;
+  }
+}
 
 export default app;

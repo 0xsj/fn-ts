@@ -1,29 +1,26 @@
+// src/server.ts
+import 'reflect-metadata'; // Must be first
 import 'dotenv/config';
 import { createServer } from 'http';
-
-import app from './app';
+import app, { initializeApp } from './app';
 import { logger } from './shared/utils/logger';
 
 const PORT = process.env.PORT || 3000;
 
-const server = createServer(app);
+async function start(): Promise<void> {
+  try {
+    await initializeApp();
 
-server.listen(PORT, () => {
-  logger.info({ port: PORT }, 'Server started successfully');
-});
+    const server = createServer(app);
 
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    logger.info('HTTP server closed');
-    process.exit(0);
-  });
-});
+    server.listen(PORT, () => {
+      logger.info({ port: PORT }, 'Server started successfully');
+    });
+  } catch (error) {
+    logger.error('Failed to start server', error);
+    process.exit(1);
+  }
+}
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT signal received: closing HTTP server');
-  server.close(() => {
-    logger.info('HTTP server closed');
-    process.exit(0);
-  });
-});
+// Start the server
+start();
