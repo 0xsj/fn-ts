@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response } from 'express';
 import { UserController } from '../controller/user.controller';
 
 export function createUserRoutes(): Router {
@@ -6,9 +6,8 @@ export function createUserRoutes(): Router {
   const userController = new UserController();
 
   router.get('/health', (req: Request, res: Response) => {
-        res.json({ message: 'User routes are working!' });
-    });
-
+    res.json({ message: 'User routes are working!' });
+  });
 
   router.post('/', userController.createUser.bind(userController));
   router.get('/', userController.getUsers.bind(userController));

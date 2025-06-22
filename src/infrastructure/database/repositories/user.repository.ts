@@ -28,10 +28,10 @@ export class UserRepository implements IUserRepository {
     try {
       const user: UserDB = {
         id: uuidv4(),
-        first_name: 'Default',
-        last_name: 'User',
+        first_name: input.firstName,
+        last_name: input.lastName,
         email: input.email,
-        phone: '',
+        phone: input.phone,
         password_hash: input.passwordHash,
         created_at: new Date(),
         updated_at: new Date(),
