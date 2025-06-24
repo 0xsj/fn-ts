@@ -12,25 +12,29 @@ const QueueConfigSchema = z.object({
     email: z.object({
       name: z.string().default('emails'),
       concurrency: z.coerce.number().default(10),
-      rateLimit: z.object({
-        max: z.coerce.number().default(100),
-        duration: z.coerce.number().default(60000), // per minute
-      }).optional(),
+      rateLimit: z
+        .object({
+          max: z.coerce.number().default(100),
+          duration: z.coerce.number().default(60000), // per minute
+        })
+        .optional(),
     }),
     sms: z.object({
       name: z.string().default('sms'),
       concurrency: z.coerce.number().default(5),
-      rateLimit: z.object({
-        max: z.coerce.number().default(50),
-        duration: z.coerce.number().default(60000),
-      }).optional(),
+      rateLimit: z
+        .object({
+          max: z.coerce.number().default(50),
+          duration: z.coerce.number().default(60000),
+        })
+        .optional(),
     }),
     analytics: z.object({
       name: z.string().default('analytics'),
       concurrency: z.coerce.number().default(2),
     }),
   }),
-  
+
   // Default job options
   defaultJobOptions: z.object({
     removeOnComplete: z.boolean().default(true),
@@ -55,25 +59,29 @@ export const queueConfig: QueueConfig = QueueConfigSchema.parse({
     email: {
       name: process.env.QUEUE_EMAIL_NAME,
       concurrency: process.env.QUEUE_EMAIL_CONCURRENCY,
-      rateLimit: process.env.QUEUE_EMAIL_RATE_LIMIT_MAX ? {
-        max: process.env.QUEUE_EMAIL_RATE_LIMIT_MAX,
-        duration: process.env.QUEUE_EMAIL_RATE_LIMIT_DURATION,
-      } : undefined,
+      rateLimit: process.env.QUEUE_EMAIL_RATE_LIMIT_MAX
+        ? {
+            max: process.env.QUEUE_EMAIL_RATE_LIMIT_MAX,
+            duration: process.env.QUEUE_EMAIL_RATE_LIMIT_DURATION,
+          }
+        : undefined,
     },
     sms: {
       name: process.env.QUEUE_SMS_NAME,
       concurrency: process.env.QUEUE_SMS_CONCURRENCY,
-      rateLimit: process.env.QUEUE_SMS_RATE_LIMIT_MAX ? {
-        max: process.env.QUEUE_SMS_RATE_LIMIT_MAX,
-        duration: process.env.QUEUE_SMS_RATE_LIMIT_DURATION,
-      } : undefined,
+      rateLimit: process.env.QUEUE_SMS_RATE_LIMIT_MAX
+        ? {
+            max: process.env.QUEUE_SMS_RATE_LIMIT_MAX,
+            duration: process.env.QUEUE_SMS_RATE_LIMIT_DURATION,
+          }
+        : undefined,
     },
     analytics: {
       name: process.env.QUEUE_ANALYTICS_NAME,
       concurrency: process.env.QUEUE_ANALYTICS_CONCURRENCY,
     },
   },
-  
+
   defaultJobOptions: {
     removeOnComplete: process.env.QUEUE_REMOVE_ON_COMPLETE !== 'false',
     removeOnFail: process.env.QUEUE_REMOVE_ON_FAIL === 'true',

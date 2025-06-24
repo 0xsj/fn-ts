@@ -7,7 +7,7 @@ const RedisConfigSchema = z.object({
   port: z.coerce.number().default(6379),
   password: z.string().optional(),
   db: z.coerce.number().default(0),
-  
+
   // Connection options
   connection: z.object({
     enableReadyCheck: z.boolean().default(true),
@@ -15,12 +15,12 @@ const RedisConfigSchema = z.object({
     retryStrategy: z.boolean().default(true),
     reconnectOnError: z.boolean().default(true),
   }),
-  
+
   // Cache settings
   cache: z.object({
     ttl: DurationSchema.default('1h').transform(parseDuration),
     keyPrefix: z.string().default('fn:cache:'),
-    
+
     // Specific TTLs
     ttls: z.object({
       user: DurationSchema.default('1h').transform(parseDuration),
@@ -29,14 +29,14 @@ const RedisConfigSchema = z.object({
       session: DurationSchema.default('24h').transform(parseDuration),
     }),
   }),
-  
+
   // Bull Queue settings
   queue: z.object({
     prefix: z.string().default('fn:queue:'),
     stalledInterval: z.coerce.number().default(30000),
     maxStalledCount: z.coerce.number().default(1),
   }),
-  
+
   // Pub/Sub settings
   pubsub: z.object({
     prefix: z.string().default('fn:pubsub:'),
@@ -50,14 +50,14 @@ export const redisConfig: RedisConfig = RedisConfigSchema.parse({
   port: process.env.REDIS_PORT,
   password: process.env.REDIS_PASSWORD,
   db: process.env.REDIS_DB,
-  
+
   connection: {
     enableReadyCheck: process.env.REDIS_ENABLE_READY_CHECK !== 'false',
     maxRetriesPerRequest: process.env.REDIS_MAX_RETRIES,
     retryStrategy: process.env.REDIS_RETRY_STRATEGY !== 'false',
     reconnectOnError: process.env.REDIS_RECONNECT_ON_ERROR !== 'false',
   },
-  
+
   cache: {
     ttl: process.env.CACHE_TTL,
     keyPrefix: process.env.CACHE_KEY_PREFIX,
@@ -68,13 +68,13 @@ export const redisConfig: RedisConfig = RedisConfigSchema.parse({
       session: process.env.CACHE_TTL_SESSION,
     },
   },
-  
+
   queue: {
     prefix: process.env.QUEUE_PREFIX,
     stalledInterval: process.env.QUEUE_STALLED_INTERVAL,
     maxStalledCount: process.env.QUEUE_MAX_STALLED_COUNT,
   },
-  
+
   pubsub: {
     prefix: process.env.PUBSUB_PREFIX,
   },

@@ -88,7 +88,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 
     // Write migration file
     await fs.writeFile(filepath, template, 'utf8');
-    
+
     console.log(`✅ Created migration: ${filename}`);
     console.log(`📁 Location: ${filepath}`);
     console.log('\nNext steps:');

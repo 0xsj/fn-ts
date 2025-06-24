@@ -10,13 +10,13 @@ const ServicesConfigSchema = z.object({
       name: z.string().default('FireNotifications'),
       email: z.string().email().default('noreply@firenotifications.com'),
     }),
-    
+
     // Provider-specific settings
     sendgrid: z.object({
       apiKey: z.string().optional(),
       webhookSecret: z.string().optional(),
     }),
-    
+
     smtp: z.object({
       host: z.string().default('localhost'),
       port: z.coerce.number().default(587),
@@ -27,30 +27,30 @@ const ServicesConfigSchema = z.object({
       }),
     }),
   }),
-  
+
   // SMS service configuration
   sms: z.object({
     provider: z.enum(['twilio', 'console']).default('console'),
     from: z.string().default('+1234567890'),
-    
+
     twilio: z.object({
       accountSid: z.string().optional(),
       authToken: z.string().optional(),
       messagingServiceSid: z.string().optional(),
     }),
   }),
-  
+
   // Push notification configuration
   push: z.object({
     provider: z.enum(['fcm', 'console']).default('console'),
-    
+
     fcm: z.object({
       projectId: z.string().optional(),
       privateKey: z.string().optional(),
       clientEmail: z.string().optional(),
     }),
   }),
-  
+
   // Webhook configuration
   webhook: z.object({
     timeout: z.coerce.number().default(30000), // 30 seconds
@@ -59,7 +59,7 @@ const ServicesConfigSchema = z.object({
     signatureHeader: z.string().default('x-webhook-signature'),
     secret: z.string().optional(),
   }),
-  
+
   // External APIs
   apis: z.object({
     // If you integrate with any external services
@@ -67,7 +67,7 @@ const ServicesConfigSchema = z.object({
       apiKey: z.string().optional(),
       enabled: z.boolean().default(false),
     }),
-    
+
     weather: z.object({
       apiKey: z.string().optional(),
       baseUrl: URLSchema.optional(),
@@ -99,7 +99,7 @@ export const servicesConfig: ServicesConfig = ServicesConfigSchema.parse({
       },
     },
   },
-  
+
   sms: {
     provider: process.env.SMS_PROVIDER as any,
     from: process.env.SMS_FROM_NUMBER,
@@ -109,7 +109,7 @@ export const servicesConfig: ServicesConfig = ServicesConfigSchema.parse({
       messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
     },
   },
-  
+
   push: {
     provider: process.env.PUSH_PROVIDER as any,
     fcm: {
@@ -118,7 +118,7 @@ export const servicesConfig: ServicesConfig = ServicesConfigSchema.parse({
       clientEmail: process.env.FCM_CLIENT_EMAIL,
     },
   },
-  
+
   webhook: {
     timeout: process.env.WEBHOOK_TIMEOUT,
     maxRetries: process.env.WEBHOOK_MAX_RETRIES,
@@ -126,7 +126,7 @@ export const servicesConfig: ServicesConfig = ServicesConfigSchema.parse({
     signatureHeader: process.env.WEBHOOK_SIGNATURE_HEADER,
     secret: process.env.WEBHOOK_SECRET,
   },
-  
+
   apis: {
     googleMaps: {
       apiKey: process.env.GOOGLE_MAPS_API_KEY,

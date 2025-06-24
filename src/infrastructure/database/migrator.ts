@@ -4,7 +4,10 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { logger } from '../../shared/utils/logger';
 
-export async function runMigrations(db: Kysely<any>, direction: 'up' | 'down' = 'up'): Promise<void> {
+export async function runMigrations(
+  db: Kysely<any>,
+  direction: 'up' | 'down' = 'up',
+): Promise<void> {
   const migrationFolder = path.join(__dirname, 'migrations');
 
   // Check if migrations folder exists
@@ -36,8 +39,8 @@ export async function runMigrations(db: Kysely<any>, direction: 'up' | 'down' = 
 }
 
 function handleMigrationResults(
-  results: readonly MigrationResult[] | undefined,  // Changed from Migration[] to MigrationResult[]
-  error: unknown
+  results: readonly MigrationResult[] | undefined, // Changed from Migration[] to MigrationResult[]
+  error: unknown,
 ): void {
   results?.forEach((result) => {
     if (result.status === 'Success') {
