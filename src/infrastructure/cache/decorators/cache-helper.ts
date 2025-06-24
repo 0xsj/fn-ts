@@ -7,7 +7,9 @@ let cacheServiceInstance: CacheService | null = null;
 
 export function getCacheService(): CacheService {
   if (!cacheServiceInstance) {
-    const { DIContainer } = require('../../../core/di/container') as { DIContainer: typeof DIContainerType };
+    const { DIContainer } = require('../../../core/di/container') as {
+      DIContainer: typeof DIContainerType;
+    };
     const { TOKENS } = require('../../../core/di/tokens') as { TOKENS: typeof TokensType };
     cacheServiceInstance = DIContainer.resolve<CacheService>(TOKENS.CacheService);
   }

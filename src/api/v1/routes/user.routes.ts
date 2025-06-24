@@ -3,6 +3,7 @@ import { UserController } from '../controller/user.controller';
 import { DIContainer } from '../../../core/di/container';
 import { CacheService } from '../../../infrastructure/cache/cache.service';
 import { TOKENS } from '../../../core/di/tokens';
+import { CacheManager } from '../../../infrastructure/cache/cache.manager';
 
 export function createUserRoutes(): Router {
   const router = Router();
@@ -16,10 +17,23 @@ export function createUserRoutes(): Router {
     const cacheService = DIContainer.resolve<CacheService>(TOKENS.CacheService);
     const key = `UserService:findUserById:${req.params.id}`;
     const exists = await cacheService.get(key);
-    res.json({ 
+    res.json({
       cached: exists !== null,
       key,
-      data: exists 
+      data: exists,
+    });
+  });
+
+  // src/api/v1/routes/user.routes.ts
+  router.delete('/cache/flush', async (_req: Request, res: Response) => {
+    const cacheService = DIContainer.resolve<CacheService>(TOKENS.CacheService);
+    const cacheManager = DIContainer.resolve<CacheManager>(TOKENS.CacheManager);
+
+    await cacheManager.flush();
+
+    res.json({
+      message: 'Cache flushed successfully',
+      timestamp: new Date().toISOString(),
     });
   });
 

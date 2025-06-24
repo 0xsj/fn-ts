@@ -3,6 +3,7 @@
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo -e "${GREEN}=== Cache Testing Script ===${NC}"
@@ -21,11 +22,11 @@ RESPONSE=$(curl -s -X POST http://localhost:3000/api/v1/users \
 
 echo $RESPONSE
 
-# Extract user ID using grep and sed (adjust based on your response format)
+# Extract user ID - adjust this based on your actual response format
 USER_ID=$(echo $RESPONSE | grep -o '"id":"[^"]*' | sed 's/"id":"//')
 
 if [ -z "$USER_ID" ]; then
-  echo "Failed to create user or extract ID"
+  echo -e "${RED}Failed to create user or extract ID${NC}"
   exit 1
 fi
 
@@ -47,6 +48,8 @@ echo -n "First fetch (cache miss): "
 TIME1=$(time_request http://localhost:3000/api/v1/users/$USER_ID)
 echo $TIME1
 
+sleep 0.5
+
 echo -n "Second fetch (cache hit): "
 TIME2=$(time_request http://localhost:3000/api/v1/users/$USER_ID)
 echo $TIME2
@@ -55,8 +58,19 @@ echo -n "Third fetch (cache hit): "
 TIME3=$(time_request http://localhost:3000/api/v1/users/$USER_ID)
 echo $TIME3
 
+# Test list caching
+echo -e "\n${YELLOW}3. Testing list cache...${NC}"
+
+echo -n "First fetch all users (cache miss): "
+TIME_LIST1=$(time_request http://localhost:3000/api/v1/users)
+echo $TIME_LIST1
+
+echo -n "Second fetch all users (cache hit): "
+TIME_LIST2=$(time_request http://localhost:3000/api/v1/users)
+echo $TIME_LIST2
+
 # Test cache invalidation
-echo -e "\n${YELLOW}3. Testing cache invalidation...${NC}"
+echo -e "\n${YELLOW}4. Testing cache invalidation...${NC}"
 
 echo "Updating user..."
 curl -s -X PUT http://localhost:3000/api/v1/users/$USER_ID \
@@ -67,9 +81,17 @@ echo -n "Fetch after update (cache miss): "
 TIME4=$(time_request http://localhost:3000/api/v1/users/$USER_ID)
 echo $TIME4
 
+echo -n "Fetch all users after update (cache miss due to tag invalidation): "
+TIME_LIST3=$(time_request http://localhost:3000/api/v1/users)
+echo $TIME_LIST3
+
 # Clean up
-echo -e "\n${YELLOW}4. Cleaning up...${NC}"
+echo -e "\n${YELLOW}5. Cleaning up...${NC}"
 curl -s -X DELETE http://localhost:3000/api/v1/users/$USER_ID > /dev/null
 echo "User deleted"
 
 echo -e "\n${GREEN}=== Cache Test Complete ===${NC}"
+echo -e "\n${YELLOW}Summary:${NC}"
+echo "- Cache misses should be 20-100ms"
+echo "- Cache hits should be 1-5ms"
+echo "- The difference shows caching is working!"

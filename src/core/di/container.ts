@@ -14,7 +14,7 @@ import { TOKENS } from './tokens';
 
 export class DIContainer {
   private static initialized = false;
-  
+
   static async initialize(): Promise<void> {
     if (this.initialized) {
       logger.warn('DI Container already initialized');
@@ -37,12 +37,12 @@ export class DIContainer {
   private static async registerCache(): Promise<void> {
     const redisClient = RedisClient.getInstance();
     await redisClient.connect();
-    
+
     container.registerInstance(TOKENS.RedisClient, redisClient);
-    
+
     // Register CacheManager first as a singleton
     container.registerSingleton(TOKENS.CacheManager, CacheManager);
-    
+
     // Register CacheService as a singleton that depends on CacheManager
     container.register(TOKENS.CacheService, {
       useFactory: (c) => {
@@ -72,10 +72,10 @@ export class DIContainer {
   static async dispose(): Promise<void> {
     const db = container.resolve<Kysely<Database>>(TOKENS.Database);
     await db.destroy();
-    
+
     const redisClient = container.resolve<RedisClient>(TOKENS.RedisClient);
     await redisClient.disconnect();
-    
+
     container.reset();
     this.initialized = false;
   }

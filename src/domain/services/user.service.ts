@@ -1,14 +1,13 @@
-// src/domain/services/user.service.ts
 import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '../../core/di/tokens';
 import type { IUserRepository } from '../repositories/user.repository.interface';
 import type { CreateUserInput, UpdateUserInput, User } from '../entities';
 import type { AsyncResult } from '../../shared/response';
 import {
- ConflictError,
- NotFoundError,
- ResponseBuilder,
- InternalServerError,
+  ConflictError,
+  NotFoundError,
+  ResponseBuilder,
+  InternalServerError,
 } from '../../shared/response';
 import { isSuccessResponse } from '../../shared/response';
 import { hashPassword, verifyPassword } from '../../shared/utils/crypto';
@@ -17,149 +16,149 @@ import { getCacheService } from '../../infrastructure/cache/decorators/cache-hel
 
 @injectable()
 export class UserService {
- constructor(@inject(TOKENS.UserRepository) private userRepo: IUserRepository) {}
+  constructor(@inject(TOKENS.UserRepository) private userRepo: IUserRepository) {}
 
- async createUser(input: CreateUserInput, correlationId?: string): AsyncResult<User> {
-   const existingUser = await this.userRepo.findByEmail(input.email, correlationId);
+  async createUser(input: CreateUserInput, correlationId?: string): AsyncResult<User> {
+    const existingUser = await this.userRepo.findByEmail(input.email, correlationId);
 
-   if (isSuccessResponse(existingUser) && existingUser.body().data) {
-     return new ConflictError('Email already exists', correlationId);
-   }
+    if (isSuccessResponse(existingUser) && existingUser.body().data) {
+      return new ConflictError('Email already exists', correlationId);
+    }
 
-   const passwordHash = await hashPassword(input.password);
-   
-   const result = await this.userRepo.create(
-     {
-       ...input,
-       passwordHash,
-     },
-     correlationId,
-   );
+    const passwordHash = await hashPassword(input.password);
 
-   // Invalidate user list cache when new user is created
-   if (isSuccessResponse(result)) {
-     await this.invalidateUserCaches();
-   }
+    const result = await this.userRepo.create(
+      {
+        ...input,
+        passwordHash,
+      },
+      correlationId,
+    );
 
-   return result;
- }
+    // Invalidate user list cache when new user is created
+    if (isSuccessResponse(result)) {
+      await this.invalidateUserCaches();
+    }
 
- @Cacheable({ ttl: 3600, tags: ['user'] }) // Cache for 1 hour
- async findUserById(id: string, correlationId?: string): AsyncResult<User | null> {
-   return this.userRepo.findById(id, correlationId);
- }
+    return result;
+  }
 
- @Cacheable({ ttl: 3600, tags: ['user'] })
- async findUserByEmail(email: string, correlationId?: string): AsyncResult<User | null> {
-   return this.userRepo.findByEmail(email, correlationId);
- }
+  @Cacheable({ ttl: 3600, tags: ['user'] }) // Cache for 1 hour
+  async findUserById(id: string, correlationId?: string): AsyncResult<User | null> {
+    return this.userRepo.findById(id, correlationId);
+  }
 
- @Cacheable({ ttl: 300, tags: ['users', 'user-list'] }) // Cache for 5 minutes
- async findAllUsers(correlationId?: string): AsyncResult<User[]> {
-   return this.userRepo.findAll(correlationId);
- }
+  @Cacheable({ ttl: 3600, tags: ['user'] })
+  async findUserByEmail(email: string, correlationId?: string): AsyncResult<User | null> {
+    return this.userRepo.findByEmail(email, correlationId);
+  }
 
- @CacheInvalidate({
-   patterns: (id: string) => [`UserService:findUserById:*${id}*`],
-   tags: ['users', 'user-list'],
- })
- @CacheUpdate({
-   key: (id: string) => `UserService:findUserById:${id}`,
-   ttl: 3600,
- })
- async updateUser(
-   id: string,
-   updates: UpdateUserInput,
-   correlationId?: string,
- ): AsyncResult<User> {
-   const existingUser = await this.userRepo.findById(id, correlationId);
+  @Cacheable({ ttl: 300, tags: ['users', 'user-list'] }) // Cache for 5 minutes
+  async findAllUsers(correlationId?: string): AsyncResult<User[]> {
+    return this.userRepo.findAll(correlationId);
+  }
 
-   if (!isSuccessResponse(existingUser)) {
-     return existingUser;
-   }
+  @CacheInvalidate({
+    patterns: (id: string) => [`UserService:findUserById:${id}`],
+    tags: ['users', 'user-list'],
+  })
+  @CacheUpdate({
+    key: (id: string) => `UserService:findUserById:${id}`, // This should work now
+    ttl: 3600,
+  })
+  async updateUser(
+    id: string,
+    updates: UpdateUserInput,
+    correlationId?: string,
+  ): AsyncResult<User> {
+    const existingUser = await this.userRepo.findById(id, correlationId);
 
-   const currentUser = existingUser.body().data;
-   if (!currentUser) {
-     return new NotFoundError('User not found', correlationId);
-   }
+    if (!isSuccessResponse(existingUser)) {
+      return existingUser;
+    }
 
-   if (updates.email && updates.email !== currentUser.email) {
-     const emailExists = await this.userRepo.findByEmail(updates.email, correlationId);
-     if (isSuccessResponse(emailExists) && emailExists.body().data) {
-       return new ConflictError('Email already exists', correlationId);
-     }
-   }
+    const currentUser = existingUser.body().data;
+    if (!currentUser) {
+      return new NotFoundError('User not found', correlationId);
+    }
 
-   const updateData: Partial<Omit<User, 'id' | 'createdAt'>> = {
-     firstName: updates.firstName,
-     lastName: updates.lastName,
-     email: updates.email,
-     phone: updates.phone,
-   };
+    if (updates.email && updates.email !== currentUser.email) {
+      const emailExists = await this.userRepo.findByEmail(updates.email, correlationId);
+      if (isSuccessResponse(emailExists) && emailExists.body().data) {
+        return new ConflictError('Email already exists', correlationId);
+      }
+    }
 
-   if (updates.password) {
-     updateData.passwordHash = await hashPassword(updates.password);
-   }
+    const updateData: Partial<Omit<User, 'id' | 'createdAt'>> = {
+      firstName: updates.firstName,
+      lastName: updates.lastName,
+      email: updates.email,
+      phone: updates.phone,
+    };
 
-   Object.keys(updateData).forEach((key) => {
-     if (updateData[key as keyof typeof updateData] === undefined) {
-       delete updateData[key as keyof typeof updateData];
-     }
-   });
+    if (updates.password) {
+      updateData.passwordHash = await hashPassword(updates.password);
+    }
 
-   const result = await this.userRepo.update(id, updateData, correlationId);
+    Object.keys(updateData).forEach((key) => {
+      if (updateData[key as keyof typeof updateData] === undefined) {
+        delete updateData[key as keyof typeof updateData];
+      }
+    });
 
-   if (!isSuccessResponse(result)) {
-     return result;
-   }
+    const result = await this.userRepo.update(id, updateData, correlationId);
 
-   const updatedUser = result.body().data;
-   if (!updatedUser) {
-     return new InternalServerError(correlationId, {
-       message: 'Update succeeded but user not found',
-     });
-   }
+    if (!isSuccessResponse(result)) {
+      return result;
+    }
 
-   return ResponseBuilder.ok(updatedUser, correlationId);
- }
+    const updatedUser = result.body().data;
+    if (!updatedUser) {
+      return new InternalServerError(correlationId, {
+        message: 'Update succeeded but user not found',
+      });
+    }
 
- @CacheInvalidate({
-   patterns: (id: string) => [`UserService:findUserById:*${id}*`],
-   tags: ['users', 'user-list'],
- })
- async deleteUser(id: string, correlationId?: string): AsyncResult<boolean> {
-   const existingUser = await this.userRepo.findById(id, correlationId);
+    return ResponseBuilder.ok(updatedUser, correlationId);
+  }
 
-   if (!isSuccessResponse(existingUser) || !existingUser.body().data) {
-     return new NotFoundError('User not found', correlationId);
-   }
+  @CacheInvalidate({
+    patterns: (id: string) => [`UserService:findUserById:${id}`],
+    tags: ['users', 'user-list'],
+  })
+  async deleteUser(id: string, correlationId?: string): AsyncResult<boolean> {
+    const existingUser = await this.userRepo.findById(id, correlationId);
 
-   return this.userRepo.delete(id, correlationId);
- }
+    if (!isSuccessResponse(existingUser) || !existingUser.body().data) {
+      return new NotFoundError('User not found', correlationId);
+    }
 
- async verifyPassword(email: string, password: string, correlationId?: string): AsyncResult<User> {
-   const userResult = await this.userRepo.findByEmail(email, correlationId);
+    return this.userRepo.delete(id, correlationId);
+  }
 
-   if (!isSuccessResponse(userResult)) {
-     return userResult;
-   }
+  async verifyPassword(email: string, password: string, correlationId?: string): AsyncResult<User> {
+    const userResult = await this.userRepo.findByEmail(email, correlationId);
 
-   const user = userResult.body().data;
-   if (!user) {
-     return new NotFoundError('Invalid credentials', correlationId);
-   }
+    if (!isSuccessResponse(userResult)) {
+      return userResult;
+    }
 
-   const isValid = await verifyPassword(password, user.passwordHash);
+    const user = userResult.body().data;
+    if (!user) {
+      return new NotFoundError('Invalid credentials', correlationId);
+    }
 
-   if (!isValid) {
-     return new NotFoundError('Invalid credentials', correlationId);
-   }
+    const isValid = await verifyPassword(password, user.passwordHash);
 
-   return ResponseBuilder.ok(user, correlationId);
- }
+    if (!isValid) {
+      return new NotFoundError('Invalid credentials', correlationId);
+    }
 
- private async invalidateUserCaches(): Promise<void> {
-   const cacheService = getCacheService();
-   await cacheService.invalidateByTags(['users', 'user-list']);
- }
+    return ResponseBuilder.ok(user, correlationId);
+  }
+
+  private async invalidateUserCaches(): Promise<void> {
+    const cacheService = getCacheService();
+    await cacheService.invalidateByTags(['users', 'user-list']);
+  }
 }
