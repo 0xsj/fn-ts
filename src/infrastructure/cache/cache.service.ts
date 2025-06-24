@@ -4,7 +4,7 @@ import { CacheManager } from './cache.manager';
 import { CacheOptions } from './strategies/cache-strategy.interface';
 import crypto from 'crypto';
 
-@injectable()
+@injectable()  // Add this decorator
 export class CacheService {
   constructor(private cacheManager: CacheManager) {}
 
@@ -64,13 +64,16 @@ export class CacheService {
     factory: () => Promise<T>,
     options?: CacheOptions,
   ): Promise<T> {
+    // Try to get from cache
     const cached = await this.get<T>(key);
     if (cached !== null) {
       return cached;
     }
 
+    // Generate fresh value
     const value = await factory();
     
+    // Store in cache
     await this.set(key, value, options);
     
     return value;

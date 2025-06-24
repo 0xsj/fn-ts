@@ -1,7 +1,5 @@
 // src/infrastructure/cache/decorators/cache-invalidate.decorator.ts
-import { CacheService } from '../cache.service';
-import { DIContainer } from '../../../core/di/container';
-import { TOKENS } from '../../../core/di/tokens';
+import { getCacheService } from './cache-helper';
 
 export interface CacheInvalidateOptions {
   keys?: ((...args: any[]) => string[]) | string[];
@@ -19,7 +17,7 @@ export function CacheInvalidate(options: CacheInvalidateOptions): MethodDecorato
     const originalMethod = descriptor.value;
     
     descriptor.value = async function (...args: any[]) {
-      const cacheService = DIContainer.resolve<CacheService>(TOKENS.CacheService);
+      const cacheService = getCacheService();
       const afterMethod = options.afterMethod !== false;
       
       const performInvalidation = async () => {

@@ -1,8 +1,6 @@
 // src/infrastructure/cache/decorators/cache-update.decorator.ts
-import { CacheService } from '../cache.service';
 import { CacheOptions } from '../strategies/cache-strategy.interface';
-import { DIContainer } from '../../../core/di/container';
-import { TOKENS } from '../../../core/di/tokens';
+import { getCacheService } from './cache-helper';
 
 export interface CacheUpdateOptions extends CacheOptions {
   key: (...args: any[]) => string;
@@ -18,10 +16,10 @@ export function CacheUpdate(options: CacheUpdateOptions): MethodDecorator {
     const originalMethod = descriptor.value;
     
     descriptor.value = async function (...args: any[]) {
-      const cacheService = DIContainer.resolve<CacheService>(TOKENS.CacheService);
-      
       // Execute original method
       const result = await originalMethod.apply(this, args);
+      
+      const cacheService = getCacheService();
       
       // Generate cache key
       const key = options.key(...args);

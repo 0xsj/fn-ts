@@ -1,3 +1,4 @@
+// src/core/di/container.ts
 import 'reflect-metadata';
 import { container } from 'tsyringe';
 import { Kysely } from 'kysely';
@@ -5,14 +6,15 @@ import type { Database } from '../../infrastructure/database/types';
 import { createDatabase } from '../../infrastructure/database/connection';
 import { UserRepository } from '../../infrastructure/database/repositories/user.repository';
 import { UserService } from '../../domain/services/user.service';
-import { logger } from '../../shared/utils';
-import { TOKENS } from './tokens';
 import { RedisClient } from '../../infrastructure/cache/redis.client';
 import { CacheManager } from '../../infrastructure/cache/cache.manager';
 import { CacheService } from '../../infrastructure/cache/cache.service';
+import { logger } from '../../shared/utils';
+import { TOKENS } from './tokens';
 
 export class DIContainer {
   private static initialized = false;
+  
   static async initialize(): Promise<void> {
     if (this.initialized) {
       logger.warn('DI Container already initialized');
@@ -24,7 +26,7 @@ export class DIContainer {
     this.registerRepositories();
     this.registerServices();
     this.initialized = true;
-    logger.info('DI Container intialized successfully');
+    logger.info('DI Container initialized successfully');
   }
 
   private static async registerDatabase(): Promise<void> {
@@ -35,10 +37,19 @@ export class DIContainer {
   private static async registerCache(): Promise<void> {
     const redisClient = RedisClient.getInstance();
     await redisClient.connect();
-
-    container.registerInstance(TOKENS.RedisClient, redisClient)
-    container.registerInstance(TOKENS.CacheManager, CacheManager)
-    container.registerSingleton(TOKENS.CacheService, CacheService)
+    
+    container.registerInstance(TOKENS.RedisClient, redisClient);
+    
+    // Register CacheManager first as a singleton
+    container.registerSingleton(TOKENS.CacheManager, CacheManager);
+    
+    // Register CacheService as a singleton that depends on CacheManager
+    container.register(TOKENS.CacheService, {
+      useFactory: (c) => {
+        const cacheManager = c.resolve<CacheManager>(TOKENS.CacheManager);
+        return new CacheService(cacheManager);
+      },
+    });
   }
 
   private static registerRepositories(): void {
@@ -61,10 +72,10 @@ export class DIContainer {
   static async dispose(): Promise<void> {
     const db = container.resolve<Kysely<Database>>(TOKENS.Database);
     await db.destroy();
-
+    
     const redisClient = container.resolve<RedisClient>(TOKENS.RedisClient);
     await redisClient.disconnect();
-
+    
     container.reset();
     this.initialized = false;
   }

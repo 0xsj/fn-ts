@@ -1,8 +1,6 @@
 // src/infrastructure/cache/decorators/cacheable.decorator.ts
-import { CacheService } from '../cache.service';
 import { CacheOptions } from '../strategies/cache-strategy.interface';
-import { DIContainer } from '../../../core/di/container';
-import { TOKENS } from '../../../core/di/tokens';
+import { getCacheService } from './cache-helper';
 
 export interface CacheableOptions extends CacheOptions {
   keyPrefix?: string;
@@ -23,7 +21,7 @@ export function Cacheable(options?: CacheableOptions): MethodDecorator {
         return originalMethod.apply(this, args);
       }
       
-      const cacheService = DIContainer.resolve<CacheService>(TOKENS.CacheService);
+      const cacheService = getCacheService();
       const className = target.constructor.name;
       const methodName = String(propertyKey);
       
