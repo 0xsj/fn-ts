@@ -12,7 +12,7 @@ export const validateConfigs = (): void => {
     if (appConfig.security.jwtSecret === 'change-this-secret-in-production') {
       throw new Error('JWT_SECRET must be set in production');
     }
-  }  
+  }
 };
 
 export const config = {

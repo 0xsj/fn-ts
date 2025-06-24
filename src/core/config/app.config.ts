@@ -8,7 +8,7 @@ const AppConfigSchema = z.object({
   version: z.string().default('1.0.0'),
   port: PortSchema.default(3000),
   host: z.string().default('0.0.0.0'),
-  
+
   // API Settings
   api: z.object({
     prefix: z.string().default('/api'),
@@ -18,7 +18,7 @@ const AppConfigSchema = z.object({
       maxLimit: z.coerce.number().default(100),
     }),
   }),
-  
+
   // Security
   security: z.object({
     bcryptRounds: z.coerce.number().min(10).default(10),
@@ -27,14 +27,14 @@ const AppConfigSchema = z.object({
     refreshTokenExpiresIn: z.string().default('30d'),
     corsOrigins: z.array(z.string()).default(['http://localhost:3000']),
   }),
-  
+
   // Rate Limiting
   rateLimit: z.object({
     windowMs: z.coerce.number().default(60000), // 1 minute
     max: z.coerce.number().default(100), // requests per window
     skipSuccessfulRequests: z.boolean().default(false),
   }),
-  
+
   // Logging
   logging: z.object({
     level: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
@@ -48,7 +48,7 @@ export const appConfig: AppConfig = AppConfigSchema.parse({
   env: process.env.NODE_ENV || 'development',
   port: process.env.PORT,
   host: process.env.HOST,
-  
+
   api: {
     prefix: process.env.API_PREFIX,
     version: process.env.API_VERSION,
@@ -57,7 +57,7 @@ export const appConfig: AppConfig = AppConfigSchema.parse({
       maxLimit: process.env.API_MAX_LIMIT,
     },
   },
-  
+
   security: {
     bcryptRounds: process.env.BCRYPT_ROUNDS,
     jwtSecret: process.env.JWT_SECRET || 'change-this-secret-in-production-min-32-chars',
@@ -65,13 +65,13 @@ export const appConfig: AppConfig = AppConfigSchema.parse({
     refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN,
     corsOrigins: process.env.CORS_ORIGINS?.split(','),
   },
-  
+
   rateLimit: {
     windowMs: process.env.RATE_LIMIT_WINDOW_MS,
     max: process.env.RATE_LIMIT_MAX,
     skipSuccessfulRequests: process.env.RATE_LIMIT_SKIP_SUCCESSFUL === 'true',
   },
-  
+
   logging: {
     level: process.env.LOG_LEVEL as any,
     pretty: process.env.NODE_ENV !== 'production',
@@ -79,6 +79,9 @@ export const appConfig: AppConfig = AppConfigSchema.parse({
 });
 
 // Development environment checks
-if (appConfig.env === 'production' && appConfig.security.jwtSecret === 'change-this-secret-in-production-min-32-chars') {
+if (
+  appConfig.env === 'production' &&
+  appConfig.security.jwtSecret === 'change-this-secret-in-production-min-32-chars'
+) {
   throw new Error('JWT_SECRET must be set in production');
 }

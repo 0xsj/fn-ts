@@ -15,11 +15,14 @@ async function start(): Promise<void> {
 
     const server = createServer(app);
 
-     server.listen(config.app.port, () => {
-      logger.info({ 
-        port: config.app.port,
-        env: config.app.env 
-      }, 'Server started successfully');
+    server.listen(config.app.port, () => {
+      logger.info(
+        {
+          port: config.app.port,
+          env: config.app.env,
+        },
+        'Server started successfully',
+      );
     });
   } catch (error) {
     logger.error('Failed to start server', error);

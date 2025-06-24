@@ -5,15 +5,15 @@ import { URLSchema } from './config.schema';
 const StorageConfigSchema = z.object({
   // Storage provider
   provider: z.enum(['s3', 'minio', 'local']).default('local'),
-  
+
   // Common settings
   defaultBucket: z.string().default('fn-uploads'),
   publicBucket: z.string().default('fn-public'),
-  
+
   // URL settings
   publicUrl: URLSchema.optional(), // CDN or public URL
   signedUrlExpiry: z.coerce.number().default(3600), // 1 hour
-  
+
   // S3/MinIO configuration
   s3: z.object({
     endpoint: URLSchema.optional(), // For MinIO
@@ -22,27 +22,29 @@ const StorageConfigSchema = z.object({
     secretAccessKey: z.string().optional(),
     forcePathStyle: z.boolean().default(true), // For MinIO
   }),
-  
+
   // Local storage configuration
   local: z.object({
     basePath: z.string().default('./uploads'),
     serveStatic: z.boolean().default(true),
     maxFileSize: z.coerce.number().default(10 * 1024 * 1024), // 10MB
   }),
-  
+
   // Upload settings
   upload: z.object({
     maxFileSize: z.coerce.number().default(10 * 1024 * 1024), // 10MB
-    allowedMimeTypes: z.array(z.string()).default([
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'application/pdf',
-      'application/zip',
-      'text/csv',
-    ]),
-    
+    allowedMimeTypes: z
+      .array(z.string())
+      .default([
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'application/pdf',
+        'application/zip',
+        'text/csv',
+      ]),
+
     // Image processing
     image: z.object({
       maxWidth: z.coerce.number().default(2048),
@@ -52,7 +54,7 @@ const StorageConfigSchema = z.object({
       thumbnailSize: z.coerce.number().default(200),
     }),
   }),
-  
+
   // Storage organization
   paths: z.object({
     incidents: z.string().default('incidents/{year}/{month}/{id}'),
@@ -60,7 +62,7 @@ const StorageConfigSchema = z.object({
     temp: z.string().default('temp/'),
     exports: z.string().default('exports/{year}/{month}/'),
   }),
-  
+
   // Cleanup settings
   cleanup: z.object({
     enabled: z.boolean().default(true),
@@ -77,7 +79,7 @@ export const storageConfig: StorageConfig = StorageConfigSchema.parse({
   publicBucket: process.env.STORAGE_PUBLIC_BUCKET,
   publicUrl: process.env.STORAGE_PUBLIC_URL,
   signedUrlExpiry: process.env.STORAGE_SIGNED_URL_EXPIRY,
-  
+
   s3: {
     endpoint: process.env.S3_ENDPOINT, // For MinIO: http://localhost:9000
     region: process.env.AWS_REGION,
@@ -85,13 +87,13 @@ export const storageConfig: StorageConfig = StorageConfigSchema.parse({
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
   },
-  
+
   local: {
     basePath: process.env.LOCAL_STORAGE_PATH,
     serveStatic: process.env.LOCAL_SERVE_STATIC !== 'false',
     maxFileSize: process.env.LOCAL_MAX_FILE_SIZE,
   },
-  
+
   upload: {
     maxFileSize: process.env.UPLOAD_MAX_FILE_SIZE,
     allowedMimeTypes: process.env.UPLOAD_ALLOWED_TYPES?.split(','),
@@ -103,14 +105,14 @@ export const storageConfig: StorageConfig = StorageConfigSchema.parse({
       thumbnailSize: process.env.IMAGE_THUMBNAIL_SIZE,
     },
   },
-  
+
   paths: {
     incidents: process.env.STORAGE_PATH_INCIDENTS,
     users: process.env.STORAGE_PATH_USERS,
     temp: process.env.STORAGE_PATH_TEMP,
     exports: process.env.STORAGE_PATH_EXPORTS,
   },
-  
+
   cleanup: {
     enabled: process.env.STORAGE_CLEANUP_ENABLED !== 'false',
     tempFileExpiry: process.env.STORAGE_TEMP_EXPIRY,
