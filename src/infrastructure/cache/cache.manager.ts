@@ -1,8 +1,9 @@
+// src/infrastructure/cache/cache.manager.ts
 import { injectable } from 'tsyringe';
 import { CacheStrategy, CacheOptions } from './strategies/cache-strategy.interface';
 import { TTLCacheStrategy } from './strategies/ttl.strategy';
 import { RedisClient } from './redis.client';
-import { logger } from '../../shared/utils';
+import { logger } from '../../shared/utils/logger';
 import { config } from '../../core/config';
 
 export interface CacheInvalidationEvent {
@@ -10,7 +11,7 @@ export interface CacheInvalidationEvent {
   key?: string;
   pattern?: string;
   tags?: string[];
-  source: string;
+  source: string; // instance identifier
 }
 
 @injectable()
@@ -34,8 +35,10 @@ export class CacheManager {
     this.subscriber.subscribe(this.invalidationChannel, (message) => {
       try {
         const event: CacheInvalidationEvent = JSON.parse(message);
+        
+        // Ignore events from self to prevent loops
         if (event.source === this.instanceId) return;
-
+        
         this.handleInvalidationEvent(event);
       } catch (error) {
         logger.error('Error handling cache invalidation event:', error);
@@ -45,20 +48,20 @@ export class CacheManager {
 
   private async handleInvalidationEvent(event: CacheInvalidationEvent): Promise<void> {
     logger.debug('Handling cache invalidation event:', event);
-
+    
     switch (event.type) {
       case 'invalidate':
         if (event.key) {
           await this.strategy.delete(this.buildKey(event.key));
         }
         break;
-
+        
       case 'invalidate-pattern':
         if (event.pattern) {
           await this.strategy.deletePattern(this.buildKey(event.pattern));
         }
         break;
-
+        
       case 'invalidate-tags':
         if (event.tags) {
           await this.invalidateByTags(event.tags, false);
@@ -71,38 +74,50 @@ export class CacheManager {
     return `${this.prefix}${key}`;
   }
 
-  private async broadcastInvalidation(
-    event: Omit<CacheInvalidationEvent, 'source'>,
-  ): Promise<void> {
+  private async broadcastInvalidation(event: Omit<CacheInvalidationEvent, 'source'>): Promise<void> {
     const fullEvent: CacheInvalidationEvent = {
       ...event,
       source: this.instanceId,
     };
-
+    
     await this.publisher.publish(this.invalidationChannel, JSON.stringify(fullEvent));
+  }
+
+  async get<T>(key: string): Promise<T | null> {
+    const fullKey = this.buildKey(key);
+    const result = await this.strategy.get<T>(fullKey);
+    
+    if (result !== null) {
+      logger.debug(`Cache hit for key: ${key}`);
+    } else {
+      logger.debug(`Cache miss for key: ${key}`);
+    }
+    
+    return result;
   }
 
   async set<T>(key: string, value: T, options?: CacheOptions): Promise<void> {
     const fullKey = this.buildKey(key);
     const ttl = options?.ttl || config.redis.cache.ttl;
-
+    
     await this.strategy.set(fullKey, value, ttl);
-
+    
+    // Handle tags
     if (options?.tags) {
       await this.addToTags(fullKey, options.tags);
     }
-
+    
     logger.debug(`Cache set for key: ${key}, TTL: ${ttl}s`);
   }
 
   async invalidate(key: string, broadcast = true): Promise<boolean> {
     const fullKey = this.buildKey(key);
     const result = await this.strategy.delete(fullKey);
-
+    
     if (result && broadcast) {
       await this.broadcastInvalidation({ type: 'invalidate', key });
     }
-
+    
     logger.debug(`Cache invalidated for key: ${key}`);
     return result;
   }
@@ -110,18 +125,18 @@ export class CacheManager {
   async invalidatePattern(pattern: string, broadcast = true): Promise<number> {
     const fullPattern = this.buildKey(pattern);
     const count = await this.strategy.deletePattern(fullPattern);
-
+    
     if (count > 0 && broadcast) {
       await this.broadcastInvalidation({ type: 'invalidate-pattern', pattern });
     }
-
+    
     logger.debug(`Cache invalidated ${count} keys for pattern: ${pattern}`);
     return count;
   }
 
   async invalidateByTags(tags: string[], broadcast = true): Promise<number> {
     let totalInvalidated = 0;
-
+    
     for (const tag of tags) {
       const keys = this.tagIndex.get(tag);
       if (keys) {
@@ -132,11 +147,11 @@ export class CacheManager {
         this.tagIndex.delete(tag);
       }
     }
-
+    
     if (totalInvalidated > 0 && broadcast) {
       await this.broadcastInvalidation({ type: 'invalidate-tags', tags });
     }
-
+    
     logger.debug(`Cache invalidated ${totalInvalidated} keys for tags: ${tags.join(', ')}`);
     return totalInvalidated;
   }
