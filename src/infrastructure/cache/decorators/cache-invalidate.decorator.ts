@@ -12,8 +12,8 @@ export interface CacheInvalidateOptions {
 
 export function CacheInvalidate(options: CacheInvalidateOptions): MethodDecorator {
   return function (
-    target: any,
-    propertyKey: string | symbol,
+    _target: any,
+    _propertyKey: string | symbol,
     descriptor: PropertyDescriptor,
   ) {
     const originalMethod = descriptor.value;

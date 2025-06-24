@@ -11,8 +11,8 @@ export interface CacheUpdateOptions extends CacheOptions {
 
 export function CacheUpdate(options: CacheUpdateOptions): MethodDecorator {
   return function (
-    target: any,
-    propertyKey: string | symbol,
+    _target: any,
+    _propertyKey: string | symbol,
     descriptor: PropertyDescriptor,
   ) {
     const originalMethod = descriptor.value;
