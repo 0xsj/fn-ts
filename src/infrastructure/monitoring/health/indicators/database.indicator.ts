@@ -24,7 +24,7 @@ export class DatabaseHealthIndicator extends BaseHealthIndicator {
   protected async performCheck(): Promise<HealthCheckData> {
     try {
       const db = DIContainer.resolve<Kysely<Database>>(TOKENS.Database);
-      
+
       // Perform a simple query to check connectivity
       const result = await db
         .selectFrom('users')
@@ -33,12 +33,14 @@ export class DatabaseHealthIndicator extends BaseHealthIndicator {
 
       // Get connection pool stats if available
       const pool = (db as any).driver?.pool;
-      const poolStats = pool ? {
-        size: pool.size || 0,
-        available: pool.available || 0,
-        pending: pool.pending || 0,
-        max: pool.max || 0,
-      } : undefined;
+      const poolStats = pool
+        ? {
+            size: pool.size || 0,
+            available: pool.available || 0,
+            pending: pool.pending || 0,
+            max: pool.max || 0,
+          }
+        : undefined;
 
       return {
         status: 'healthy',
@@ -48,7 +50,9 @@ export class DatabaseHealthIndicator extends BaseHealthIndicator {
         },
       };
     } catch (error) {
-      throw new Error(`Database check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Database check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 }

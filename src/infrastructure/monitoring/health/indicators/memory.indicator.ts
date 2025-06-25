@@ -8,10 +8,7 @@ export class MemoryHealthIndicator extends BaseHealthIndicator {
   private readonly warningThreshold: number;
   private readonly criticalThreshold: number;
 
-  constructor(
-    warningThreshold: number = 80,
-    criticalThreshold: number = 90
-  ) {
+  constructor(warningThreshold: number = 80, criticalThreshold: number = 90) {
     super({
       isEssential: false,
       cacheDuration: 5000, // 5 seconds
@@ -26,16 +23,16 @@ export class MemoryHealthIndicator extends BaseHealthIndicator {
       const freeMemory = os.freemem();
       const usedMemory = totalMemory - freeMemory;
       const usedPercent = (usedMemory / totalMemory) * 100;
-      
+
       // Get process memory usage
       const processMemory = process.memoryUsage();
-      
+
       const status = this.determineStatus(
         usedPercent,
         this.warningThreshold,
-        this.criticalThreshold
+        this.criticalThreshold,
       );
-      
+
       return {
         status,
         details: {
@@ -58,7 +55,9 @@ export class MemoryHealthIndicator extends BaseHealthIndicator {
         },
       };
     } catch (error) {
-      throw new Error(`Memory check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Memory check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 

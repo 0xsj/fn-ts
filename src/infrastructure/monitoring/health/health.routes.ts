@@ -8,7 +8,7 @@ export function createHealthRoutes(): Router {
 
   // Full health check with all indicators
   router.get('/health', healthController.getHealth.bind(healthController));
-  
+
   // Kubernetes-style endpoints
   router.get('/health/live', healthController.getLiveness.bind(healthController));
   router.get('/health/ready', healthController.getReadiness.bind(healthController));

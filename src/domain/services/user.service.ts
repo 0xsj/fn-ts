@@ -1,3 +1,4 @@
+// src/domain/services/user.service.ts
 import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '../../core/di/tokens';
 import type { IUserRepository } from '../repositories/user.repository.interface';
@@ -13,10 +14,15 @@ import { isSuccessResponse } from '../../shared/response';
 import { hashPassword, verifyPassword } from '../../shared/utils/crypto';
 import { Cacheable, CacheInvalidate, CacheUpdate } from '../../infrastructure/cache/decorators';
 import { getCacheService } from '../../infrastructure/cache/decorators/cache-helper';
+import { EventBus } from '../../infrastructure/events/event-bus';
+import { UserCreatedEvent, UserUpdatedEvent, UserDeletedEvent } from '../events/user';
 
 @injectable()
 export class UserService {
-  constructor(@inject(TOKENS.UserRepository) private userRepo: IUserRepository) {}
+  constructor(
+    @inject(TOKENS.UserRepository) private userRepo: IUserRepository,
+    @inject(TOKENS.EventBus) private eventBus: EventBus,
+  ) {}
 
   async createUser(input: CreateUserInput, correlationId?: string): AsyncResult<User> {
     const existingUser = await this.userRepo.findByEmail(input.email, correlationId);
@@ -38,12 +44,28 @@ export class UserService {
     // Invalidate user list cache when new user is created
     if (isSuccessResponse(result)) {
       await this.invalidateUserCaches();
+
+      // Emit user created event
+      const user = result.body().data;
+      if (user) {
+        await this.eventBus.emit(
+          new UserCreatedEvent(
+            {
+              userId: user.id,
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+            },
+            correlationId ? { correlationId, userId: user.id } : { userId: user.id },
+          ),
+        );
+      }
     }
 
     return result;
   }
 
-  @Cacheable({ ttl: 3600, tags: ['user'] })
+  @Cacheable({ ttl: 3600, tags: ['user'] }) // Cache for 1 hour
   async findUserById(id: string, correlationId?: string): AsyncResult<User | null> {
     return this.userRepo.findById(id, correlationId);
   }
@@ -53,7 +75,7 @@ export class UserService {
     return this.userRepo.findByEmail(email, correlationId);
   }
 
-  @Cacheable({ ttl: 300, tags: ['users', 'user-list'] })
+  @Cacheable({ ttl: 300, tags: ['users', 'user-list'] }) // Cache for 5 minutes
   async findAllUsers(correlationId?: string): AsyncResult<User[]> {
     return this.userRepo.findAll(correlationId);
   }
@@ -80,6 +102,27 @@ export class UserService {
     const currentUser = existingUser.body().data;
     if (!currentUser) {
       return new NotFoundError('User not found', correlationId);
+    }
+
+    // Track changes for the event
+    const changes: any = {};
+    const previousValues: any = {};
+
+    if (updates.firstName !== undefined && updates.firstName !== currentUser.firstName) {
+      changes.firstName = updates.firstName;
+      previousValues.firstName = currentUser.firstName;
+    }
+    if (updates.lastName !== undefined && updates.lastName !== currentUser.lastName) {
+      changes.lastName = updates.lastName;
+      previousValues.lastName = currentUser.lastName;
+    }
+    if (updates.email !== undefined && updates.email !== currentUser.email) {
+      changes.email = updates.email;
+      previousValues.email = currentUser.email;
+    }
+    if (updates.phone !== undefined && updates.phone !== currentUser.phone) {
+      changes.phone = updates.phone;
+      previousValues.phone = currentUser.phone;
     }
 
     if (updates.email && updates.email !== currentUser.email) {
@@ -119,6 +162,20 @@ export class UserService {
       });
     }
 
+    // Emit update event if there were changes
+    if (Object.keys(changes).length > 0) {
+      await this.eventBus.emit(
+        new UserUpdatedEvent(
+          {
+            userId: id,
+            changes,
+            previousValues,
+          },
+          correlationId ? { correlationId, userId: id } : { userId: id },
+        ),
+      );
+    }
+
     return ResponseBuilder.ok(updatedUser, correlationId);
   }
 
@@ -129,11 +186,30 @@ export class UserService {
   async deleteUser(id: string, correlationId?: string): AsyncResult<boolean> {
     const existingUser = await this.userRepo.findById(id, correlationId);
 
-    if (!isSuccessResponse(existingUser) || !existingUser.body().data) {
+    if (!isSuccessResponse(existingUser)) {
+      return existingUser;
+    }
+
+    const user = existingUser.body().data;
+    if (!user) {
       return new NotFoundError('User not found', correlationId);
     }
 
-    return this.userRepo.delete(id, correlationId);
+    const result = await this.userRepo.delete(id, correlationId);
+
+    if (isSuccessResponse(result) && result.body().data) {
+      await this.eventBus.emit(
+        new UserDeletedEvent(
+          {
+            userId: id,
+            email: user.email,
+          },
+          correlationId ? { correlationId, userId: id } : { userId: id },
+        ),
+      );
+    }
+
+    return result;
   }
 
   async verifyPassword(email: string, password: string, correlationId?: string): AsyncResult<User> {

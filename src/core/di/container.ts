@@ -10,6 +10,8 @@ import { RedisClient } from '../../infrastructure/cache/redis.client';
 import { CacheManager } from '../../infrastructure/cache/cache.manager';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { HealthCheckService } from '../../infrastructure/monitoring/health/health-check.service';
+import { EventBus } from '../../infrastructure/events/event-bus';
+import { registerEventHandlers } from '../../infrastructure/events/event-bus.registry';
 import { logger } from '../../shared/utils';
 import { TOKENS } from './tokens';
 
@@ -22,13 +24,22 @@ export class DIContainer {
       return;
     }
 
-    await this.registerDatabase();
-    await this.registerCache();
-    this.registerRepositories();
-    this.registerServices();
-    this.registerHealthCheck(); // Add this
-    this.initialized = true;
-    logger.info('DI Container initialized successfully');
+    try {
+      await this.registerDatabase();
+      await this.registerCache();
+      this.registerRepositories();
+      this.registerServices();
+      this.registerEventBus(); // Add this
+      this.registerHealthCheck();
+      this.initialized = true;
+      logger.info('DI Container initialized successfully');
+    } catch (error) {
+      logger.error('Failed to initialize DI Container', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      throw error;
+    }
   }
 
   private static async registerDatabase(): Promise<void> {
@@ -39,7 +50,6 @@ export class DIContainer {
   private static async registerCache(): Promise<void> {
     const redisClient = RedisClient.getInstance();
     await redisClient.connect();
-
     container.registerInstance(TOKENS.RedisClient, redisClient);
 
     // Register CacheManager first as a singleton
@@ -67,7 +77,18 @@ export class DIContainer {
     container.registerSingleton(TOKENS.UserService, UserService);
   }
 
-  // Add this new method
+  // Add this new method for EventBus
+  private static registerEventBus(): void {
+    // Register EventBus as singleton
+    container.registerSingleton(TOKENS.EventBus, EventBus);
+    
+    // Get the EventBus instance and register handlers
+    const eventBus = container.resolve<EventBus>(TOKENS.EventBus);
+    registerEventHandlers(eventBus);
+    
+    logger.info('Event bus registered and handlers configured');
+  }
+
   private static registerHealthCheck(): void {
     container.registerSingleton(TOKENS.HealthCheckService, HealthCheckService);
   }

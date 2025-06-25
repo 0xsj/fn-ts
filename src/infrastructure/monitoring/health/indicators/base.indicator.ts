@@ -1,11 +1,18 @@
 // src/infrastructure/monitoring/health/indicators/base.indicator.ts
-import { HealthIndicator, HealthCheckResult, HealthCheckData, HealthStatus, CircuitBreakerOptions, CircuitBreakerState } from '../types';
+import {
+  HealthIndicator,
+  HealthCheckResult,
+  HealthCheckData,
+  HealthStatus,
+  CircuitBreakerOptions,
+  CircuitBreakerState,
+} from '../types';
 import { logger } from '../../../../shared/utils/logger';
 
 export abstract class BaseHealthIndicator implements HealthIndicator {
   abstract name: string;
   isEssential: boolean = false;
-  
+
   private circuitBreaker?: CircuitBreakerState;
   private circuitBreakerOptions?: CircuitBreakerOptions;
   private lastResult?: HealthCheckResult;
@@ -20,7 +27,7 @@ export abstract class BaseHealthIndicator implements HealthIndicator {
     if (options?.isEssential !== undefined) {
       this.isEssential = options.isEssential;
     }
-    
+
     if (options?.circuitBreaker) {
       this.circuitBreakerOptions = options.circuitBreaker;
       this.circuitBreaker = {
@@ -28,7 +35,7 @@ export abstract class BaseHealthIndicator implements HealthIndicator {
         failures: 0,
       };
     }
-    
+
     if (options?.cacheDuration !== undefined) {
       this.cacheDuration = options.cacheDuration;
     }
@@ -62,11 +69,11 @@ export abstract class BaseHealthIndicator implements HealthIndicator {
     }
 
     const startTime = Date.now();
-    
+
     try {
       const result = await this.performCheck();
       const responseTime = Date.now() - startTime;
-      
+
       const finalResult: HealthCheckResult = {
         ...result,
         responseTime,
@@ -86,18 +93,18 @@ export abstract class BaseHealthIndicator implements HealthIndicator {
       return finalResult;
     } catch (error) {
       const responseTime = Date.now() - startTime;
-      
+
       // Handle circuit breaker
       if (this.circuitBreaker && this.circuitBreakerOptions) {
         this.circuitBreaker.failures++;
         this.circuitBreaker.lastFailure = new Date();
-        
+
         if (this.circuitBreaker.failures >= this.circuitBreakerOptions.failureThreshold) {
           this.circuitBreaker.isOpen = true;
           this.circuitBreaker.nextRetry = new Date(
-            Date.now() + this.circuitBreakerOptions.resetTimeout
+            Date.now() + this.circuitBreakerOptions.resetTimeout,
           );
-          
+
           logger.warn(`Circuit breaker opened for health check: ${this.name}`, {
             failures: this.circuitBreaker.failures,
             nextRetry: this.circuitBreaker.nextRetry,
@@ -127,7 +134,7 @@ export abstract class BaseHealthIndicator implements HealthIndicator {
     value: number,
     warningThreshold: number,
     criticalThreshold: number,
-    inverse: boolean = false
+    inverse: boolean = false,
   ): HealthStatus {
     if (inverse) {
       // For metrics where lower is worse (like free space)
