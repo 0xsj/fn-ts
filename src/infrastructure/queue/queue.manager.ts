@@ -74,8 +74,8 @@ export class QueueManager {
     const metrics = await Promise.all(
       Array.from(this.queues.entries()).map(async ([name, queue]) => ({
         name,
-        ...await queue.getMetrics(),
-      }))
+        ...(await queue.getMetrics()),
+      })),
     );
 
     return {
@@ -93,9 +93,7 @@ export class QueueManager {
    * Pause all queues
    */
   async pauseAll(): Promise<void> {
-    await Promise.all(
-      Array.from(this.queues.values()).map(queue => queue.pause())
-    );
+    await Promise.all(Array.from(this.queues.values()).map((queue) => queue.pause()));
     logger.info('All queues paused');
   }
 
@@ -103,9 +101,7 @@ export class QueueManager {
    * Resume all queues
    */
   async resumeAll(): Promise<void> {
-    await Promise.all(
-      Array.from(this.queues.values()).map(queue => queue.resume())
-    );
+    await Promise.all(Array.from(this.queues.values()).map((queue) => queue.resume()));
     logger.info('All queues resumed');
   }
 
@@ -116,9 +112,7 @@ export class QueueManager {
     logger.info('Shutting down queue manager...');
 
     // Close all queues
-    await Promise.all(
-      Array.from(this.queues.values()).map(queue => queue.close())
-    );
+    await Promise.all(Array.from(this.queues.values()).map((queue) => queue.close()));
 
     this.queues.clear();
     this.initialized = false;
@@ -134,7 +128,7 @@ export class QueueManager {
       Array.from(this.queues.entries()).map(async ([name, queue]) => {
         const cleaned = await queue.clean(gracePeriod);
         return { queue: name, cleaned: cleaned.length };
-      })
+      }),
     );
 
     logger.info('Cleaned all queues', { results });

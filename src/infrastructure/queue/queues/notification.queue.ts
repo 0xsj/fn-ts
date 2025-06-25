@@ -30,19 +30,19 @@ export class NotificationQueue extends BaseQueue {
           case 'email':
             await this.handleEmailNotification(job.data);
             break;
-          
+
           case 'sms':
             await this.handleSMSNotification(job.data);
             break;
-          
+
           case 'push':
             await this.handlePushNotification(job.data);
             break;
-          
+
           case 'in-app':
             await this.handleInAppNotification(job.data);
             break;
-          
+
           default:
             throw new Error(`Unknown notification type: ${job.data.type}`);
         }

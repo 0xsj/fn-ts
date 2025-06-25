@@ -55,11 +55,14 @@ export class EmailQueue extends BaseQueue {
   /**
    * Add an email job to the queue
    */
-  async sendEmailJob(data: EmailJobData, options?: {
-    delay?: number;
-    priority?: number;
-    attempts?: number;
-  }): Promise<string> {
+  async sendEmailJob(
+    data: EmailJobData,
+    options?: {
+      delay?: number;
+      priority?: number;
+      attempts?: number;
+    },
+  ): Promise<string> {
     const job = await this.addJob({
       name: 'send-email',
       data,
@@ -80,7 +83,12 @@ export class EmailQueue extends BaseQueue {
   /**
    * Send a welcome email
    */
-  async sendWelcomeEmail(userId: string, email: string, firstName: string, correlationId?: string): Promise<string> {
+  async sendWelcomeEmail(
+    userId: string,
+    email: string,
+    firstName: string,
+    correlationId?: string,
+  ): Promise<string> {
     return this.sendEmailJob({
       to: email,
       subject: 'Welcome to FireNotifications!',
@@ -97,19 +105,26 @@ export class EmailQueue extends BaseQueue {
   /**
    * Send a password reset email
    */
-  async sendPasswordResetEmail(email: string, resetToken: string, correlationId?: string): Promise<string> {
-    return this.sendEmailJob({
-      to: email,
-      subject: 'Reset Your Password',
-      template: 'password-reset',
-      data: {
-        resetLink: `https://app.firenotifications.com/reset-password/${resetToken}`,
-        expiresIn: '1 hour',
+  async sendPasswordResetEmail(
+    email: string,
+    resetToken: string,
+    correlationId?: string,
+  ): Promise<string> {
+    return this.sendEmailJob(
+      {
+        to: email,
+        subject: 'Reset Your Password',
+        template: 'password-reset',
+        data: {
+          resetLink: `https://app.firenotifications.com/reset-password/${resetToken}`,
+          expiresIn: '1 hour',
+        },
+        correlationId,
       },
-      correlationId,
-    }, {
-      priority: 1, // High priority
-    });
+      {
+        priority: 1, // High priority
+      },
+    );
   }
 
   /**
@@ -117,7 +132,7 @@ export class EmailQueue extends BaseQueue {
    */
   private async sendEmail(data: EmailJobData): Promise<void> {
     // Simulate email sending delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     logger.info('Email would be sent', {
       to: data.to,
