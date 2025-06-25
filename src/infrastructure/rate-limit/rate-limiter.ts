@@ -4,23 +4,28 @@ import { RedisRateLimitStore, RedisSlidingWindowStore } from './stores/redis.sto
 import { logger } from '../../shared/utils/logger';
 
 export class RateLimiterImpl implements RateLimiter {
-  private readonly store: RateLimitStore;
+  private store: RateLimitStore | null = null;
   private readonly options: Required<RateLimitOptions>;
 
   constructor(options: RateLimitOptions) {
     this.options = this.normalizeOptions(options);
-    
-    // Select store based on strategy
-    switch (this.options.strategy) {
-      case 'sliding-window':
-        this.store = new RedisSlidingWindowStore(this.options.keyPrefix);
-        break;
-      case 'fixed-window':
-      case 'token-bucket':
-      default:
-        this.store = new RedisRateLimitStore(this.options.keyPrefix);
-        break;
+  }
+
+  private getStore(): RateLimitStore {
+    if (!this.store) {
+      // Create store lazily when first needed
+      switch (this.options.strategy) {
+        case 'sliding-window':
+          this.store = new RedisSlidingWindowStore(this.options.keyPrefix);
+          break;
+        case 'fixed-window':
+        case 'token-bucket':
+        default:
+          this.store = new RedisRateLimitStore(this.options.keyPrefix);
+          break;
+      }
     }
+    return this.store;
   }
 
   private normalizeOptions(options: RateLimitOptions): Required<RateLimitOptions> {
@@ -46,7 +51,8 @@ export class RateLimiterImpl implements RateLimiter {
         return true;
       }
 
-      const info = await this.store.get(key);
+      const store = this.getStore();
+      const info = await store.get(key);
       if (!info) {
         return true; // No record means first request
       }
@@ -71,7 +77,8 @@ export class RateLimiterImpl implements RateLimiter {
         };
       }
 
-      const info = await this.store.increment(key, this.options.windowMs);
+      const store = this.getStore();
+      const info = await store.increment(key, this.options.windowMs);
       
       // Set the limit and calculate remaining
       info.limit = this.options.max;
@@ -92,7 +99,8 @@ export class RateLimiterImpl implements RateLimiter {
 
   async reset(key: string): Promise<void> {
     try {
-      await this.store.reset(key);
+      const store = this.getStore();
+      await store.reset(key);
     } catch (error) {
       logger.error('Rate limiter reset error', { error, key });
     }
@@ -110,7 +118,8 @@ export class RateLimiterImpl implements RateLimiter {
         };
       }
 
-      const info = await this.store.get(key);
+      const store = this.getStore();
+      const info = await store.get(key);
       if (!info) {
         return null;
       }
@@ -136,12 +145,13 @@ export class RateLimiterImpl implements RateLimiter {
         return;
       }
 
+      const store = this.getStore();
       const isSuccessful = statusCode < 400;
       
       if (this.options.skipSuccessfulRequests && isSuccessful) {
-        await this.store.decrement(key);
+        await store.decrement(key);
       } else if (this.options.skipFailedRequests && !isSuccessful) {
-        await this.store.decrement(key);
+        await store.decrement(key);
       }
     } catch (error) {
       logger.error('Rate limiter postProcess error', { error, key, statusCode });

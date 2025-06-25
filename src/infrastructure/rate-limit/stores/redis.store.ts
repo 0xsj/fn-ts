@@ -2,13 +2,21 @@
 import { RateLimitStore, RateLimitInfo } from '../types';
 import { RedisClient } from '../../cache/redis.client';
 import { logger } from '../../../shared/utils/logger';
+import type { RedisClientType } from 'redis';
 
 export class RedisRateLimitStore implements RateLimitStore {
-  private redis = RedisClient.getInstance().getClient();
+  private redis: RedisClientType | null = null;
   private readonly keyPrefix: string;
 
   constructor(keyPrefix: string = 'ratelimit:') {
     this.keyPrefix = keyPrefix;
+  }
+
+  private getRedis(): RedisClientType {
+    if (!this.redis) {
+      this.redis = RedisClient.getInstance().getClient();
+    }
+    return this.redis;
   }
 
   async increment(key: string, windowMs: number): Promise<RateLimitInfo> {
@@ -17,8 +25,10 @@ export class RedisRateLimitStore implements RateLimitStore {
     const resetAt = now + windowMs;
 
     try {
+      const redis = this.getRedis();
+      
       // Use Redis pipeline for atomic operations
-      const pipeline = this.redis.multi();
+      const pipeline = redis.multi();
       
       // Increment the counter
       pipeline.incr(fullKey);
@@ -58,9 +68,10 @@ export class RedisRateLimitStore implements RateLimitStore {
     const fullKey = `${this.keyPrefix}${key}`;
     
     try {
-      const current = await this.redis.get(fullKey);
+      const redis = this.getRedis();
+      const current = await redis.get(fullKey);
       if (current && parseInt(current) > 0) {
-        await this.redis.decr(fullKey);
+        await redis.decr(fullKey);
       }
     } catch (error) {
       logger.error('Redis rate limit decrement failed', { error, key: fullKey });
@@ -72,7 +83,8 @@ export class RedisRateLimitStore implements RateLimitStore {
     const fullKey = `${this.keyPrefix}${key}`;
     
     try {
-      await this.redis.del(fullKey);
+      const redis = this.getRedis();
+      await redis.del(fullKey);
     } catch (error) {
       logger.error('Redis rate limit reset failed', { error, key: fullKey });
       throw error;
@@ -83,9 +95,10 @@ export class RedisRateLimitStore implements RateLimitStore {
     const fullKey = `${this.keyPrefix}${key}`;
     
     try {
+      const redis = this.getRedis();
       const [current, ttl] = await Promise.all([
-        this.redis.get(fullKey),
-        this.redis.ttl(fullKey),
+        redis.get(fullKey),
+        redis.ttl(fullKey),
       ]);
 
       if (!current) {
@@ -110,11 +123,18 @@ export class RedisRateLimitStore implements RateLimitStore {
 
 // Sliding window implementation for more accurate rate limiting
 export class RedisSlidingWindowStore implements RateLimitStore {
-  private redis = RedisClient.getInstance().getClient();
+  private redis: RedisClientType | null = null;
   private readonly keyPrefix: string;
 
   constructor(keyPrefix: string = 'ratelimit:sw:') {
     this.keyPrefix = keyPrefix;
+  }
+
+  private getRedis(): RedisClientType {
+    if (!this.redis) {
+      this.redis = RedisClient.getInstance().getClient();
+    }
+    return this.redis;
   }
 
   async increment(key: string, windowMs: number): Promise<RateLimitInfo> {
@@ -123,7 +143,8 @@ export class RedisSlidingWindowStore implements RateLimitStore {
     const windowStart = now - windowMs;
 
     try {
-      const pipeline = this.redis.multi();
+      const redis = this.getRedis();
+      const pipeline = redis.multi();
       
       // Remove old entries outside the window
       pipeline.zRemRangeByScore(fullKey, '-inf', windowStart.toString());
@@ -156,7 +177,10 @@ export class RedisSlidingWindowStore implements RateLimitStore {
         resetAt: new Date(now + windowMs),
       };
     } catch (error) {
-      logger.error('Redis sliding window increment failed', { error, key: fullKey });
+      logger.error('Redis sliding window increment failed', { 
+        error: error instanceof Error ? error.message : error,
+        key: fullKey 
+      });
       throw error;
     }
   }
@@ -166,7 +190,8 @@ export class RedisSlidingWindowStore implements RateLimitStore {
     const fullKey = `${this.keyPrefix}${key}`;
     
     try {
-      await this.redis.zRemRangeByRank(fullKey, -1, -1);
+      const redis = this.getRedis();
+      await redis.zRemRangeByRank(fullKey, -1, -1);
     } catch (error) {
       logger.error('Redis sliding window decrement failed', { error, key: fullKey });
     }
@@ -176,7 +201,8 @@ export class RedisSlidingWindowStore implements RateLimitStore {
     const fullKey = `${this.keyPrefix}${key}`;
     
     try {
-      await this.redis.del(fullKey);
+      const redis = this.getRedis();
+      await redis.del(fullKey);
     } catch (error) {
       logger.error('Redis sliding window reset failed', { error, key: fullKey });
       throw error;
@@ -189,8 +215,9 @@ export class RedisSlidingWindowStore implements RateLimitStore {
     const windowMs = 60000; // Default 1 minute window for get operation
     
     try {
+      const redis = this.getRedis();
       const windowStart = now - windowMs;
-      const count = await this.redis.zCount(fullKey, windowStart.toString(), '+inf');
+      const count = await redis.zCount(fullKey, windowStart.toString(), '+inf');
       
       if (count === 0) {
         return null;

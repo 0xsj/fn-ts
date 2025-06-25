@@ -54,7 +54,7 @@ import { DIContainer } from '../../../core/di/container';
 import { CacheService } from '../../../infrastructure/cache/cache.service';
 import { TOKENS } from '../../../core/di/tokens';
 import { CacheManager } from '../../../infrastructure/cache/cache.manager';
-import { rateLimits } from '../../../infrastructure/rate-limit/rate-limit.middleware';
+import { rateLimitMiddleware } from '../../../infrastructure/rate-limit/rate-limit.middleware';
 
 export function createUserRoutes(): Router {
   const router = Router();
@@ -87,12 +87,36 @@ export function createUserRoutes(): Router {
     });
   });
 
-  // Apply rate limiting to routes
-  router.post('/', rateLimits.write(), userController.createUser.bind(userController));
-  router.get('/', rateLimits.read(), userController.getUsers.bind(userController));
-  router.get('/:id', rateLimits.read(), userController.getUserById.bind(userController));
-  router.put('/:id', rateLimits.write(), userController.updateUser.bind(userController));
-  router.delete('/:id', rateLimits.write(), userController.deleteUser.bind(userController));
+  // Apply rate limiting to routes with fixed window for testing
+  router.post('/', rateLimitMiddleware({
+    max: 5, // Low limit for testing
+    windowMs: 60 * 1000, // 1 minute
+    strategy: 'fixed-window', // Use simpler strategy for now
+  }), userController.createUser.bind(userController));
+  
+  router.get('/', rateLimitMiddleware({
+    max: 100,
+    windowMs: 15 * 60 * 1000,
+    strategy: 'fixed-window',
+  }), userController.getUsers.bind(userController));
+  
+  router.get('/:id', rateLimitMiddleware({
+    max: 100,
+    windowMs: 15 * 60 * 1000,
+    strategy: 'fixed-window',
+  }), userController.getUserById.bind(userController));
+  
+  router.put('/:id', rateLimitMiddleware({
+    max: 20,
+    windowMs: 15 * 60 * 1000,
+    strategy: 'fixed-window',
+  }), userController.updateUser.bind(userController));
+  
+  router.delete('/:id', rateLimitMiddleware({
+    max: 10,
+    windowMs: 15 * 60 * 1000,
+    strategy: 'fixed-window',
+  }), userController.deleteUser.bind(userController));
 
   return router;
 }
