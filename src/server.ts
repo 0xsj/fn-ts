@@ -6,8 +6,6 @@ import app, { initializeApp } from './app';
 import { logger } from './shared/utils/logger';
 import { config, validateConfigs } from './core/config';
 
-const PORT = process.env.PORT || 3000;
-
 async function start(): Promise<void> {
   try {
     validateConfigs();

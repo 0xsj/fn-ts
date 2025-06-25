@@ -8,6 +8,7 @@ import { responseLoggerMiddleware } from './shared/middleware/response-logger.mi
 import { errorHandlerMiddleware } from './shared/middleware/error-handler.middleware';
 import { createV1Routes } from './api/v1/routes';
 import { DIContainer } from './core/di/container';
+import { requestLoggerMiddleware } from './shared/middleware';
 
 const app: Application = express();
 
@@ -20,6 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 // Custom middleware
 app.use(contextMiddleware);
 app.use(responseLoggerMiddleware);
+app.use(requestLoggerMiddleware)
 
 export async function initializeApp(): Promise<void> {
   try {
@@ -42,5 +44,7 @@ export async function initializeApp(): Promise<void> {
     throw error;
   }
 }
+
+app.use(errorHandlerMiddleware)
 
 export default app;
