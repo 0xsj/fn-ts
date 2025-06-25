@@ -43,7 +43,7 @@ export class UserService {
     return result;
   }
 
-  @Cacheable({ ttl: 3600, tags: ['user'] }) // Cache for 1 hour
+  @Cacheable({ ttl: 3600, tags: ['user'] })
   async findUserById(id: string, correlationId?: string): AsyncResult<User | null> {
     return this.userRepo.findById(id, correlationId);
   }
@@ -53,7 +53,7 @@ export class UserService {
     return this.userRepo.findByEmail(email, correlationId);
   }
 
-  @Cacheable({ ttl: 300, tags: ['users', 'user-list'] }) // Cache for 5 minutes
+  @Cacheable({ ttl: 300, tags: ['users', 'user-list'] })
   async findAllUsers(correlationId?: string): AsyncResult<User[]> {
     return this.userRepo.findAll(correlationId);
   }
@@ -63,7 +63,7 @@ export class UserService {
     tags: ['users', 'user-list'],
   })
   @CacheUpdate({
-    key: (id: string) => `UserService:findUserById:${id}`, // This should work now
+    key: (id: string) => `UserService:findUserById:${id}`,
     ttl: 3600,
   })
   async updateUser(

@@ -6,8 +6,8 @@ export abstract class BaseTransport implements LoggerTransport {
   public readonly name: string;
   public readonly level: LogLevel;
   protected readonly buffer: LogEntry[] = [];
-  protected readonly maxBufferSize: number = 100;
-  protected readonly flushInterval: number = 5000; // 5 seconds
+  protected  maxBufferSize: number = 100;
+  protected  flushInterval: number = 5000; // 5 seconds
   protected flushTimer?: NodeJS.Timeout;
 
   constructor(name: string, level: LogLevel = 'info') {
@@ -18,10 +18,11 @@ export abstract class BaseTransport implements LoggerTransport {
 
   abstract isReady(): boolean;
   protected abstract writeLog(entry: LogEntry): Promise<void>;
-  protected abstract writeBatch?(entries: LogEntry[]): Promise<void>; // Made optional with ?
+   protected async writeBatch(entries: LogEntry[]): Promise<void> {
+    await Promise.all(entries.map((entry) => this.writeLog(entry)));
+  }
 
   async log(entry: LogEntry): Promise<void> {
-    // Check if we should log this entry based on level
     if (!shouldLog(entry.level, this.level)) {
       return;
     }
@@ -76,7 +77,7 @@ export abstract class BaseTransport implements LoggerTransport {
 
   protected startFlushTimer(): void {
     this.flushTimer = setInterval(() => {
-      this.flush().catch(error => {
+      this.flush().catch((error) => {
         console.error(`Error in flush timer for ${this.name}:`, error);
       });
     }, this.flushInterval); // Pass the interval duration as second parameter
@@ -89,16 +90,16 @@ export abstract class BaseTransport implements LoggerTransport {
     if (redactPaths.length === 0) return data;
 
     const sanitized = { ...data };
-    
+
     for (const path of redactPaths) {
       const keys = path.split('.');
       let current: any = sanitized;
-      
+
       for (let i = 0; i < keys.length - 1; i++) {
         if (current[keys[i]] === undefined) break;
         current = current[keys[i]];
       }
-      
+
       const lastKey = keys[keys.length - 1];
       if (current && current[lastKey] !== undefined) {
         current[lastKey] = '[REDACTED]';
