@@ -9,24 +9,26 @@ export const AuditLogDBSchema = BaseEntityDBSchema.extend({
   entity_type: z.string(), // "user", "incident", "notification"
   entity_id: z.string(),
   action: z.enum(['create', 'read', 'update', 'delete', 'login', 'logout', 'export', 'import']),
-  
+
   // Actor information
   user_id: z.string().uuid().nullable(), // Null for system actions
   user_email: z.string().email().nullable(),
   user_role: z.string().nullable(),
-  
+
   // Request context
   ip_address: z.string().nullable(),
   user_agent: z.string().nullable(),
   correlation_id: z.string().uuid().nullable(),
-  
+
   // Change tracking
-  changes: z.object({
-    before: z.record(z.unknown()).nullable(),
-    after: z.record(z.unknown()).nullable(),
-    fields_changed: z.array(z.string()).optional(),
-  }).nullable(),
-  
+  changes: z
+    .object({
+      before: z.record(z.unknown()).nullable(),
+      after: z.record(z.unknown()).nullable(),
+      fields_changed: z.array(z.string()).optional(),
+    })
+    .nullable(),
+
   // Additional context
   status: z.enum(['success', 'failure']),
   error_message: z.string().nullable(),
@@ -37,24 +39,26 @@ export const AuditLogSchema = BaseEntitySchema.extend({
   entityType: z.string(),
   entityId: z.string(),
   action: z.enum(['create', 'read', 'update', 'delete', 'login', 'logout', 'export', 'import']),
-  
+
   // Actor information
   userId: z.string().uuid().nullable(),
   userEmail: z.string().email().nullable(),
   userRole: z.string().nullable(),
-  
+
   // Request context
   ipAddress: z.string().nullable(),
   userAgent: z.string().nullable(),
   correlationId: z.string().uuid().nullable(),
-  
+
   // Change tracking
-  changes: z.object({
-    before: z.record(z.unknown()).nullable(),
-    after: z.record(z.unknown()).nullable(),
-    fieldsChanged: z.array(z.string()).optional(),
-  }).nullable(),
-  
+  changes: z
+    .object({
+      before: z.record(z.unknown()).nullable(),
+      after: z.record(z.unknown()).nullable(),
+      fieldsChanged: z.array(z.string()).optional(),
+    })
+    .nullable(),
+
   // Additional context
   status: z.enum(['success', 'failure']),
   errorMessage: z.string().nullable(),
@@ -67,20 +71,20 @@ export const AuditLogSchema = BaseEntitySchema.extend({
 export const EventDBSchema = BaseEntityDBSchema.extend({
   event_type: z.string(), // "user.created", "incident.resolved", "notification.sent"
   event_version: z.number().int().default(1),
-  
+
   // Aggregate information
   aggregate_id: z.string(),
   aggregate_type: z.string(),
   sequence_number: z.number().int(),
-  
+
   // Event data
   payload: z.record(z.unknown()),
-  
+
   // Event metadata
   correlation_id: z.string().uuid().nullable(),
   causation_id: z.string().uuid().nullable(), // What caused this event
   user_id: z.string().uuid().nullable(),
-  
+
   // Processing status
   processed_at: z.date().nullable(),
   failed_at: z.date().nullable(),
@@ -90,20 +94,20 @@ export const EventDBSchema = BaseEntityDBSchema.extend({
 export const EventSchema = BaseEntitySchema.extend({
   eventType: z.string(),
   eventVersion: z.number().int().default(1),
-  
+
   // Aggregate information
   aggregateId: z.string(),
   aggregateType: z.string(),
   sequenceNumber: z.number().int(),
-  
+
   // Event data
   payload: z.record(z.unknown()),
-  
+
   // Event metadata
   correlationId: z.string().uuid().nullable(),
   causationId: z.string().uuid().nullable(),
   userId: z.string().uuid().nullable(),
-  
+
   // Processing status
   processedAt: z.date().nullable(),
   failedAt: z.date().nullable(),
@@ -118,15 +122,15 @@ export const MetricDBSchema = BaseEntityDBSchema.extend({
   value: z.number(),
   unit: z.string().nullable(), // "ms", "count", "bytes", "percentage"
   type: z.enum(['counter', 'gauge', 'histogram', 'summary']),
-  
+
   // Dimensions/Tags for filtering
   tags: z.record(z.string()), // { service: "api", endpoint: "/users", status: "200" }
-  
+
   // Time window (for aggregated metrics)
   timestamp: z.date(),
   period_start: z.date().nullable(),
   period_end: z.date().nullable(),
-  
+
   // Statistical data (for histograms/summaries)
   count: z.number().nullable(),
   sum: z.number().nullable(),
@@ -143,13 +147,13 @@ export const MetricSchema = BaseEntitySchema.extend({
   value: z.number(),
   unit: z.string().nullable(),
   type: z.enum(['counter', 'gauge', 'histogram', 'summary']),
-  
+
   tags: z.record(z.string()),
-  
+
   timestamp: z.date(),
   periodStart: z.date().nullable(),
   periodEnd: z.date().nullable(),
-  
+
   count: z.number().nullable(),
   sum: z.number().nullable(),
   min: z.number().nullable(),
@@ -166,18 +170,18 @@ export const MetricSchema = BaseEntitySchema.extend({
 export const ActivityLogDBSchema = BaseEntityDBSchema.extend({
   actor_type: z.enum(['user', 'system', 'api']),
   actor_id: z.string().nullable(),
-  
+
   activity_type: z.string(), // "incident.viewed", "notification.clicked", "file.downloaded"
   activity_category: z.enum(['view', 'action', 'navigation', 'system']),
-  
+
   // Context
   resource_type: z.string().nullable(),
   resource_id: z.string().nullable(),
-  
+
   // Additional data
   details: z.record(z.unknown()).nullable(),
   session_id: z.string().uuid().nullable(),
-  
+
   // Performance
   duration_ms: z.number().nullable(),
 });
@@ -185,16 +189,16 @@ export const ActivityLogDBSchema = BaseEntityDBSchema.extend({
 export const ActivityLogSchema = BaseEntitySchema.extend({
   actorType: z.enum(['user', 'system', 'api']),
   actorId: z.string().nullable(),
-  
+
   activityType: z.string(),
   activityCategory: z.enum(['view', 'action', 'navigation', 'system']),
-  
+
   resourceType: z.string().nullable(),
   resourceId: z.string().nullable(),
-  
+
   details: z.record(z.unknown()).nullable(),
   sessionId: z.string().uuid().nullable(),
-  
+
   durationMs: z.number().nullable(),
 });
 
@@ -232,15 +236,19 @@ export const IncidentAnalyticsSchema = z.object({
   averageResolutionTime: z.number(), // in minutes
   incidentsByType: z.record(z.number()),
   incidentsBySeverity: z.record(z.number()),
-  topResponders: z.array(z.object({
-    userId: z.string().uuid(),
-    name: z.string(),
-    incidentsHandled: z.number(),
-  })),
-  peakHours: z.array(z.object({
-    hour: z.number(),
-    count: z.number(),
-  })),
+  topResponders: z.array(
+    z.object({
+      userId: z.string().uuid(),
+      name: z.string(),
+      incidentsHandled: z.number(),
+    }),
+  ),
+  peakHours: z.array(
+    z.object({
+      hour: z.number(),
+      count: z.number(),
+    }),
+  ),
 });
 
 export const NotificationAnalyticsSchema = z.object({
@@ -248,7 +256,7 @@ export const NotificationAnalyticsSchema = z.object({
   totalDelivered: z.number(),
   totalFailed: z.number(),
   deliveryRate: z.number(), // percentage
-  
+
   byChannel: z.object({
     email: z.object({
       sent: z.number(),
@@ -267,7 +275,7 @@ export const NotificationAnalyticsSchema = z.object({
       opened: z.number(),
     }),
   }),
-  
+
   averageDeliveryTime: z.number(), // in seconds
 });
 
@@ -279,17 +287,17 @@ export const MetricNames = {
   API_REQUEST_COUNT: 'api.request.count',
   API_REQUEST_DURATION: 'api.request.duration',
   API_ERROR_COUNT: 'api.error.count',
-  
+
   // Incident Metrics
   INCIDENT_CREATED: 'incident.created.count',
   INCIDENT_RESOLVED: 'incident.resolved.count',
   INCIDENT_RESOLUTION_TIME: 'incident.resolution.time',
-  
+
   // Notification Metrics
   NOTIFICATION_SENT: 'notification.sent.count',
   NOTIFICATION_DELIVERED: 'notification.delivered.count',
   NOTIFICATION_FAILED: 'notification.failed.count',
-  
+
   // System Metrics
   QUEUE_SIZE: 'queue.size',
   CACHE_HIT_RATE: 'cache.hit.rate',

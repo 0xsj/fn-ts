@@ -7,7 +7,7 @@ import { BaseEntitySchema, BaseEntityDBSchema } from './entity.schema';
 // ============================================
 export const PermissionDBSchema = BaseEntityDBSchema.extend({
   resource: z.string(), // "user", "incident", "notification"
-  action: z.string(),   // "create", "read", "update", "delete", "list"
+  action: z.string(), // "create", "read", "update", "delete", "list"
   scope: z.enum(['own', 'team', 'organization', 'global']).nullable().optional(),
   description: z.string().nullable().optional(),
 });
@@ -98,7 +98,11 @@ export const PermissionGrantSchema = z.object({
 // ============================================
 export const CreateRoleSchema = z.object({
   name: z.string().min(1).max(100),
-  slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
+  slug: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^[a-z0-9-]+$/),
   description: z.string().max(500).optional(),
   permissions: z.array(z.string().uuid()).optional(), // Permission IDs
 });
@@ -132,19 +136,19 @@ export const CommonPermissions = {
   USER_UPDATE: { resource: 'user', action: 'update' },
   USER_DELETE: { resource: 'user', action: 'delete' },
   USER_LIST: { resource: 'user', action: 'list' },
-  
+
   // Incident permissions
   INCIDENT_CREATE: { resource: 'incident', action: 'create' },
   INCIDENT_READ: { resource: 'incident', action: 'read' },
   INCIDENT_UPDATE: { resource: 'incident', action: 'update' },
   INCIDENT_DELETE: { resource: 'incident', action: 'delete' },
   INCIDENT_ASSIGN: { resource: 'incident', action: 'assign' },
-  
+
   // Notification permissions
   NOTIFICATION_SEND: { resource: 'notification', action: 'send' },
   NOTIFICATION_READ: { resource: 'notification', action: 'read' },
   NOTIFICATION_MANAGE: { resource: 'notification', action: 'manage' },
-  
+
   // System permissions
   SYSTEM_ADMIN: { resource: 'system', action: 'admin' },
   ROLE_MANAGE: { resource: 'role', action: 'manage' },
