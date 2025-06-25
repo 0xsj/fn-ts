@@ -5,5 +5,6 @@ export const TOKENS = {
   RedisClient: Symbol.for('RedisClient'),
   CacheManager: Symbol.for('CacheManager'),
   CacheService: Symbol.for('CacheService'),
-  HealthCheckService: Symbol.for('HealthCheckService')
+  HealthCheckService: Symbol.for('HealthCheckService'),
+  EventBus: Symbol.for('EventBus'),
 } as const;

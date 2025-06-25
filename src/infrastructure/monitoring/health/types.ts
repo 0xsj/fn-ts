@@ -71,4 +71,3 @@ export interface HealthIndicator {
   check(): Promise<HealthCheckResult>;
   isEssential?: boolean;
 }
-

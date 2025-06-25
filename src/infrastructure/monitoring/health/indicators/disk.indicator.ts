@@ -13,11 +13,7 @@ export class DiskHealthIndicator extends BaseHealthIndicator {
   private readonly warningThreshold: number;
   private readonly criticalThreshold: number;
 
-  constructor(
-    path: string = '/',
-    warningThreshold: number = 80,
-    criticalThreshold: number = 90
-  ) {
+  constructor(path: string = '/', warningThreshold: number = 80, criticalThreshold: number = 90) {
     super({
       isEssential: false,
       cacheDuration: 30000, // 30 seconds
@@ -30,14 +26,14 @@ export class DiskHealthIndicator extends BaseHealthIndicator {
   protected async performCheck(): Promise<HealthCheckData> {
     try {
       const diskInfo = await this.getDiskUsage();
-      
+
       const usedPercent = diskInfo.usedPercent;
       const status = this.determineStatus(
         usedPercent,
         this.warningThreshold,
-        this.criticalThreshold
+        this.criticalThreshold,
       );
-      
+
       return {
         status,
         details: {
@@ -53,7 +49,9 @@ export class DiskHealthIndicator extends BaseHealthIndicator {
         },
       };
     } catch (error) {
-      throw new Error(`Disk check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Disk check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -64,17 +62,17 @@ export class DiskHealthIndicator extends BaseHealthIndicator {
     usedPercent: number;
   }> {
     const platform = os.platform();
-    
+
     if (platform === 'darwin' || platform === 'linux') {
       // Use df command for Unix-like systems
       const { stdout } = await execAsync(`df -k "${this.path}" | tail -1`);
       const parts = stdout.trim().split(/\s+/);
-      
+
       const totalKb = parseInt(parts[1]);
       const usedKb = parseInt(parts[2]);
       const availableKb = parseInt(parts[3]);
       const usedPercent = parseInt(parts[4]);
-      
+
       return {
         total: this.formatBytes(totalKb * 1024),
         used: this.formatBytes(usedKb * 1024),
@@ -83,7 +81,7 @@ export class DiskHealthIndicator extends BaseHealthIndicator {
       };
     } else if (platform === 'win32') {
       // Windows implementation
-      const { } = await execAsync('wmic logicaldisk get size,freespace,caption');
+      const {} = await execAsync('wmic logicaldisk get size,freespace,caption');
       // Parse Windows output (simplified)
       return {
         total: 'N/A',

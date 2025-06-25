@@ -23,11 +23,11 @@ export class HealthController {
       };
 
       const health = await this.healthCheckService.checkHealth(options);
-      
+
       // Set appropriate status code
-      const statusCode = health.status === 'healthy' ? 200 : 
-                        health.status === 'degraded' ? 200 : 503;
-      
+      const statusCode =
+        health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503;
+
       res.status(statusCode).json(health);
     } catch (error) {
       res.status(503).json({
@@ -52,10 +52,10 @@ export class HealthController {
       };
 
       const health = await this.healthCheckService.checkReadiness(options);
-      
+
       // For readiness, we're more strict
       const statusCode = health.status === 'healthy' ? 200 : 503;
-      
+
       res.status(statusCode).json(health);
     } catch (error) {
       res.status(503).json({
