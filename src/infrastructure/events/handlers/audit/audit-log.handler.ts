@@ -13,7 +13,7 @@ export class AuditLogHandler extends BaseEventHandler<DomainEvent> {
     // 1. Write to an audit log database table
     // 2. Send to a centralized logging service
     // 3. Store in an immutable audit trail
-    
+
     logger.info('AUDIT LOG', {
       eventId: event.eventId,
       eventName: event.eventName,
@@ -25,6 +25,6 @@ export class AuditLogHandler extends BaseEventHandler<DomainEvent> {
     });
 
     // Simulate async operation (in real app, this would be a database write)
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
   }
 }

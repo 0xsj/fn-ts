@@ -12,11 +12,22 @@ import { CacheService } from '../../infrastructure/cache/cache.service';
 import { HealthCheckService } from '../../infrastructure/monitoring/health/health-check.service';
 import { EventBus } from '../../infrastructure/events/event-bus';
 import { registerEventHandlers } from '../../infrastructure/events/event-bus.registry';
+import { QueueManager } from '../../infrastructure/queue/queue.manager';
 import { logger } from '../../shared/utils';
 import { TOKENS } from './tokens';
 
 export class DIContainer {
   private static initialized = false;
+
+  private static async registerQueues(): Promise<void> {
+    container.registerSingleton(TOKENS.QueueManager, QueueManager);
+
+    // Initialize queue manager
+    const queueManager = container.resolve<QueueManager>(TOKENS.QueueManager);
+    await queueManager.initialize();
+
+    logger.info('Queue system initialized');
+  }
 
   static async initialize(): Promise<void> {
     if (this.initialized) {
@@ -29,14 +40,16 @@ export class DIContainer {
       await this.registerCache();
       this.registerRepositories();
       this.registerServices();
-      this.registerEventBus(); // Add this
+      await this.registerQueues();
+      this.registerEventBus();
+
       this.registerHealthCheck();
       this.initialized = true;
       logger.info('DI Container initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize DI Container', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
       throw error;
     }
@@ -81,11 +94,11 @@ export class DIContainer {
   private static registerEventBus(): void {
     // Register EventBus as singleton
     container.registerSingleton(TOKENS.EventBus, EventBus);
-    
+
     // Get the EventBus instance and register handlers
     const eventBus = container.resolve<EventBus>(TOKENS.EventBus);
     registerEventHandlers(eventBus);
-    
+
     logger.info('Event bus registered and handlers configured');
   }
 
@@ -98,6 +111,10 @@ export class DIContainer {
   }
 
   static async dispose(): Promise<void> {
+    // Get queue manager and shut it down
+    const queueManager = container.resolve<QueueManager>(TOKENS.QueueManager);
+    await queueManager.shutdown();
+
     const db = container.resolve<Kysely<Database>>(TOKENS.Database);
     await db.destroy();
 

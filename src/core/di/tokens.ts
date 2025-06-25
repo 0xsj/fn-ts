@@ -7,4 +7,5 @@ export const TOKENS = {
   CacheService: Symbol.for('CacheService'),
   HealthCheckService: Symbol.for('HealthCheckService'),
   EventBus: Symbol.for('EventBus'),
+  QueueManager: Symbol.for('QueueManager'),
 } as const;
