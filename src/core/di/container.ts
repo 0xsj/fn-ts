@@ -9,6 +9,7 @@ import { UserService } from '../../domain/services/user.service';
 import { RedisClient } from '../../infrastructure/cache/redis.client';
 import { CacheManager } from '../../infrastructure/cache/cache.manager';
 import { CacheService } from '../../infrastructure/cache/cache.service';
+import { HealthCheckService } from '../../infrastructure/monitoring/health/health-check.service';
 import { logger } from '../../shared/utils';
 import { TOKENS } from './tokens';
 
@@ -25,6 +26,7 @@ export class DIContainer {
     await this.registerCache();
     this.registerRepositories();
     this.registerServices();
+    this.registerHealthCheck(); // Add this
     this.initialized = true;
     logger.info('DI Container initialized successfully');
   }
@@ -63,6 +65,11 @@ export class DIContainer {
 
   private static registerServices(): void {
     container.registerSingleton(TOKENS.UserService, UserService);
+  }
+
+  // Add this new method
+  private static registerHealthCheck(): void {
+    container.registerSingleton(TOKENS.HealthCheckService, HealthCheckService);
   }
 
   static resolve<T>(token: symbol): T {

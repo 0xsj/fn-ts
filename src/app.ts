@@ -6,6 +6,7 @@ import { logger } from './shared/utils/logger';
 import { contextMiddleware } from './shared/middleware/context.middleware';
 import { responseLoggerMiddleware } from './shared/middleware/response-logger.middleware';
 import { errorHandlerMiddleware } from './shared/middleware/error-handler.middleware';
+import { createHealthRoutes } from './infrastructure/monitoring/health/health.routes';
 import { createV1Routes } from './api/v1/routes';
 import { DIContainer } from './core/di/container';
 import { requestLoggerMiddleware } from './shared/middleware';
@@ -21,12 +22,12 @@ app.use(express.urlencoded({ extended: true }));
 // Custom middleware
 app.use(contextMiddleware);
 app.use(responseLoggerMiddleware);
-app.use(requestLoggerMiddleware)
+app.use(requestLoggerMiddleware);
 
 export async function initializeApp(): Promise<void> {
   try {
     await DIContainer.initialize();
-
+    app.use('/', createHealthRoutes());
     app.use('/api/v1', createV1Routes());
 
     app.use((_req: Request, res: Response) => {
@@ -45,6 +46,6 @@ export async function initializeApp(): Promise<void> {
   }
 }
 
-app.use(errorHandlerMiddleware)
+app.use(errorHandlerMiddleware);
 
 export default app;

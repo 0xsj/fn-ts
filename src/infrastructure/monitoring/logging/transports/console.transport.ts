@@ -7,8 +7,8 @@ export class ConsoleTransport extends BaseTransport {
   private readonly colors = {
     fatal: '\x1b[35m', // Magenta
     error: '\x1b[31m', // Red
-    warn: '\x1b[33m',  // Yellow
-    info: '\x1b[36m',  // Cyan
+    warn: '\x1b[33m', // Yellow
+    info: '\x1b[36m', // Cyan
     debug: '\x1b[32m', // Green
     trace: '\x1b[37m', // White
     reset: '\x1b[0m',
@@ -30,7 +30,7 @@ export class ConsoleTransport extends BaseTransport {
     super('console', level);
     this.useColors = config.app.env !== 'production';
     this.usePrettyPrint = config.app.env !== 'production';
-    
+
     // Don't buffer console logs - write immediately
     this.maxBufferSize = 1;
     this.flushInterval = 0;
@@ -119,7 +119,7 @@ export class ConsoleTransport extends BaseTransport {
   private formatForProduction(entry: LogEntry): Record<string, unknown> {
     // Fixed: destructure to avoid message override
     const { error, message, timestamp, ...restContext } = entry;
-    
+
     return {
       message,
       timestamp: timestamp.toISOString(),

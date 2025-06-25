@@ -13,10 +13,10 @@ export function rateLimitMiddleware(options: RateLimitOptions) {
     try {
       // Generate key for this request
       const key = limiterOptions.keyGenerator(req);
-      
+
       // Check if request is allowed
       const rateLimitInfo = await rateLimiter.consume(key);
-      
+
       // Store rate limit info on request for later use
       req.rateLimit = {
         limit: rateLimitInfo.limit,
@@ -30,19 +30,25 @@ export function rateLimitMiddleware(options: RateLimitOptions) {
         res.setHeader('X-RateLimit-Limit', rateLimitInfo.limit.toString());
         res.setHeader('X-RateLimit-Remaining', rateLimitInfo.remaining.toString());
         res.setHeader('X-RateLimit-Reset', rateLimitInfo.resetAt.toISOString());
-        res.setHeader('X-RateLimit-Reset-After', Math.max(0, Math.ceil((rateLimitInfo.resetAt.getTime() - Date.now()) / 1000)).toString());
+        res.setHeader(
+          'X-RateLimit-Reset-After',
+          Math.max(0, Math.ceil((rateLimitInfo.resetAt.getTime() - Date.now()) / 1000)).toString(),
+        );
       }
 
       // Check if limit exceeded
       if (rateLimitInfo.current > rateLimitInfo.limit) {
         // Set Retry-After header
-        const retryAfter = Math.max(0, Math.ceil((rateLimitInfo.resetAt.getTime() - Date.now()) / 1000));
+        const retryAfter = Math.max(
+          0,
+          Math.ceil((rateLimitInfo.resetAt.getTime() - Date.now()) / 1000),
+        );
         res.setHeader('Retry-After', retryAfter.toString());
 
         const error = new RateLimitError(
           retryAfter,
           req.context?.correlationId,
-          rateLimitInfo.limit
+          rateLimitInfo.limit,
         );
 
         // Log rate limit exceeded
@@ -61,12 +67,12 @@ export function rateLimitMiddleware(options: RateLimitOptions) {
       // Set up post-processing
       if (limiterOptions.skipSuccessfulRequests || limiterOptions.skipFailedRequests) {
         const originalSend = res.send;
-        res.send = function(data: any): Response {
+        res.send = function (data: any): Response {
           // Post-process after response is sent
-          rateLimiter.postProcess(key, res.statusCode).catch(err => {
+          rateLimiter.postProcess(key, res.statusCode).catch((err) => {
             logger.error('Rate limit post-process error', { error: err });
           });
-          
+
           return originalSend.call(this, data);
         };
       }
@@ -85,61 +91,67 @@ export const rateLimits = {
   /**
    * Strict rate limit for authentication endpoints
    */
-  auth: () => rateLimitMiddleware({
-    max: 5,
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    message: 'Too many authentication attempts, please try again later.',
-    skipSuccessfulRequests: true,
-    strategy: 'sliding-window',
-  }),
+  auth: () =>
+    rateLimitMiddleware({
+      max: 5,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      message: 'Too many authentication attempts, please try again later.',
+      skipSuccessfulRequests: true,
+      strategy: 'sliding-window',
+    }),
 
   /**
    * Standard API rate limit
    */
-  api: () => rateLimitMiddleware({
-    max: 100,
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    skipFailedRequests: true,
-    keyGenerator: (req) => {
-      // Use user ID if authenticated, otherwise IP
-      const userId = req.context?.getMetadata('userId') as string;
-      return userId || req.ip || 'unknown';
-    },
-  }),
+  api: () =>
+    rateLimitMiddleware({
+      max: 100,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      skipFailedRequests: true,
+      keyGenerator: (req) => {
+        // Use user ID if authenticated, otherwise IP
+        const userId = req.context?.getMetadata('userId') as string;
+        return userId || req.ip || 'unknown';
+      },
+    }),
 
   /**
    * Lenient rate limit for read operations
    */
-  read: () => rateLimitMiddleware({
-    max: 200,
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    skipFailedRequests: true,
-  }),
+  read: () =>
+    rateLimitMiddleware({
+      max: 200,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      skipFailedRequests: true,
+    }),
 
   /**
    * Strict rate limit for write operations
    */
-  write: () => rateLimitMiddleware({
-    max: 50,
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    strategy: 'sliding-window',
-  }),
+  write: () =>
+    rateLimitMiddleware({
+      max: 50,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      strategy: 'sliding-window',
+    }),
 
   /**
    * Very strict rate limit for expensive operations
    */
-  expensive: () => rateLimitMiddleware({
-    max: 10,
-    windowMs: 60 * 60 * 1000, // 1 hour
-    strategy: 'sliding-window',
-    message: 'This operation is rate limited. Please try again later.',
-  }),
+  expensive: () =>
+    rateLimitMiddleware({
+      max: 10,
+      windowMs: 60 * 60 * 1000, // 1 hour
+      strategy: 'sliding-window',
+      message: 'This operation is rate limited. Please try again later.',
+    }),
 
   /**
    * Custom rate limit
    */
-  custom: (max: number, windowMs: number) => rateLimitMiddleware({
-    max,
-    windowMs,
-  }),
+  custom: (max: number, windowMs: number) =>
+    rateLimitMiddleware({
+      max,
+      windowMs,
+    }),
 };

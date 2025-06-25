@@ -46,7 +46,7 @@ export class LoggerFactory {
 
     const baseOptions: PinoOptions = {
       level: config.app.logging.level || 'info',
-      
+
       // Base context
       base: {
         pid: process.pid,
@@ -105,11 +105,13 @@ export class LoggerFactory {
           // Check if first argument is an Error instance
           if (inputArgs.length > 0 && inputArgs[0] && inputArgs[0] instanceof Error) {
             const error = inputArgs[0] as Error;
-            return method.apply(this, [{
-              err: error,
-              msg: inputArgs[1] || error.message,
-              ...inputArgs[2],
-            }]);
+            return method.apply(this, [
+              {
+                err: error,
+                msg: inputArgs[1] || error.message,
+                ...inputArgs[2],
+              },
+            ]);
           }
           return method.apply(this, inputArgs);
         },
@@ -203,9 +205,9 @@ export class LoggerFactory {
    */
   private enhanceLogger(logger: PinoLogger): ILogger {
     const enhanced = logger as ILogger;
-    
+
     // Add withRequest method
-    enhanced.withRequest = function(this: PinoLogger, context: RequestContext): ILogger {
+    enhanced.withRequest = function (this: PinoLogger, context: RequestContext): ILogger {
       const childLogger = this.child({
         correlationId: context.correlationId,
         userId: context.getMetadata('userId'),
