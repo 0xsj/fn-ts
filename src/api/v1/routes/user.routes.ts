@@ -46,7 +46,6 @@
 //   return router;
 // }
 
-
 // src/api/v1/routes/user.routes.ts
 import { Router, Request, Response } from 'express';
 import { UserController } from '../controller/user.controller';
@@ -88,35 +87,55 @@ export function createUserRoutes(): Router {
   });
 
   // Apply rate limiting to routes with fixed window for testing
-  router.post('/', rateLimitMiddleware({
-    max: 5, // Low limit for testing
-    windowMs: 60 * 1000, // 1 minute
-    strategy: 'fixed-window', // Use simpler strategy for now
-  }), userController.createUser.bind(userController));
-  
-  router.get('/', rateLimitMiddleware({
-    max: 100,
-    windowMs: 15 * 60 * 1000,
-    strategy: 'fixed-window',
-  }), userController.getUsers.bind(userController));
-  
-  router.get('/:id', rateLimitMiddleware({
-    max: 100,
-    windowMs: 15 * 60 * 1000,
-    strategy: 'fixed-window',
-  }), userController.getUserById.bind(userController));
-  
-  router.put('/:id', rateLimitMiddleware({
-    max: 20,
-    windowMs: 15 * 60 * 1000,
-    strategy: 'fixed-window',
-  }), userController.updateUser.bind(userController));
-  
-  router.delete('/:id', rateLimitMiddleware({
-    max: 10,
-    windowMs: 15 * 60 * 1000,
-    strategy: 'fixed-window',
-  }), userController.deleteUser.bind(userController));
+  router.post(
+    '/',
+    rateLimitMiddleware({
+      max: 5, // Low limit for testing
+      windowMs: 60 * 1000, // 1 minute
+      strategy: 'fixed-window', // Use simpler strategy for now
+    }),
+    userController.createUser.bind(userController),
+  );
+
+  router.get(
+    '/',
+    rateLimitMiddleware({
+      max: 100,
+      windowMs: 15 * 60 * 1000,
+      strategy: 'fixed-window',
+    }),
+    userController.getUsers.bind(userController),
+  );
+
+  router.get(
+    '/:id',
+    rateLimitMiddleware({
+      max: 100,
+      windowMs: 15 * 60 * 1000,
+      strategy: 'fixed-window',
+    }),
+    userController.getUserById.bind(userController),
+  );
+
+  router.put(
+    '/:id',
+    rateLimitMiddleware({
+      max: 20,
+      windowMs: 15 * 60 * 1000,
+      strategy: 'fixed-window',
+    }),
+    userController.updateUser.bind(userController),
+  );
+
+  router.delete(
+    '/:id',
+    rateLimitMiddleware({
+      max: 10,
+      windowMs: 15 * 60 * 1000,
+      strategy: 'fixed-window',
+    }),
+    userController.deleteUser.bind(userController),
+  );
 
   return router;
 }

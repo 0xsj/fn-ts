@@ -79,7 +79,7 @@ export class RateLimiterImpl implements RateLimiter {
 
       const store = this.getStore();
       const info = await store.increment(key, this.options.windowMs);
-      
+
       // Set the limit and calculate remaining
       info.limit = this.options.max;
       info.remaining = Math.max(0, this.options.max - info.current);
@@ -147,7 +147,7 @@ export class RateLimiterImpl implements RateLimiter {
 
       const store = this.getStore();
       const isSuccessful = statusCode < 400;
-      
+
       if (this.options.skipSuccessfulRequests && isSuccessful) {
         await store.decrement(key);
       } else if (this.options.skipFailedRequests && !isSuccessful) {

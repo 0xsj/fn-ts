@@ -6,14 +6,16 @@ import { RateLimitOptions } from '../../infrastructure/rate-limit/types';
 /**
  * Rate limit decorator for controller methods
  */
-export function RateLimit(options: RateLimitOptions | 'auth' | 'api' | 'read' | 'write' | 'expensive'): MethodDecorator {
+export function RateLimit(
+  options: RateLimitOptions | 'auth' | 'api' | 'read' | 'write' | 'expensive',
+): MethodDecorator {
   return function (_target: any, _propertyKey: string | symbol, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
 
     descriptor.value = async function (req: Request, res: Response, next: NextFunction) {
       // Create middleware based on options
       let middleware: ReturnType<typeof rateLimitMiddleware>;
-      
+
       if (typeof options === 'string') {
         // Use pre-configured rate limits
         switch (options) {

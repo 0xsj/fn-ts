@@ -21,7 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 // Custom middleware
 app.use(contextMiddleware);
 app.use(responseLoggerMiddleware);
-app.use(requestLoggerMiddleware)
+app.use(requestLoggerMiddleware);
 
 export async function initializeApp(): Promise<void> {
   try {
@@ -45,6 +45,6 @@ export async function initializeApp(): Promise<void> {
   }
 }
 
-app.use(errorHandlerMiddleware)
+app.use(errorHandlerMiddleware);
 
 export default app;

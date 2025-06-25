@@ -6,52 +6,52 @@ export interface RateLimitOptions {
    * Maximum number of requests allowed
    */
   max: number;
-  
+
   /**
    * Time window in milliseconds
    */
   windowMs: number;
-  
+
   /**
    * Strategy to use for rate limiting
    */
   strategy?: RateLimitStrategy;
-  
+
   /**
    * Key generator function - returns the key to use for rate limiting
    */
   keyGenerator?: (req: Request) => string;
-  
+
   /**
    * Whether to skip successful requests
    */
   skipSuccessfulRequests?: boolean;
-  
+
   /**
    * Whether to skip failed requests (4xx, 5xx)
    */
   skipFailedRequests?: boolean;
-  
+
   /**
    * Custom message when rate limit is exceeded
    */
   message?: string;
-  
+
   /**
    * HTTP status code when rate limit is exceeded
    */
   statusCode?: number;
-  
+
   /**
    * Headers to set on the response
    */
   headers?: boolean;
-  
+
   /**
    * Whitelist of IPs or user IDs to skip rate limiting
    */
   whitelist?: string[];
-  
+
   /**
    * Store to use (redis key prefix)
    */

@@ -30,13 +30,13 @@ export class FileTransport extends BaseTransport {
 
   constructor(options: FileTransportOptions = {}) {
     super('file', options.level || 'info');
-    
+
     this.dirname = options.dirname || path.join(process.cwd(), 'logs');
     this.filename = options.filename || 'app.log';
     this.maxSize = options.maxSize || 10 * 1024 * 1024; // 10MB default
     this.maxFiles = options.maxFiles || 5;
     this.datePattern = options.datePattern ?? true;
-    
+
     this.currentFile = this.getLogFilePath();
     this.ensureLogDirectory();
   }
@@ -47,11 +47,11 @@ export class FileTransport extends BaseTransport {
 
   protected async writeLog(entry: LogEntry): Promise<void> {
     const logLine = this.formatLogLine(entry);
-    
+
     try {
       // Check if rotation is needed
       await this.rotateIfNeeded();
-      
+
       // Append to file
       await appendFile(this.currentFile, logLine + '\n', 'utf8');
     } catch (error) {
@@ -62,15 +62,15 @@ export class FileTransport extends BaseTransport {
   }
 
   protected async writeBatch(entries: LogEntry[]): Promise<void> {
-    const logLines = entries.map(entry => this.formatLogLine(entry)).join('\n');
-    
+    const logLines = entries.map((entry) => this.formatLogLine(entry)).join('\n');
+
     try {
       await this.rotateIfNeeded();
       await appendFile(this.currentFile, logLines + '\n', 'utf8');
     } catch (error) {
       console.error('Failed to write batch to log file:', error);
       // Fallback to console
-      entries.forEach(entry => console.error(this.formatLogLine(entry)));
+      entries.forEach((entry) => console.error(this.formatLogLine(entry)));
     }
   }
 
@@ -109,7 +109,7 @@ export class FileTransport extends BaseTransport {
   private async rotateIfNeeded(): Promise<void> {
     try {
       const stats = await stat(this.currentFile).catch(() => null);
-      
+
       if (stats && stats.size >= this.maxSize) {
         await this.rotate();
       }
@@ -129,10 +129,10 @@ export class FileTransport extends BaseTransport {
   private async rotate(): Promise<void> {
     const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\./g, '-');
     const rotatedName = this.currentFile.replace(/\.log$/, `-${timestamp}.log`);
-    
+
     try {
       await rename(this.currentFile, rotatedName);
-      
+
       // Clean up old files
       await this.cleanOldFiles();
     } catch (error) {
@@ -144,13 +144,13 @@ export class FileTransport extends BaseTransport {
     try {
       const files = await promisify(fs.readdir)(this.dirname);
       const logFiles = files
-        .filter(f => f.includes(this.filename.replace('.log', '')))
+        .filter((f) => f.includes(this.filename.replace('.log', '')))
         .sort()
         .reverse();
 
       // Keep only maxFiles
       const filesToDelete = logFiles.slice(this.maxFiles);
-      
+
       for (const file of filesToDelete) {
         await promisify(fs.unlink)(path.join(this.dirname, file)).catch(() => {});
       }

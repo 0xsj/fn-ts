@@ -10,7 +10,7 @@ export class Logger implements ILogger {
   constructor(
     context: LogContext = {},
     transports: LoggerTransport[] = [],
-    level: LogLevel = 'info'
+    level: LogLevel = 'info',
   ) {
     this.context = context;
     this.transports = transports;
@@ -20,14 +20,22 @@ export class Logger implements ILogger {
   // Fatal overloads
   fatal(message: string, data?: Record<string, unknown>): void;
   fatal(error: Error, message: string, data?: Record<string, unknown>): void;
-  fatal(messageOrError: string | Error, messageOrData?: string | Record<string, unknown>, data?: Record<string, unknown>): void {
+  fatal(
+    messageOrError: string | Error,
+    messageOrData?: string | Record<string, unknown>,
+    data?: Record<string, unknown>,
+  ): void {
     this.log('fatal', messageOrError, messageOrData, data);
   }
 
   // Error overloads
   error(message: string, data?: Record<string, unknown>): void;
   error(error: Error, message: string, data?: Record<string, unknown>): void;
-  error(messageOrError: string | Error, messageOrData?: string | Record<string, unknown>, data?: Record<string, unknown>): void {
+  error(
+    messageOrError: string | Error,
+    messageOrData?: string | Record<string, unknown>,
+    data?: Record<string, unknown>,
+  ): void {
     this.log('error', messageOrError, messageOrData, data);
   }
 
@@ -48,11 +56,7 @@ export class Logger implements ILogger {
   }
 
   child(context: LogContext): ILogger {
-    return new Logger(
-      { ...this.context, ...context },
-      this.transports,
-      this.level
-    );
+    return new Logger({ ...this.context, ...context }, this.transports, this.level);
   }
 
   setContext(context: LogContext): void {
@@ -73,7 +77,7 @@ export class Logger implements ILogger {
     level: LogLevel,
     messageOrError: string | Error,
     messageOrData?: string | Record<string, unknown>,
-    data?: Record<string, unknown>
+    data?: Record<string, unknown>,
   ): void {
     let message: string;
     let error: Error | undefined;
@@ -101,7 +105,7 @@ export class Logger implements ILogger {
     // Send to all transports
     for (const transport of this.transports) {
       if (transport.isReady()) {
-        transport.log(entry).catch(err => {
+        transport.log(entry).catch((err) => {
           console.error(`Transport ${transport.name} failed:`, err);
         });
       }
@@ -110,21 +114,21 @@ export class Logger implements ILogger {
 
   async flush(): Promise<void> {
     await Promise.all(
-      this.transports.map(transport =>
-        transport.flush?.().catch(err => {
+      this.transports.map((transport) =>
+        transport.flush?.().catch((err) => {
           console.error(`Failed to flush transport ${transport.name}:`, err);
-        })
-      )
+        }),
+      ),
     );
   }
 
   async close(): Promise<void> {
     await Promise.all(
-      this.transports.map(transport =>
-        transport.close?.().catch(err => {
+      this.transports.map((transport) =>
+        transport.close?.().catch((err) => {
           console.error(`Failed to close transport ${transport.name}:`, err);
-        })
-      )
+        }),
+      ),
     );
   }
 }
