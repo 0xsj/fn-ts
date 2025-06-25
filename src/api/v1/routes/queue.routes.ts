@@ -30,7 +30,7 @@ export function createQueueRoutes(): Router {
     try {
       const { to, subject, message } = req.body;
       const emailQueue = queueManager.getEmailQueue();
-      
+
       const jobId = await emailQueue.sendEmailJob({
         to: to || 'test@example.com',
         subject: subject || 'Test Email from Queue',
@@ -61,7 +61,7 @@ export function createQueueRoutes(): Router {
     try {
       const { userId, type, title, message } = req.body;
       const notificationQueue = queueManager.getNotificationQueue();
-      
+
       const jobId = await notificationQueue.sendNotification({
         userId: userId || 'test-user-123',
         type: type || 'email',
