@@ -12,5 +12,6 @@ declare global {
 
 export function contextMiddleware(req: Request, _res: Response, next: NextFunction): void {
   req.context = new RequestContext(req);
+  req.context.setMetadata('originalPath', req.originalUrl || req.url);
   next();
 }

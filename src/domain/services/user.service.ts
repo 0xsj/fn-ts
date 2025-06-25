@@ -1,4 +1,3 @@
-// src/domain/services/user.service.ts
 import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '../../core/di/tokens';
 import type { IUserRepository } from '../repositories/user.repository.interface';
@@ -12,6 +11,8 @@ import {
 } from '../../shared/response';
 import { isSuccessResponse } from '../../shared/response';
 import { hashPassword, verifyPassword } from '../../shared/utils/crypto';
+import { Cacheable, CacheInvalidate, CacheUpdate } from '../../infrastructure/cache/decorators';
+import { getCacheService } from '../../infrastructure/cache/decorators/cache-helper';
 
 @injectable()
 export class UserService {
@@ -25,27 +26,46 @@ export class UserService {
     }
 
     const passwordHash = await hashPassword(input.password);
-    return this.userRepo.create(
+
+    const result = await this.userRepo.create(
       {
         ...input,
         passwordHash,
       },
       correlationId,
     );
+
+    // Invalidate user list cache when new user is created
+    if (isSuccessResponse(result)) {
+      await this.invalidateUserCaches();
+    }
+
+    return result;
   }
 
+  @Cacheable({ ttl: 3600, tags: ['user'] })
   async findUserById(id: string, correlationId?: string): AsyncResult<User | null> {
     return this.userRepo.findById(id, correlationId);
   }
 
+  @Cacheable({ ttl: 3600, tags: ['user'] })
   async findUserByEmail(email: string, correlationId?: string): AsyncResult<User | null> {
     return this.userRepo.findByEmail(email, correlationId);
   }
 
+  @Cacheable({ ttl: 300, tags: ['users', 'user-list'] })
   async findAllUsers(correlationId?: string): AsyncResult<User[]> {
     return this.userRepo.findAll(correlationId);
   }
 
+  @CacheInvalidate({
+    patterns: (id: string) => [`UserService:findUserById:${id}`],
+    tags: ['users', 'user-list'],
+  })
+  @CacheUpdate({
+    key: (id: string) => `UserService:findUserById:${id}`,
+    ttl: 3600,
+  })
   async updateUser(
     id: string,
     updates: UpdateUserInput,
@@ -54,7 +74,7 @@ export class UserService {
     const existingUser = await this.userRepo.findById(id, correlationId);
 
     if (!isSuccessResponse(existingUser)) {
-      return existingUser; // Return the error
+      return existingUser;
     }
 
     const currentUser = existingUser.body().data;
@@ -62,7 +82,6 @@ export class UserService {
       return new NotFoundError('User not found', correlationId);
     }
 
-    // Check if email is being updated and if it already exists
     if (updates.email && updates.email !== currentUser.email) {
       const emailExists = await this.userRepo.findByEmail(updates.email, correlationId);
       if (isSuccessResponse(emailExists) && emailExists.body().data) {
@@ -77,12 +96,10 @@ export class UserService {
       phone: updates.phone,
     };
 
-    // Handle password update
     if (updates.password) {
       updateData.passwordHash = await hashPassword(updates.password);
     }
 
-    // Remove undefined values
     Object.keys(updateData).forEach((key) => {
       if (updateData[key as keyof typeof updateData] === undefined) {
         delete updateData[key as keyof typeof updateData];
@@ -92,7 +109,7 @@ export class UserService {
     const result = await this.userRepo.update(id, updateData, correlationId);
 
     if (!isSuccessResponse(result)) {
-      return result; // Return the error
+      return result;
     }
 
     const updatedUser = result.body().data;
@@ -105,6 +122,10 @@ export class UserService {
     return ResponseBuilder.ok(updatedUser, correlationId);
   }
 
+  @CacheInvalidate({
+    patterns: (id: string) => [`UserService:findUserById:${id}`],
+    tags: ['users', 'user-list'],
+  })
   async deleteUser(id: string, correlationId?: string): AsyncResult<boolean> {
     const existingUser = await this.userRepo.findById(id, correlationId);
 
@@ -119,7 +140,7 @@ export class UserService {
     const userResult = await this.userRepo.findByEmail(email, correlationId);
 
     if (!isSuccessResponse(userResult)) {
-      return userResult; // Return the error
+      return userResult;
     }
 
     const user = userResult.body().data;
@@ -133,7 +154,11 @@ export class UserService {
       return new NotFoundError('Invalid credentials', correlationId);
     }
 
-    // Return a new success response with the user
     return ResponseBuilder.ok(user, correlationId);
+  }
+
+  private async invalidateUserCaches(): Promise<void> {
+    const cacheService = getCacheService();
+    await cacheService.invalidateByTags(['users', 'user-list']);
   }
 }

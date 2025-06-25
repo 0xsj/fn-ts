@@ -2,7 +2,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { InternalServerError } from '../response/http-error';
 import { logger } from '../utils/logger';
-import { errorToLogContext } from '../utils/error-serializer';
 
 export function errorHandlerMiddleware(
   error: unknown,
@@ -11,14 +10,15 @@ export function errorHandlerMiddleware(
   _next: NextFunction,
 ): void {
   const correlationId = req.context?.correlationId;
+  const requestLogger = req.context ? logger.withRequest(req.context) : logger;
 
-  logger.error(
-    errorToLogContext(error, correlationId, {
-      path: req.path,
-      method: req.method,
-    }),
-    'Unhandled error',
-  );
+  // Log the error with proper Pino error serialization
+  requestLogger.error({
+    err: error instanceof Error ? error : new Error(String(error)),
+    msg: 'Unhandled error in request',
+    path: req.path,
+    method: req.method,
+  });
 
   const response = new InternalServerError(correlationId, {
     message: error instanceof Error ? error.message : 'Unknown error',
