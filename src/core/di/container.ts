@@ -36,7 +36,7 @@ export class DIContainer {
     } catch (error) {
       logger.error('Failed to initialize DI Container', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
       throw error;
     }
@@ -81,11 +81,11 @@ export class DIContainer {
   private static registerEventBus(): void {
     // Register EventBus as singleton
     container.registerSingleton(TOKENS.EventBus, EventBus);
-    
+
     // Get the EventBus instance and register handlers
     const eventBus = container.resolve<EventBus>(TOKENS.EventBus);
     registerEventHandlers(eventBus);
-    
+
     logger.info('Event bus registered and handlers configured');
   }
 

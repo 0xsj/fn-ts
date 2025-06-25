@@ -29,12 +29,12 @@ export function registerEventHandlers(eventBus: EventBus): void {
         'user.created': 2, // welcome email + audit
         'user.updated': 2, // cache invalidation + audit
         'user.deleted': 2, // cache invalidation + audit
-      }
+      },
     });
   } catch (error) {
     logger.error('Failed to register event handlers', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
     throw error;
   }
