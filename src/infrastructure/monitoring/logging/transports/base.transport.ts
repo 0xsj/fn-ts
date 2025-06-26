@@ -6,8 +6,8 @@ export abstract class BaseTransport implements LoggerTransport {
   public readonly name: string;
   public readonly level: LogLevel;
   protected readonly buffer: LogEntry[] = [];
-  protected  maxBufferSize: number = 100;
-  protected  flushInterval: number = 5000; // 5 seconds
+  protected maxBufferSize: number = 100;
+  protected flushInterval: number = 5000; // 5 seconds
   protected flushTimer?: NodeJS.Timeout;
 
   constructor(name: string, level: LogLevel = 'info') {
@@ -18,7 +18,7 @@ export abstract class BaseTransport implements LoggerTransport {
 
   abstract isReady(): boolean;
   protected abstract writeLog(entry: LogEntry): Promise<void>;
-   protected async writeBatch(entries: LogEntry[]): Promise<void> {
+  protected async writeBatch(entries: LogEntry[]): Promise<void> {
     await Promise.all(entries.map((entry) => this.writeLog(entry)));
   }
 

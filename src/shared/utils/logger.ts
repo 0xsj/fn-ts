@@ -17,7 +17,6 @@
 //       : undefined,
 // });
 
-
 // src/shared/utils/logger.ts
 import { loggerFactory } from '../../infrastructure/monitoring/logging/logger.factory';
 
@@ -62,10 +61,7 @@ if (process.env.NODE_ENV !== 'test') {
   });
 
   process.on('unhandledRejection', async (reason, promise) => {
-    logger.fatal(
-      `Unhandled rejection at: ${promise}, reason: ${reason}`,
-      { reason, promise }
-    );
+    logger.fatal(`Unhandled rejection at: ${promise}, reason: ${reason}`, { reason, promise });
     await shutdownLogger();
     process.exit(1);
   });

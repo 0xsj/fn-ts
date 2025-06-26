@@ -117,6 +117,11 @@ export class CacheService {
     return value;
   }
 
+  async delete(key: string): Promise<boolean> {
+    logger.debug(`CacheService.delete called for key: ${key}`);
+    return this.cacheManager.invalidate(key);
+  }
+
   async wrap<T>(key: string, work: () => Promise<T>, options?: CacheOptions): Promise<T> {
     return this.remember(key, work, options);
   }

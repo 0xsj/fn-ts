@@ -23,7 +23,10 @@ async function start(): Promise<void> {
       );
     });
   } catch (error) {
-    logger.error('Failed to start server', error);
+    logger.error('Failed to start server', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     process.exit(1);
   }
 }
