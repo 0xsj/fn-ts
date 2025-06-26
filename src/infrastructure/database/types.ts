@@ -1,5 +1,6 @@
-import { UserDB } from '../../domain/entities';
+import { UserDB, UserPasswordDB } from '../../domain/entities';
 
 export interface Database {
   users: UserDB;
+  user_passwords: UserPasswordDB;
 }

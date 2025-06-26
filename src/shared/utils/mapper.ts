@@ -30,11 +30,26 @@ export class GenericMapper {
       mapped = this.applyCustomMappings(mapped, config.customMappings);
     }
 
-    // Parse through target schema for validation
-    const result = targetSchema.parse(mapped);
+    // IMPORTANT: Use safeParse to get the parsed result with defaults applied
+    const parseResult = targetSchema.safeParse(mapped);
+
+    if (!parseResult.success) {
+      // If parsing fails, try to parse just the converted object
+      // This allows the schema to apply its defaults
+      const partialMapped = this.removeUndefinedFields(mapped);
+      const retryResult = targetSchema.safeParse(partialMapped);
+
+      if (!retryResult.success) {
+        throw new Error(`Mapping validation failed: ${JSON.stringify(retryResult.error.errors)}`);
+      }
+
+      mapped = retryResult.data;
+    } else {
+      mapped = parseResult.data;
+    }
 
     // Apply afterMap hook if provided
-    return config?.afterMap ? config.afterMap(result) : result;
+    return config?.afterMap ? config.afterMap(mapped) : mapped;
   }
 
   /**
@@ -220,6 +235,37 @@ export class GenericMapper {
     if (target && lastKey in target) {
       delete target[lastKey];
     }
+  }
+
+  /**
+   * Remove undefined fields to allow schema defaults to apply
+   */
+  private removeUndefinedFields(obj: any): any {
+    if (!this.isObject(obj)) {
+      return obj;
+    }
+
+    const cleaned: any = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+      if (value === undefined) {
+        continue;
+      }
+
+      if (Array.isArray(value)) {
+        cleaned[key] = value.map((item) => this.removeUndefinedFields(item));
+      } else if (this.isObject(value) && !(value instanceof Date)) {
+        const cleanedNested = this.removeUndefinedFields(value);
+        // Only include the nested object if it has keys
+        if (Object.keys(cleanedNested).length > 0) {
+          cleaned[key] = cleanedNested;
+        }
+      } else {
+        cleaned[key] = value;
+      }
+    }
+
+    return cleaned;
   }
 
   /**

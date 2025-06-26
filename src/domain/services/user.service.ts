@@ -25,10 +25,22 @@ export class UserService {
   ) {}
 
   async createUser(input: CreateUserInput, correlationId?: string): AsyncResult<User> {
-    const existingUser = await this.userRepo.findByEmail(input.email, correlationId);
-
-    if (isSuccessResponse(existingUser) && existingUser.body().data) {
+    // Check email uniqueness
+    const existingEmail = await this.userRepo.existsByEmail(input.email, undefined, correlationId);
+    if (isSuccessResponse(existingEmail) && existingEmail.body().data) {
       return new ConflictError('Email already exists', correlationId);
+    }
+
+    // Check username uniqueness if provided
+    if (input.username) {
+      const existingUsername = await this.userRepo.existsByUsername(
+        input.username,
+        undefined,
+        correlationId,
+      );
+      if (isSuccessResponse(existingUsername) && existingUsername.body().data) {
+        return new ConflictError('Username already exists', correlationId);
+      }
     }
 
     const passwordHash = await hashPassword(input.password);
@@ -41,13 +53,16 @@ export class UserService {
       correlationId,
     );
 
-    // Invalidate user list cache when new user is created
+    // Create password entry in user_passwords table
     if (isSuccessResponse(result)) {
-      await this.invalidateUserCaches();
-
-      // Emit user created event
       const user = result.body().data;
       if (user) {
+        await this.userRepo.createUserPassword(user.id, passwordHash, correlationId);
+
+        // Invalidate user list cache
+        await this.invalidateUserCaches();
+
+        // Emit user created event with new fields
         await this.eventBus.emit(
           new UserCreatedEvent(
             {
@@ -55,6 +70,11 @@ export class UserService {
               email: user.email,
               firstName: user.firstName,
               lastName: user.lastName,
+              username: user.username,
+              displayName: user.displayName,
+              type: user.type,
+              status: user.status,
+              organizationId: user.organizationId,
             },
             correlationId ? { correlationId, userId: user.id } : { userId: user.id },
           ),
