@@ -389,6 +389,83 @@ export class UserService {
     return ResponseBuilder.ok(user, correlationId);
   }
 
+  // src/domain/services/user.service.ts
+
+  // TODO: Password Management Functions
+  // async changePassword(userId: string, currentPassword: string, newPassword: string, correlationId?: string): AsyncResult<boolean>
+  // async forgotPassword(email: string, correlationId?: string): AsyncResult<boolean>
+  // async resetPassword(token: string, newPassword: string, correlationId?: string): AsyncResult<boolean>
+  // async forcePasswordChange(userId: string, correlationId?: string): AsyncResult<boolean>
+  // async checkPasswordHistory(userId: string, passwordHash: string, correlationId?: string): AsyncResult<boolean>
+
+  // TODO: User Preferences Functions
+  // async updateUserPreferences(userId: string, preferences: UpdateUserPreferencesInput, correlationId?: string): AsyncResult<User>
+  // async resetUserPreferences(userId: string, correlationId?: string): AsyncResult<User>
+
+  // TODO: Admin Functions
+  // async adminUpdateUser(id: string, updates: AdminUpdateUserInput, adminId: string, correlationId?: string): AsyncResult<User>
+  // async adminChangeUserStatus(userId: string, status: UserStatus, reason?: string, adminId?: string, correlationId?: string): AsyncResult<User>
+  // async adminResetUserPassword(userId: string, adminId: string, correlationId?: string): AsyncResult<string>
+  // async adminUnlockUser(userId: string, adminId: string, correlationId?: string): AsyncResult<boolean>
+
+  // TODO: Email/Phone Verification Functions
+  // async sendEmailVerification(userId: string, correlationId?: string): AsyncResult<boolean>
+  // async verifyEmail(userId: string, token: string, correlationId?: string): AsyncResult<boolean>
+  // async sendPhoneVerification(userId: string, correlationId?: string): AsyncResult<boolean>
+  // async verifyPhone(userId: string, code: string, correlationId?: string): AsyncResult<boolean>
+
+  // TODO: Two-Factor Authentication Functions
+  // async enableTwoFactor(userId: string, correlationId?: string): AsyncResult<{ secret: string; qrCode: string }>
+  // async confirmTwoFactor(userId: string, token: string, correlationId?: string): AsyncResult<boolean>
+  // async disableTwoFactor(userId: string, correlationId?: string): AsyncResult<boolean>
+  // async verifyTwoFactor(userId: string, token: string, correlationId?: string): AsyncResult<boolean>
+
+  // TODO: Session Management Functions
+  // async createSession(userId: string, deviceInfo?: any, correlationId?: string): AsyncResult<Session>
+  // async invalidateSession(sessionId: string, correlationId?: string): AsyncResult<boolean>
+  // async invalidateAllUserSessions(userId: string, correlationId?: string): AsyncResult<boolean>
+  // async getActiveSessions(userId: string, correlationId?: string): AsyncResult<Session[]>
+
+  // TODO: Security Functions
+  // async trackFailedLogin(email: string, ip?: string, correlationId?: string): AsyncResult<boolean>
+  // async lockUserAccount(userId: string, reason: string, duration?: number, correlationId?: string): AsyncResult<boolean>
+  // async unlockUserAccount(userId: string, correlationId?: string): AsyncResult<boolean>
+  // async isUserLocked(userId: string, correlationId?: string): AsyncResult<boolean>
+
+  // TODO: Bulk Operations
+  // async bulkCreateUsers(users: CreateUserInput[], correlationId?: string): AsyncResult<BatchResult>
+  // async bulkUpdateUserStatus(userIds: string[], status: UserStatus, correlationId?: string): AsyncResult<BatchResult>
+  // async bulkDeleteUsers(userIds: string[], soft?: boolean, correlationId?: string): AsyncResult<BatchResult>
+
+  // TODO: Search and Filter Functions
+  // async searchUsers(query: string, filters?: UserFilters, pagination?: PaginationParams, correlationId?: string): AsyncResult<PaginatedResponse<User>>
+  // async findUsersByRole(roleId: string, correlationId?: string): AsyncResult<User[]>
+  // async findUsersByPermission(permission: string, correlationId?: string): AsyncResult<User[]>
+  // async findInactiveUsers(days: number, correlationId?: string): AsyncResult<User[]>
+
+  // TODO: Emergency Contact Functions
+  // async updateEmergencyContact(userId: string, contact: User['emergencyContact'], correlationId?: string): AsyncResult<User>
+  // async getEmergencyContacts(userIds: string[], correlationId?: string): AsyncResult<{ userId: string; contact: User['emergencyContact'] }[]>
+
+  // TODO: User Activity Functions
+  // async getUserActivity(userId: string, startDate?: Date, endDate?: Date, correlationId?: string): AsyncResult<UserActivity[]>
+  // async getUserLoginHistory(userId: string, limit?: number, correlationId?: string): AsyncResult<LoginHistory[]>
+  // async updateUserLocation(userId: string, locationId: string, correlationId?: string): AsyncResult<User>
+
+  // TODO: Integration Functions
+  // async linkAuthProvider(userId: string, provider: AuthProvider, providerData: any, correlationId?: string): AsyncResult<boolean>
+  // async unlinkAuthProvider(userId: string, provider: AuthProvider, correlationId?: string): AsyncResult<boolean>
+  // async getLinkedAuthProviders(userId: string, correlationId?: string): AsyncResult<UserAuthProviderDB[]>
+
+  // TODO: Export/Import Functions
+  // async exportUserData(userId: string, format: 'json' | 'csv', correlationId?: string): AsyncResult<Buffer>
+  // async importUsers(data: Buffer, format: 'json' | 'csv', correlationId?: string): AsyncResult<BatchResult>
+
+  // TODO: Compliance Functions
+  // async anonymizeUser(userId: string, correlationId?: string): AsyncResult<boolean>
+  // async getUserDataForGDPR(userId: string, correlationId?: string): AsyncResult<any>
+  // async deleteUserDataForGDPR(userId: string, correlationId?: string): AsyncResult<boolean>
+
   private async invalidateUserCaches(): Promise<void> {
     const cacheService = getCacheService();
     await cacheService.invalidateByTags(['users', 'user-list']);
