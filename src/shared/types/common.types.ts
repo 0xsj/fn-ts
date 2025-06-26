@@ -2,100 +2,46 @@
 import { z } from 'zod';
 
 /**
- * Generic ID type - can be string UUID or numeric
+ * Generic ID type - can be extended by specific domains
  */
-export const IdSchema = z.union([z.string().uuid(), z.number().int().positive()]);
+export const IdSchema = z.union([
+  z.string().uuid(),
+  z.string().cuid(),
+  z.string().cuid2(),
+  z.number().int().positive(),
+]);
 export type Id = z.infer<typeof IdSchema>;
 
 /**
- * Timestamp type for consistent date handling
- */
-export const TimestampSchema = z.union([z.date(), z.string().datetime()]);
-export type Timestamp = z.infer<typeof TimestampSchema>;
-
-/**
- * Generic metadata that can be attached to any entity
- */
-export const MetadataSchema = z.record(z.string(), z.unknown());
-export type Metadata = z.infer<typeof MetadataSchema>;
-
-/**
- * Common fields for tracking changes
- */
-export const AuditFieldsSchema = z.object({
-  createdBy: z.string().uuid().nullable().optional(),
-  updatedBy: z.string().uuid().nullable().optional(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
-});
-export type AuditFields = z.infer<typeof AuditFieldsSchema>;
-
-/**
- * Soft delete fields
- */
-export const SoftDeleteSchema = z.object({
-  isDeleted: z.boolean().default(false),
-  deletedAt: z.date().nullable().optional(),
-  deletedBy: z.string().uuid().nullable().optional(),
-});
-export type SoftDelete = z.infer<typeof SoftDeleteSchema>;
-
-/**
- * Generic status enum that can be extended
+ * Generic status that many entities might use
  */
 export const StatusSchema = z.enum(['active', 'inactive', 'pending', 'archived']);
 export type Status = z.infer<typeof StatusSchema>;
 
 /**
- * Batch operation result
+ * Generic priority levels
  */
-export const BatchResultSchema = z.object({
-  total: z.number().int().nonnegative(),
-  successful: z.number().int().nonnegative(),
-  failed: z.number().int().nonnegative(),
-  errors: z.array(
-    z.object({
-      id: IdSchema.optional(),
-      error: z.string(),
-      details: z.unknown().optional(),
-    })
-  ).optional(),
-});
-export type BatchResult = z.infer<typeof BatchResultSchema>;
+export const PrioritySchema = z.enum(['low', 'medium', 'high', 'urgent', 'critical']);
+export type Priority = z.infer<typeof PrioritySchema>;
 
 /**
- * Generic change tracking
+ * Sort direction for queries
  */
-export const ChangeSetSchema = z.object({
-  field: z.string(),
-  oldValue: z.unknown(),
-  newValue: z.unknown(),
-  changedAt: z.date(),
-  changedBy: z.string().uuid(),
-});
-export type ChangeSet = z.infer<typeof ChangeSetSchema>;
+export const SortOrderSchema = z.enum(['asc', 'desc']);
+export type SortOrder = z.infer<typeof SortOrderSchema>;
 
 /**
- * Coordinate type for location-based features
+ * Generic date range
  */
-export const CoordinateSchema = z.object({
-  lat: z.number().min(-90).max(90),
-  lng: z.number().min(-180).max(180),
-});
-export type Coordinate = z.infer<typeof CoordinateSchema>;
-
-/**
- * File reference type
- */
-export const FileReferenceSchema = z.object({
-  id: z.string().uuid(),
-  url: z.string().url(),
-  filename: z.string(),
-  mimeType: z.string(),
-  size: z.number().int().nonnegative(),
-  uploadedAt: z.date(),
-});
-export type FileReference = z.infer<typeof FileReferenceSchema>;
+export const DateRangeSchema = z
+  .object({
+    start: z.date(),
+    end: z.date(),
+  })
+  .refine((data) => data.end >= data.start, {
+    message: 'End date must be after start date',
+  });
+export type DateRange = z.infer<typeof DateRangeSchema>;
 
 /**
  * Generic key-value pair
@@ -107,23 +53,140 @@ export const KeyValueSchema = z.object({
 export type KeyValue = z.infer<typeof KeyValueSchema>;
 
 /**
- * Time range type
+ * Batch operation result
  */
-export const TimeRangeSchema = z.object({
-  start: z.date(),
-  end: z.date(),
-}).refine(data => data.end >= data.start, {
-  message: "End date must be after start date",
+export const BatchResultSchema = z.object({
+  total: z.number().int().nonnegative(),
+  successful: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative().default(0),
 });
-export type TimeRange = z.infer<typeof TimeRangeSchema>;
+export type BatchResult = z.infer<typeof BatchResultSchema>;
 
 /**
- * Generic version tracking
+ * Change tracking record
  */
-export const VersionSchema = z.object({
-  version: z.number().int().positive(),
-  versionedAt: z.date(),
-  versionedBy: z.string().uuid(),
-  changeNote: z.string().optional(),
+export const ChangeRecordSchema = z.object({
+  field: z.string(),
+  oldValue: z.unknown(),
+  newValue: z.unknown(),
+  changedAt: z.date(),
+  changedBy: z.string(),
 });
-export type Version = z.infer<typeof VersionSchema>;
+export type ChangeRecord = z.infer<typeof ChangeRecordSchema>;
+
+/**
+ * Percentage (0-100)
+ */
+export const PercentageSchema = z.number().min(0).max(100);
+export type Percentage = z.infer<typeof PercentageSchema>;
+
+/**
+ * Semantic version
+ */
+export const SemVerSchema = z
+  .string()
+  .regex(/^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$/);
+export type SemVer = z.infer<typeof SemVerSchema>;
+
+/**
+ * Time zone
+ */
+export const TimeZoneSchema = z.string(); // Could add IANA timezone validation
+export type TimeZone = z.infer<typeof TimeZoneSchema>;
+
+/**
+ * Language code (ISO 639-1)
+ */
+export const LanguageCodeSchema = z.string().length(2);
+export type LanguageCode = z.infer<typeof LanguageCodeSchema>;
+
+/**
+ * Country code (ISO 3166-1 alpha-2)
+ */
+export const CountryCodeSchema = z.string().length(2);
+export type CountryCode = z.infer<typeof CountryCodeSchema>;
+
+/**
+ * Currency code (ISO 4217)
+ */
+export const CurrencyCodeSchema = z.string().length(3);
+export type CurrencyCode = z.infer<typeof CurrencyCodeSchema>;
+
+/**
+ * Environment
+ */
+export const EnvironmentSchema = z.enum(['development', 'staging', 'production', 'test']);
+export type Environment = z.infer<typeof EnvironmentSchema>;
+
+/**
+ * Log level
+ */
+export const LogLevelSchema = z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']);
+export type LogLevel = z.infer<typeof LogLevelSchema>;
+
+/**
+ * HTTP method
+ */
+export const HttpMethodSchema = z.enum([
+  'GET',
+  'POST',
+  'PUT',
+  'PATCH',
+  'DELETE',
+  'HEAD',
+  'OPTIONS',
+]);
+export type HttpMethod = z.infer<typeof HttpMethodSchema>;
+
+/**
+ * MIME type validation
+ */
+export const MimeTypeSchema = z
+  .string()
+  .regex(/^[a-zA-Z0-9][a-zA-Z0-9!#$&^_+-]{0,126}\/[a-zA-Z0-9][a-zA-Z0-9!#$&^_+-]{0,126}$/);
+export type MimeType = z.infer<typeof MimeTypeSchema>;
+
+/**
+ * Cron expression
+ */
+export const CronExpressionSchema = z.string(); // Could add cron validation
+export type CronExpression = z.infer<typeof CronExpressionSchema>;
+
+/**
+ * Feature flag
+ */
+export const FeatureFlagSchema = z.object({
+  key: z.string(),
+  enabled: z.boolean(),
+  rolloutPercentage: PercentageSchema.optional(),
+});
+export type FeatureFlag = z.infer<typeof FeatureFlagSchema>;
+
+/**
+ * Empty object
+ */
+export const EmptyObjectSchema = z.object({}).strict();
+export type EmptyObject = z.infer<typeof EmptyObjectSchema>;
+
+/**
+ * Non-empty string
+ */
+export const NonEmptyStringSchema = z.string().min(1);
+export type NonEmptyString = z.infer<typeof NonEmptyStringSchema>;
+
+/**
+ * Positive integer
+ */
+export const PositiveIntSchema = z.number().int().positive();
+export type PositiveInt = z.infer<typeof PositiveIntSchema>;
+
+/**
+ * Safe integer (within JavaScript's safe integer range)
+ */
+export const SafeIntSchema = z
+  .number()
+  .int()
+  .min(Number.MIN_SAFE_INTEGER)
+  .max(Number.MAX_SAFE_INTEGER);
+export type SafeInt = z.infer<typeof SafeIntSchema>;

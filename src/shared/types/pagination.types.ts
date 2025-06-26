@@ -44,16 +44,16 @@ export const QueryParamsSchema = z.object({
   // Pagination
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().positive().max(100).default(20),
-  
+
   // Sorting
   sortBy: z.string().optional(),
   sortDirection: SortDirectionSchema.optional(),
   sorts: z.array(SortSpecSchema).optional(),
-  
+
   // Filtering
   search: z.string().optional(),
   filters: z.record(z.any()).optional(), // Generic filters object
-  
+
   // Options
   includeDeleted: z.boolean().default(false),
   includeCount: z.boolean().default(true),
@@ -118,10 +118,10 @@ export type CursorResponse<T> = {
 export function calculatePaginationMeta(
   page: number,
   pageSize: number,
-  totalCount: number
+  totalCount: number,
 ): PaginationMeta {
   const pageCount = Math.ceil(totalCount / pageSize);
-  
+
   return {
     page,
     pageSize,

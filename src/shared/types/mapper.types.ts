@@ -44,7 +44,7 @@ export interface IMapper {
     source: TSource,
     sourceSchema: z.ZodSchema<TSource>,
     targetSchema: z.ZodSchema<TTarget>,
-    config?: MappingConfig<TSource, TTarget>
+    config?: MappingConfig<TSource, TTarget>,
   ): TTarget;
 
   /**
@@ -54,7 +54,7 @@ export interface IMapper {
     sources: TSource[],
     sourceSchema: z.ZodSchema<TSource>,
     targetSchema: z.ZodSchema<TTarget>,
-    config?: MappingConfig<TSource, TTarget>
+    config?: MappingConfig<TSource, TTarget>,
   ): TTarget[];
 
   /**
@@ -64,7 +64,7 @@ export interface IMapper {
     name: string,
     sourceSchema: z.ZodSchema<TSource>,
     targetSchema: z.ZodSchema<TTarget>,
-    config: MappingConfig<TSource, TTarget>
+    config: MappingConfig<TSource, TTarget>,
   ): void;
 
   /**
@@ -83,6 +83,4 @@ export function isObject(value: any): value is Record<string, any> {
 /**
  * Type for extracting shape from Zod schema
  */
-export type SchemaShape<T extends z.ZodSchema> = T extends z.ZodObject<infer Shape>
-  ? Shape
-  : never;
+export type SchemaShape<T extends z.ZodSchema> = T extends z.ZodObject<infer Shape> ? Shape : never;

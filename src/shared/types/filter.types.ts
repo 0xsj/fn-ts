@@ -5,18 +5,18 @@ import { z } from 'zod';
  * Comparison operators for filtering
  */
 export const FilterOperatorSchema = z.enum([
-  'eq',      // equals
-  'ne',      // not equals
-  'gt',      // greater than
-  'gte',     // greater than or equal
-  'lt',      // less than
-  'lte',     // less than or equal
-  'in',      // in array
-  'nin',     // not in array
-  'like',    // SQL LIKE
-  'ilike',   // case-insensitive LIKE
+  'eq', // equals
+  'ne', // not equals
+  'gt', // greater than
+  'gte', // greater than or equal
+  'lt', // less than
+  'lte', // less than or equal
+  'in', // in array
+  'nin', // not in array
+  'like', // SQL LIKE
+  'ilike', // case-insensitive LIKE
   'between', // between two values
-  'isNull',  // is null
+  'isNull', // is null
   'isNotNull', // is not null
 ]);
 export type FilterOperator = z.infer<typeof FilterOperatorSchema>;
@@ -44,7 +44,7 @@ export const FilterGroupSchema: z.ZodType<FilterGroup> = z.lazy(() =>
   z.object({
     operator: LogicalOperatorSchema,
     conditions: z.array(z.union([FilterConditionSchema, FilterGroupSchema])),
-  })
+  }),
 );
 export interface FilterGroup {
   operator: LogicalOperator;
