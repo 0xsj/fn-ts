@@ -3,13 +3,49 @@ import { Kysely } from 'kysely';
 import type { IUserRepository } from '../../../domain/repositories/user.repository.interface';
 import { v4 as uuidv4 } from 'uuid';
 import { Database } from '../types';
-import { CreateUserInput, User, UserDB, UserSchema, UserDBSchema } from '../../../domain/entities';
+import { CreateUserInput, User, UserDB, UserSchema, UserDBSchema, UserPasswordDB, UserStatus } from '../../../domain/entities';
 import { AsyncResult, DatabaseError, ok, ResponseBuilder } from '../../../shared/response';
 import { mapper } from '../../../shared/utils/mapper';
 import { NamingConvention, MappingConfig } from '../../../shared/types/mapper.types';
 
 export class UserRepository implements IUserRepository {
   constructor(private db: Kysely<Database>) {}
+  findByUsername(username: string, correlationId?: string): AsyncResult<User | null> {
+    throw new Error('Method not implemented.');
+  }
+  getUserPassword(userId: string, correlationId?: string): AsyncResult<UserPasswordDB | null> {
+    throw new Error('Method not implemented.');
+  }
+  updateUserPassword(userId: string, passwordHash: string, mustChange?: boolean, correlationId?: string): AsyncResult<boolean> {
+    throw new Error('Method not implemented.');
+  }
+  updateLastActivity(userId: string, correlationId?: string): AsyncResult<boolean> {
+    throw new Error('Method not implemented.');
+  }
+  incrementLoginCount(userId: string, correlationId?: string): AsyncResult<boolean> {
+    throw new Error('Method not implemented.');
+  }
+  findByIds(ids: string[], correlationId?: string): AsyncResult<User[]> {
+    throw new Error('Method not implemented.');
+  }
+  findByOrganization(organizationId: string, correlationId?: string): AsyncResult<User[]> {
+    throw new Error('Method not implemented.');
+  }
+  updateStatus(userId: string, status: UserStatus, correlationId?: string): AsyncResult<boolean> {
+    throw new Error('Method not implemented.');
+  }
+  markEmailVerified(userId: string, verifiedAt?: Date, correlationId?: string): AsyncResult<boolean> {
+    throw new Error('Method not implemented.');
+  }
+  markPhoneVerified(userId: string, verifiedAt?: Date, correlationId?: string): AsyncResult<boolean> {
+    throw new Error('Method not implemented.');
+  }
+  existsByEmail(email: string, excludeId?: string, correlationId?: string): AsyncResult<boolean> {
+    throw new Error('Method not implemented.');
+  }
+  existsByUsername(username: string, excludeId?: string, correlationId?: string): AsyncResult<boolean> {
+    throw new Error('Method not implemented.');
+  }
 
   async findByEmail(email: string, correlationId?: string): AsyncResult<User | null> {
     try {
@@ -216,7 +252,12 @@ export class UserRepository implements IUserRepository {
   /**
    * Create user password in separate table
    */
-  private async createUserPassword(userId: string, passwordHash: string): Promise<void> {
+  async createUserPassword(
+  userId: string,
+  passwordHash: string,
+  correlationId?: string,
+): AsyncResult<boolean> {
+  try {
     await this.db
       .insertInto('user_passwords')
       .values({
@@ -228,7 +269,12 @@ export class UserRepository implements IUserRepository {
         must_change: false,
       })
       .execute();
+    
+    return ResponseBuilder.ok(true, correlationId);
+  } catch (error) {
+    return new DatabaseError('createUserPassword', error, correlationId);
   }
+}
 
   /**
    * Map database row to entity

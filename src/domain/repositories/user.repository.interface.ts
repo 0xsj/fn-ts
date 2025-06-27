@@ -26,7 +26,7 @@ export interface IUserRepository {
   createUserPassword(
     userId: string,
     passwordHash: string,
-    correlationId?: string,
+    // correlationId?: string,
   ): AsyncResult<boolean>;
 
   getUserPassword(userId: string, correlationId?: string): AsyncResult<UserPasswordDB | null>;
