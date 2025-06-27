@@ -104,3 +104,11 @@ export interface Database {
     is_locked: number;
   };
 }
+
+export interface MongoCollections {
+  audit_logs: AuditLogDB;
+  events: EventDB;
+  metrics: MetricDB;
+  activity_logs: ActivityLogDB;
+  analytics_snapshots: any;
+}
