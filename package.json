@@ -17,7 +17,8 @@
     "migration:status": "tsx src/scripts/migrate-status.ts",
     "migrate": "tsx src/scripts/migrate.ts up",
     "migrate:down": "tsx src/scripts/migrate.ts down",
-    "migrate:fresh": "npm run migrate:down && npm run migrate"
+    "migrate:fresh": "npm run migrate:down && npm run migrate",
+    "migrate:to": "tsx src/scripts/migrate-to.ts"
   },
   "keywords": [
     "express",

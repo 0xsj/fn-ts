@@ -3,18 +3,8 @@ import { DomainEvent } from '../base.event';
 
 export interface UserUpdatedPayload {
   userId: string;
-  changes: {
-    email?: string;
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-  };
-  previousValues?: {
-    email?: string;
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-  };
+  changes: Record<string, any>;
+  previousValues: Record<string, any>;
 }
 
 /**

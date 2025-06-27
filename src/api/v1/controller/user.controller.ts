@@ -1,9 +1,10 @@
+// src/api/v1/controllers/user.controller.ts
 import { injectable } from 'tsyringe';
 import type { Request, Response, NextFunction } from 'express';
 import { UserService } from '../../../domain/services/user.service';
 import { DIContainer } from '../../../core/di/container';
 import { TOKENS } from '../../../core/di/tokens';
-import { CreateUserSchema, UpdateUserSchema } from '../../../domain/entities';
+import { CreateUserSchema, UpdateUserSchema, UserPublicSchema } from '../../../domain/entities';
 import { ValidationError } from '../../../shared/response';
 import { sendError, sendOk, sendCreated } from '../../../shared/utils/response-helper';
 import { isSuccessResponse } from '../../../shared/response';
@@ -29,8 +30,9 @@ export class UserController {
 
       if (isSuccessResponse(result)) {
         const user = result.body().data;
-        const { passwordHash, ...userWithoutPassword } = user;
-        sendCreated(req, res, userWithoutPassword);
+        // Use UserPublicSchema to filter out sensitive fields
+        const publicUser = UserPublicSchema.parse(user);
+        sendCreated(req, res, publicUser);
       } else {
         sendError(req, res, result);
       }
@@ -42,14 +44,34 @@ export class UserController {
   async getUserById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-
       const result = await this.userService.findUserById(id, req.context.correlationId);
 
       if (isSuccessResponse(result)) {
         const user = result.body().data;
         if (user) {
-          const { passwordHash, ...userWithoutPassword } = user;
-          sendOk(req, res, userWithoutPassword);
+          const publicUser = UserPublicSchema.parse(user);
+          sendOk(req, res, publicUser);
+        } else {
+          sendOk(req, res, null);
+        }
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getUserByUsername(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { username } = req.params;
+      const result = await this.userService.findUserByUsername(username, req.context.correlationId);
+
+      if (isSuccessResponse(result)) {
+        const user = result.body().data;
+        if (user) {
+          const publicUser = UserPublicSchema.parse(user);
+          sendOk(req, res, publicUser);
         } else {
           sendOk(req, res, null);
         }
@@ -63,10 +85,30 @@ export class UserController {
 
   async getUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      // TODO: Add pagination params from query
       const result = await this.userService.findAllUsers(req.context.correlationId);
 
       if (isSuccessResponse(result)) {
-        const users = result.body().data.map(({ passwordHash, ...user }) => user);
+        const users = result.body().data.map((user) => UserPublicSchema.parse(user));
+        sendOk(req, res, users);
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getUsersByOrganization(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { organizationId } = req.params;
+      const result = await this.userService.findUsersByOrganization(
+        organizationId,
+        req.context.correlationId,
+      );
+
+      if (isSuccessResponse(result)) {
+        const users = result.body().data.map((user) => UserPublicSchema.parse(user));
         sendOk(req, res, users);
       } else {
         sendError(req, res, result);
@@ -94,8 +136,8 @@ export class UserController {
 
       if (isSuccessResponse(result)) {
         const user = result.body().data;
-        const { passwordHash, ...userWithoutPassword } = user;
-        sendOk(req, res, userWithoutPassword);
+        const publicUser = UserPublicSchema.parse(user);
+        sendOk(req, res, publicUser);
       } else {
         sendError(req, res, result);
       }
@@ -107,11 +149,19 @@ export class UserController {
   async deleteUser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
+      const { hard } = req.query;
 
-      const result = await this.userService.deleteUser(id, req.context.correlationId);
+      // Use hard delete if explicitly requested, otherwise soft delete
+      const result =
+        hard === 'true'
+          ? await this.userService.hardDeleteUser(id, req.context.correlationId)
+          : await this.userService.deleteUser(id, req.context.correlationId);
 
       if (isSuccessResponse(result)) {
-        sendOk(req, res, { deleted: result.body().data });
+        sendOk(req, res, {
+          deleted: result.body().data,
+          type: hard === 'true' ? 'hard' : 'soft',
+        });
       } else {
         sendError(req, res, result);
       }
@@ -119,4 +169,11 @@ export class UserController {
       next(error);
     }
   }
+
+  // TODO: Add these controller methods later
+  // async changePassword(req: Request, res: Response, next: NextFunction): Promise<void>
+  // async updatePreferences(req: Request, res: Response, next: NextFunction): Promise<void>
+  // async verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void>
+  // async searchUsers(req: Request, res: Response, next: NextFunction): Promise<void>
+  // async adminUpdateUser(req: Request, res: Response, next: NextFunction): Promise<void>
 }

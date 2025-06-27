@@ -4,10 +4,10 @@ import { DomainEvent } from '../base.event';
 export interface UserDeletedPayload {
   userId: string;
   email: string;
-  deletedBy?: string;
+  username: string | null;
+  softDelete?: boolean;
   reason?: string;
 }
-
 /**
  * Event fired when a user is deleted
  * Contains the user ID and email for cleanup purposes
