@@ -700,7 +700,7 @@ export const InviteOrganizationMemberSchema = z.object({
 // ============================================
 export type Organization = z.infer<typeof OrganizationSchema>;
 export type OrganizationDB = z.infer<typeof OrganizationDBSchema>;
-export type OrganizationMember = z.infer<typeof OrganizationMemberDBSchema>;
+export type OrganizationMemberDB = z.infer<typeof OrganizationMemberDBSchema>;
 export type CreateOrganizationInput = z.infer<typeof CreateOrganizationSchema>;
 export type UpdateOrganizationInput = z.infer<typeof UpdateOrganizationSchema>;
 export type UpdateOrganizationSettingsInput = z.infer<typeof UpdateOrganizationSettingsSchema>;
