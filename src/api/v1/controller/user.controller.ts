@@ -4,7 +4,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { UserService } from '../../../domain/services/user.service';
 import { DIContainer } from '../../../core/di/container';
 import { TOKENS } from '../../../core/di/tokens';
-import { CreateUserSchema, UpdateUserSchema, UserPublicSchema } from '../../../domain/entities';
+import { CreateUserSchema, UpdateUserSchema, User, UserPublic } from '../../../domain/entities';
 import { ValidationError } from '../../../shared/response';
 import { sendError, sendOk, sendCreated } from '../../../shared/utils/response-helper';
 import { isSuccessResponse } from '../../../shared/response';
@@ -15,6 +15,26 @@ export class UserController {
 
   constructor() {
     this.userService = DIContainer.resolve<UserService>(TOKENS.UserService);
+  }
+
+  /**
+   * Convert a User entity to UserPublic by excluding sensitive fields
+   */
+  private toPublicUser(user: User): UserPublic {
+    // Destructure to exclude sensitive fields
+    const {
+      // Exclude these fields
+      cachedPermissions,
+      permissionsUpdatedAt,
+      totalLoginCount,
+      deactivatedReason,
+      deletedAt,
+      deletedBy,
+      // Include everything else
+      ...publicFields
+    } = user;
+
+    return publicFields as UserPublic;
   }
 
   async createUser(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -30,8 +50,7 @@ export class UserController {
 
       if (isSuccessResponse(result)) {
         const user = result.body().data;
-        // Use UserPublicSchema to filter out sensitive fields
-        const publicUser = UserPublicSchema.parse(user);
+        const publicUser = this.toPublicUser(user);
         sendCreated(req, res, publicUser);
       } else {
         sendError(req, res, result);
@@ -49,7 +68,7 @@ export class UserController {
       if (isSuccessResponse(result)) {
         const user = result.body().data;
         if (user) {
-          const publicUser = UserPublicSchema.parse(user);
+          const publicUser = this.toPublicUser(user);
           sendOk(req, res, publicUser);
         } else {
           sendOk(req, res, null);
@@ -70,7 +89,7 @@ export class UserController {
       if (isSuccessResponse(result)) {
         const user = result.body().data;
         if (user) {
-          const publicUser = UserPublicSchema.parse(user);
+          const publicUser = this.toPublicUser(user);
           sendOk(req, res, publicUser);
         } else {
           sendOk(req, res, null);
@@ -89,7 +108,7 @@ export class UserController {
       const result = await this.userService.findAllUsers(req.context.correlationId);
 
       if (isSuccessResponse(result)) {
-        const users = result.body().data.map((user) => UserPublicSchema.parse(user));
+        const users = result.body().data.map((user) => this.toPublicUser(user));
         sendOk(req, res, users);
       } else {
         sendError(req, res, result);
@@ -108,7 +127,7 @@ export class UserController {
       );
 
       if (isSuccessResponse(result)) {
-        const users = result.body().data.map((user) => UserPublicSchema.parse(user));
+        const users = result.body().data.map((user) => this.toPublicUser(user));
         sendOk(req, res, users);
       } else {
         sendError(req, res, result);
@@ -136,7 +155,7 @@ export class UserController {
 
       if (isSuccessResponse(result)) {
         const user = result.body().data;
-        const publicUser = UserPublicSchema.parse(user);
+        const publicUser = this.toPublicUser(user);
         sendOk(req, res, publicUser);
       } else {
         sendError(req, res, result);
