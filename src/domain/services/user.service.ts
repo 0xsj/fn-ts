@@ -58,7 +58,7 @@ export class UserService {
     if (isSuccessResponse(result)) {
       const user = result.body().data;
       if (user) {
-        await this.userRepo.createUserPassword(user.id, passwordHash, correlationId);
+        await this.userRepo.createUserPassword(user.id, passwordHash);
 
         // Invalidate user list cache
         await this.invalidateUserCaches();

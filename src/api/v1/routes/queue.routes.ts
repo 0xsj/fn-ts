@@ -9,7 +9,7 @@ export function createQueueRoutes(): Router {
   const queueManager = DIContainer.resolve<QueueManager>(TOKENS.QueueManager);
 
   // Get queue metrics
-  router.get('/queues/metrics', async (req: Request, res: Response) => {
+  router.get('/queues/metrics', async (_req: Request, res: Response) => {
     try {
       const metrics = await queueManager.getAllMetrics();
       res.json({
@@ -85,7 +85,7 @@ export function createQueueRoutes(): Router {
   });
 
   // Pause all queues
-  router.post('/queues/pause', async (req: Request, res: Response) => {
+  router.post('/queues/pause', async (_req: Request, res: Response) => {
     try {
       await queueManager.pauseAll();
       res.json({
@@ -101,7 +101,7 @@ export function createQueueRoutes(): Router {
   });
 
   // Resume all queues
-  router.post('/queues/resume', async (req: Request, res: Response) => {
+  router.post('/queues/resume', async (_req: Request, res: Response) => {
     try {
       await queueManager.resumeAll();
       res.json({
