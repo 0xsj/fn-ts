@@ -5,13 +5,18 @@ import { z } from 'zod';
  * Email value object with validation and normalization
  */
 export class Email {
+  // More permissive email regex that supports international domains
+  private static readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
   private static readonly schema = z
     .string()
-    .email()
     .toLowerCase()
     .max(254) // RFC 5321
     .refine(
       (email) => {
+        // Basic format check
+        if (!Email.EMAIL_REGEX.test(email)) return false;
+        
         // Additional validation for common issues
         const parts = email.split('@');
         if (parts.length !== 2) return false;
@@ -19,14 +24,18 @@ export class Email {
         const [localPart, domain] = parts;
         
         // Local part validation
-        if (localPart.length > 64) return false; // RFC 5321
+        if (localPart.length === 0 || localPart.length > 64) return false; // RFC 5321
         if (localPart.startsWith('.') || localPart.endsWith('.')) return false;
         if (localPart.includes('..')) return false;
         
         // Domain validation
-        if (domain.length > 253) return false;
-        if (!domain.includes('.')) return false;
+        if (domain.length === 0 || domain.length > 253) return false;
         if (domain.startsWith('.') || domain.endsWith('.')) return false;
+        if (domain.includes('..')) return false;
+        if (!domain.includes('.')) return false;
+        
+        // Check for spaces
+        if (email.includes(' ')) return false;
         
         return true;
       },
@@ -114,9 +123,9 @@ export class Email {
     
     const firstChar = localPart[0];
     const lastChar = localPart[localPart.length - 1];
-    const masked = firstChar + '*'.repeat(Math.min(localPart.length - 2, 3)) + lastChar;
+    const asterisks = '*'.repeat(3);
     
-    return `${masked}@${domain}`;
+    return `${firstChar}${asterisks}${lastChar}@${domain}`;
   }
 
   /**
@@ -179,6 +188,13 @@ export class Email {
     return localPart.includes('noreply') || 
            localPart.includes('no-reply') || 
            localPart.includes('donotreply');
+  }
+
+  /**
+   * Check if the email uses Punycode (internationalized domain)
+   */
+  isPunycode(): boolean {
+    return this.getDomain().includes('xn--');
   }
 }
 
