@@ -18,7 +18,7 @@ import {
   VerifyEmailRequest,
 } from '../entities';
 
-export interface ISessionRepository {
+export interface ISession {
   // Session CRUD
   createSession(
     userId: string,
@@ -64,7 +64,7 @@ export interface ISessionRepository {
   deleteRevokedSessions(beforeDate: Date): AsyncResult<number>;
 }
 
-export interface ITokenRepository {
+export interface IToken {
   createPasswordResetToken(
     userId: string,
     tokenHash: string,
@@ -130,7 +130,7 @@ export interface ITokenRepository {
   deleteTwoFactorSecret(userId: string): AsyncResult<boolean>;
 }
 
-export interface IAuthRepository {
+export interface IAuth {
   login(request: LoginRequest, ipAddress?: string, userAgent?: string): AsyncResult<LoginResponse>;
 
   loginWithProvider(

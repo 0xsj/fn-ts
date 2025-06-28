@@ -14,7 +14,7 @@ import {
   EvaluateFeatureFlagInput,
 } from '../entities';
 
-export interface IOperationsRepository {
+export interface IOperations {
   // ============================================
   // TASK OPERATIONS
   // ============================================

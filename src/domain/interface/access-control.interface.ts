@@ -13,7 +13,7 @@ import {
   AssignRoleInput,
 } from '../entities';
 
-export interface IAccessControlRepository {
+export interface IAccessControl {
   // ============================================
   // PERMISSIONS
   // ============================================

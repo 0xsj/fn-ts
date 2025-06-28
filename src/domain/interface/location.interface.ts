@@ -12,7 +12,7 @@ import {
   ReverseGeocodeRequest,
 } from '../entities';
 
-export interface ILocationRepository {
+export interface ILocation {
   // ============================================
   // LOCATION OPERATIONS
   // ============================================

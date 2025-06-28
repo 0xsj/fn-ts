@@ -46,7 +46,7 @@ import {
   InviteOrganizationMemberInput,
 } from '../entities';
 
-export interface IOrganizationRepository {
+export interface IOrganization {
   // ============================================
   // ORGANIZATION OPERATIONS
   // ============================================

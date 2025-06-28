@@ -12,7 +12,7 @@ import {
   UpdateSubscriptionInput,
 } from '../entities';
 
-export interface INotificationRepository {
+export interface INotification {
   // ============================================
   // NOTIFICATION OPERATIONS
   // ============================================

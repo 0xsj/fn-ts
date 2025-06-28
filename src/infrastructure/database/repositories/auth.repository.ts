@@ -1,8 +1,8 @@
 import { Kysely } from 'kysely';
 import {
-  IAuthRepository,
-  ISessionRepository,
-  ITokenRepository,
+  IAuth,
+  ISession,
+  IToken,
 } from '../../../domain/interface/auth.interface';
 import { Database } from '../types';
 import {
@@ -25,7 +25,7 @@ import {
 } from '../../../domain/entities';
 import { AsyncResult } from '../../../shared/response';
 
-export class AuthRepository implements ISessionRepository, ITokenRepository, IAuthRepository {
+export class AuthRepository implements ISession, IToken, IAuth {
   constructor(private db: Kysely<Database>) {}
   createSession(
     userId: string,

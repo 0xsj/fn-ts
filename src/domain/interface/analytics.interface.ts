@@ -11,7 +11,7 @@ import {
   NotificationAnalytics,
 } from '../entities';
 
-export interface IAnalyticsRepository {
+export interface IAnalytics {
   // ============================================
   // AUDIT LOGS
   // ============================================

@@ -1,6 +1,6 @@
 // src/infrastructure/database/repositories/user.repository.ts
 import { Kysely } from 'kysely';
-import type { IUserRepository } from '../../../domain/interface/user.interface';
+import type { IUser } from '../../../domain/interface/user.interface';
 import { v4 as uuidv4 } from 'uuid';
 import { Database } from '../types';
 import {
@@ -17,7 +17,7 @@ import { mapper } from '../../../shared/utils/mapper';
 import { NamingConvention, MappingConfig } from '../../../shared/types/mapper.types';
 import { logger } from '../../../shared/utils';
 
-export class UserRepository implements IUserRepository {
+export class UserRepository implements IUser {
   constructor(private db: Kysely<Database>) {}
   async findByUsername(username: string, correlationId?: string): AsyncResult<User | null> {
     try {

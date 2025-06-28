@@ -17,7 +17,7 @@ import {
   AddThreadParticipantsInput,
 } from '../entities';
 
-export interface ICommunicationRepository {
+export interface ICommunication {
   // ============================================
   // THREADS
   // ============================================

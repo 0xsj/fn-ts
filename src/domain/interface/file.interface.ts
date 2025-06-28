@@ -11,7 +11,7 @@ import {
   FileValidation,
 } from '../entities';
 
-export interface IFileRepository {
+export interface IFile {
   // ============================================
   // FILE OPERATIONS
   // ============================================

@@ -2,7 +2,7 @@
 import { AsyncResult } from '../../shared/response';
 import { CreateUserInput, User, UserPasswordDB, UserStatus } from '../entities';
 
-export interface IUserRepository {
+export interface IUser {
   // Basic CRUD operations
   findById(id: string, correlationId?: string): AsyncResult<User | null>;
   findByEmail(email: string, correlationId?: string): AsyncResult<User | null>;
