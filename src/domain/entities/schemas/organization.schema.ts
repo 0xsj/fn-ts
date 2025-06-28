@@ -632,6 +632,30 @@ export const OrganizationMemberDBSchema = z.object({
   updated_at: z.date(),
 });
 
+// Add this after OrganizationSchema and before OrganizationMemberDBSchema
+
+export const OrganizationMemberSchema = z.object({
+  organizationId: z.string().uuid(),
+  userId: z.string().uuid(),
+
+  role: z.enum(['owner', 'admin', 'member', 'viewer', 'guest']).default('member'),
+  status: z.enum(['active', 'invited', 'suspended']).default('invited'),
+
+  invitedAt: z.date(),
+  invitedBy: z.string().uuid(),
+  invitationToken: z.string().nullable(),
+  invitationExpiresAt: z.date().nullable(),
+
+  joinedAt: z.date().nullable(),
+
+  customPermissions: z.array(z.string()).default([]),
+
+  lastActiveAt: z.date().nullable(),
+
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
 // ============================================
 // Input Schemas
 // ============================================
@@ -700,7 +724,8 @@ export const InviteOrganizationMemberSchema = z.object({
 // ============================================
 export type Organization = z.infer<typeof OrganizationSchema>;
 export type OrganizationDB = z.infer<typeof OrganizationDBSchema>;
-export type OrganizationMember = z.infer<typeof OrganizationMemberDBSchema>;
+export type OrganizationMember = z.infer<typeof OrganizationMemberSchema>;
+export type OrganizationMemberDB = z.infer<typeof OrganizationMemberDBSchema>;
 export type CreateOrganizationInput = z.infer<typeof CreateOrganizationSchema>;
 export type UpdateOrganizationInput = z.infer<typeof UpdateOrganizationSchema>;
 export type UpdateOrganizationSettingsInput = z.infer<typeof UpdateOrganizationSettingsSchema>;

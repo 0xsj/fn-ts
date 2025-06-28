@@ -1,29 +1,20 @@
 services:
-  # MySQL Primary Database
+  # MySQL - Primary relational database
   mysql:
     image: mysql:8.0
     container_name: fn-mysql
     restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: fn_db
-      MYSQL_USER: fn_user
-      MYSQL_PASSWORD: fn_password
     ports:
       - '3306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-fn_db}
+      MYSQL_USER: ${MYSQL_USER:-fn_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-fn_password}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./docker/mysql/conf.d:/etc/mysql/conf.d
-      - ./docker/mysql/init:/docker-entrypoint-initdb.d
-    command: >
-      --default-authentication-plugin=mysql_native_password
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
-      --max_connections=200
-      --innodb_buffer_pool_size=1G
-      --innodb_log_file_size=256M
-      --slow_query_log=1
-      --long_query_time=2
+      - ./scripts/mysql-init:/docker-entrypoint-initdb.d
+    command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
       timeout: 20s
@@ -31,7 +22,31 @@ services:
     networks:
       - fn-network
 
-  # Redis - Cache, Sessions, Queues, Pub/Sub
+  # MongoDB - Document store for analytics, logs, messages
+  mongodb:
+    image: mongo:7.0
+    container_name: fn-mongodb
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-adminpassword}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-fn_db}
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      - ./scripts/mongo-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - fn-network
+
+  # Redis - Cache and Queue
   redis:
     image: redis:7-alpine
     container_name: fn-redis
@@ -40,8 +55,7 @@ services:
       - '6379:6379'
     volumes:
       - redis_data:/data
-      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
-    command: redis-server /usr/local/etc/redis/redis.conf
+    command: redis-server --appendonly yes
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
@@ -50,29 +64,17 @@ services:
     networks:
       - fn-network
 
-  # Elasticsearch - Full-text Search
+  # Elasticsearch - Full-text search
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
     container_name: fn-elasticsearch
     restart: unless-stopped
     environment:
       - discovery.type=single-node
-      - cluster.name=fn-cluster
-      - node.name=fn-node
       - xpack.security.enabled=false
-      - xpack.security.http.ssl.enabled=false
-      - bootstrap.memory_lock=true
-      - 'ES_JAVA_OPTS=-Xms1g -Xmx1g'
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
+      - 'ES_JAVA_OPTS=-Xms512m -Xmx512m'
     ports:
       - '9200:9200'
-      - '9300:9300'
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     healthcheck:
@@ -83,63 +85,42 @@ services:
     networks:
       - fn-network
 
-  # Kibana - Elasticsearch UI (Development)
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.11.0
-    container_name: fn-kibana
+  # Development Tools
+
+  # RedisInsight - Redis GUI
+  redisinsight:
+    image: redislabs/redisinsight:latest
+    container_name: fn-redisinsight
     restart: unless-stopped
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - xpack.security.enabled=false
     ports:
-      - '5601:5601'
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-    healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:5601/api/status || exit 1']
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      - '8081:8001'
+    volumes:
+      - redisinsight_data:/db
     networks:
       - fn-network
     profiles:
       - dev
 
-  # Redis Commander - Redis UI (Development)
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: fn-redis-commander
+  # Mongo Express - MongoDB GUI
+  mongo-express:
+    image: mongo-express:latest
+    container_name: fn-mongo-express
     restart: unless-stopped
-    environment:
-      - REDIS_HOSTS=local:redis:6379
     ports:
-      - '8081:8081'
+      - '8082:8081'
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD:-adminpassword}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-adminpassword}@mongodb:27017/
+      ME_CONFIG_BASICAUTH: false
     depends_on:
-      - redis
+      - mongodb
     networks:
       - fn-network
     profiles:
       - dev
 
-  # Bull Board - Queue Dashboard (Development)
-  bull-board:
-    image: deadly0/bull-board:latest
-    container_name: fn-bull-board
-    restart: unless-stopped
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    ports:
-      - '3030:3000'
-    depends_on:
-      - redis
-    networks:
-      - fn-network
-    profiles:
-      - dev
-
-  # Adminer - Database UI
+  # Adminer - Database UI (MySQL)
   adminer:
     image: adminer:latest
     container_name: fn-adminer
@@ -184,6 +165,9 @@ networks:
 
 volumes:
   mysql_data:
+  mongodb_data:
+  mongodb_config:
   redis_data:
   elasticsearch_data:
   minio_data:
+  redisinsight_data:

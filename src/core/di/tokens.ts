@@ -1,11 +1,41 @@
 export const TOKENS = {
+  // Infrastructure
   Database: Symbol.for('Database'),
-  UserRepository: Symbol.for('UserRepository'),
-  UserService: Symbol.for('UserService'),
   RedisClient: Symbol.for('RedisClient'),
   CacheManager: Symbol.for('CacheManager'),
   CacheService: Symbol.for('CacheService'),
-  HealthCheckService: Symbol.for('HealthCheckService'),
   EventBus: Symbol.for('EventBus'),
   QueueManager: Symbol.for('QueueManager'),
+
+  // Repositories
+  AnalyticsRepository: Symbol.for('AnalyticsRepository'),
+  UserRepository: Symbol.for('UserRepository'),
+  AuthRepository: Symbol.for('AuthRepository'),
+  OrganizationRepository: Symbol.for('OrganizationRepository'),
+  AccessControlRepository: Symbol.for('AccessControlRepository'),
+  NotificationRepository: Symbol.for('NotificationRepository'),
+  CommunicationRepository: Symbol.for('CommunicationRepository'),
+  LocationRepository: Symbol.for('LocationRepository'),
+  FileRepository: Symbol.for('FileRepository'),
+  OperationsRepository: Symbol.for('OperationsRepository'),
+
+  // Services
+  AnalyticsService: Symbol.for('AnalyticsService'),
+  UserService: Symbol.for('UserService'),
+  AuthService: Symbol.for('AuthService'),
+  OrganizationService: Symbol.for('OrganizationService'),
+  AccessControlService: Symbol.for('AccessControlService'),
+  NotificationService: Symbol.for('NotificationService'),
+  CommunicationService: Symbol.for('CommunicationService'),
+  LocationService: Symbol.for('LocationService'),
+  FileService: Symbol.for('FileService'),
+  OperationsService: Symbol.for('OperationsService'),
+
+  // Supporting Services
+  HealthCheckService: Symbol.for('HealthCheckService'),
+  // JwtService: Symbol.for('JwtService'),
+  // EmailService: Symbol.for('EmailService'),
+  // SmsService: Symbol.for('SmsService'),
+  // StorageService: Symbol.for('StorageService'),
+  // SearchService: Symbol.for('SearchService'),
 } as const;

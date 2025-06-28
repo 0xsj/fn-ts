@@ -6,6 +6,11 @@ export interface UserCreatedPayload {
   email: string;
   firstName: string;
   lastName: string;
+  username: string | null;
+  displayName: string | null;
+  type: 'internal' | 'external' | 'system' | 'bot';
+  status: 'active' | 'inactive' | 'suspended' | 'pending_verification';
+  organizationId: string | null;
 }
 
 /**
