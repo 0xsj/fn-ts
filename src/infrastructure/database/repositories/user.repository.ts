@@ -1,6 +1,6 @@
 // src/infrastructure/database/repositories/user.repository.ts
 import { Kysely } from 'kysely';
-import type { IUserRepository } from '../../../domain/repositories/user.repository.interface';
+import type { IUserRepository } from '../../../domain/interface/user.interface';
 import { v4 as uuidv4 } from 'uuid';
 import { Database } from '../types';
 import {
