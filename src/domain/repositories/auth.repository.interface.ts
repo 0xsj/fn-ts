@@ -1,15 +1,21 @@
 import { AsyncResult } from '../../shared/response';
 import {
   ApiKey,
+  AuthProvider,
   AuthTokens,
+  ChangePasswordRequest,
   EmailVerificationToken,
+  ForgotPasswordRequest,
   LoginRequest,
   LoginResponse,
   PasswordResetToken,
   RefreshTokenRequest,
+  ResetPasswordRequest,
   Session,
   TwoFactorSecretDB,
   User,
+  UserAuthProviderDB,
+  VerifyEmailRequest,
 } from '../entities';
 
 export interface ISessionRepository {
@@ -126,30 +132,83 @@ export interface ITokenRepository {
 
 export interface IAuthRepository {
   login(request: LoginRequest, ipAddress?: string, userAgent?: string): AsyncResult<LoginResponse>;
-  loginWithProvider;
-  logout(sessionId: string, logoutAl?: boolean): AsyncResult<boolean>;
+
+  loginWithProvider(
+    provider: AuthProvider,
+    providerUserId: string,
+    providerData: Record<string, any>,
+    ipAddress?: string,
+    userAgent?: string,
+  ): AsyncResult<LoginResponse>;
+  logout(sessionId: string, logoutAll?: boolean): AsyncResult<boolean>;
   refreshToken(request: RefreshTokenRequest): AsyncResult<AuthTokens>;
-  validateAccessToken(token: string): AsyncResult<User>;
-  validateApiKey;
-  changePassword;
-  forgotPassword;
-  resetPassword;
-  requirePasswordChange;
-  sendVerificationEmail;
-  verifyEmail;
-  resendVerificationEmail;
-  generateTwoFactorSecret;
-  enableTwoFactor;
-  disableTwoFactor;
-  verifyTwoFactor;
-  isTwoFactorEnabled;
-  linkAuthProvider;
-  unlinkAuthProvider;
-  findUserByAuthProvider;
-  getUserAuthProviders;
-  trackFailedLogin;
-  isAccountLocked;
-  lockAccount;
-  unlockAccount;
-  getUserAuthActivity;
+  validateAccessToken(token: string): AsyncResult<{ user: User; session: Session }>;
+
+  validateApiKey(
+    key: string,
+    requiredScopes?: string[],
+  ): AsyncResult<{ user: User; apiKey: ApiKey }>;
+
+  changePassword(
+    userId: string,
+    request: ChangePasswordRequest,
+    sessionId?: string,
+  ): AsyncResult<boolean>;
+  forgotPassword(
+    request: ForgotPasswordRequest,
+    ipAddress?: string,
+  ): AsyncResult<{ success: boolean; email: string }>;
+  resetPassword(request: ResetPasswordRequest, ipAddress?: string): AsyncResult<boolean>;
+  requirePasswordChange(userId: string): AsyncResult<boolean>;
+  sendVerificationEmail(userId: string, email?: string): AsyncResult<boolean>;
+  verifyEmail(request: VerifyEmailRequest): AsyncResult<boolean>;
+  resendVerificationEmail(email: string): AsyncResult<boolean>;
+  generateTwoFactorSecret(userId: string): AsyncResult<{
+    secret: string;
+    qrCode: string;
+    backupCodes: string[];
+  }>;
+  enableTwoFactor(
+    userId: string,
+    totpCode: string,
+    sessionId?: string,
+  ): AsyncResult<{ backupCodes: string[] }>;
+
+  disableTwoFactor(userId: string, password?: string, adminId?: string): AsyncResult<boolean>;
+  verifyTwoFactor(userId: string, code: string, sessionId?: string): AsyncResult<boolean>;
+
+  isTwoFactorEnabled(userId: string): AsyncResult<boolean>;
+  linkAuthProvider(
+    userId: string,
+    provider: AuthProvider,
+    providerUserId: string,
+    providerData?: Record<string, any>,
+  ): AsyncResult<boolean>;
+
+  unlinkAuthProvider(userId: string, provider: AuthProvider): AsyncResult<boolean>;
+
+  findUserByAuthProvider(provider: AuthProvider, providerUserId: string): AsyncResult<User | null>;
+  getUserAuthProviders(userId: string): AsyncResult<UserAuthProviderDB[]>;
+
+  trackFailedLogin(email: string, ipAddress?: string, reason?: string): AsyncResult<boolean>;
+
+  isAccountLocked(email: string): AsyncResult<{ locked: boolean; until?: Date }>;
+
+  lockAccount(
+    userId: string,
+    reason: string,
+    until?: Date,
+    lockedBy?: string,
+  ): AsyncResult<boolean>;
+
+  unlockAccount(userId: string, unlockedBy?: string): AsyncResult<boolean>;
+
+  getUserAuthActivity(
+    userId: string,
+    limit?: number,
+  ): AsyncResult<{
+    recentLogins: Array<{ timestamp: Date; ip: string; device: string }>;
+    activeSessions: number;
+    failedAttempts: number;
+  }>;
 }
