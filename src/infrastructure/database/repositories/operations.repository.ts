@@ -1,12 +1,26 @@
 import { Kysely } from 'kysely';
 import { Database } from '../types';
 import { IOperations } from '../../../domain/interface/operations.interface';
-import { CreateTaskInput, Task, TaskStatus, UpdateTaskProgressInput, TaskPriority, CreateWebhookInput, Webhook, WebhookEvent, CreateFeatureFlagInput, FeatureFlag, EvaluateFeatureFlagInput } from '../../../domain/entities';
+import {
+  CreateTaskInput,
+  Task,
+  TaskStatus,
+  UpdateTaskProgressInput,
+  TaskPriority,
+  CreateWebhookInput,
+  Webhook,
+  WebhookEvent,
+  CreateFeatureFlagInput,
+  FeatureFlag,
+  EvaluateFeatureFlagInput,
+} from '../../../domain/entities';
 import { AsyncResult } from '../../../shared/response';
 
 export class OperationsRepository implements IOperations {
   constructor(private db: Kysely<Database>) {}
-  createTask(input: CreateTaskInput & { createdBy?: string; organizationId?: string; }): AsyncResult<Task> {
+  createTask(
+    input: CreateTaskInput & { createdBy?: string; organizationId?: string },
+  ): AsyncResult<Task> {
     throw new Error('Method not implemented.');
   }
   findTaskById(id: string): AsyncResult<Task | null> {
@@ -15,7 +29,17 @@ export class OperationsRepository implements IOperations {
   findTasksByStatus(status: TaskStatus, limit?: number): AsyncResult<Task[]> {
     throw new Error('Method not implemented.');
   }
-  updateTaskStatus(id: string, status: TaskStatus, metadata?: { startedAt?: Date; completedAt?: Date; failedAt?: Date; error?: Task['error']; result?: Record<string, unknown>; }): AsyncResult<boolean> {
+  updateTaskStatus(
+    id: string,
+    status: TaskStatus,
+    metadata?: {
+      startedAt?: Date;
+      completedAt?: Date;
+      failedAt?: Date;
+      error?: Task['error'];
+      result?: Record<string, unknown>;
+    },
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   updateTaskProgress(id: string, progress: UpdateTaskProgressInput): AsyncResult<boolean> {
@@ -45,7 +69,18 @@ export class OperationsRepository implements IOperations {
   findStalledTasks(stallTimeoutMs: number): AsyncResult<Task[]> {
     throw new Error('Method not implemented.');
   }
-  searchTasks(filters: { type?: string; status?: TaskStatus; priority?: TaskPriority; createdBy?: string; organizationId?: string; tags?: string[]; from?: Date; to?: Date; limit?: number; offset?: number; }): AsyncResult<{ tasks: Task[]; total: number; }> {
+  searchTasks(filters: {
+    type?: string;
+    status?: TaskStatus;
+    priority?: TaskPriority;
+    createdBy?: string;
+    organizationId?: string;
+    tags?: string[];
+    from?: Date;
+    to?: Date;
+    limit?: number;
+    offset?: number;
+  }): AsyncResult<{ tasks: Task[]; total: number }> {
     throw new Error('Method not implemented.');
   }
   findScheduledTasks(beforeDate: Date): AsyncResult<Task[]> {
@@ -57,16 +92,23 @@ export class OperationsRepository implements IOperations {
   findDependentTasks(taskId: string): AsyncResult<Task[]> {
     throw new Error('Method not implemented.');
   }
-  checkTaskDependencies(taskId: string): AsyncResult<{ ready: boolean; pending: string[]; }> {
+  checkTaskDependencies(taskId: string): AsyncResult<{ ready: boolean; pending: string[] }> {
     throw new Error('Method not implemented.');
   }
-  createTaskHierarchy(parentTask: CreateTaskInput, childTasks: CreateTaskInput[]): AsyncResult<Task[]> {
+  createTaskHierarchy(
+    parentTask: CreateTaskInput,
+    childTasks: CreateTaskInput[],
+  ): AsyncResult<Task[]> {
     throw new Error('Method not implemented.');
   }
-  getTaskHierarchy(taskId: string): AsyncResult<{ parent: Task | null; children: Task[]; siblings: Task[]; }> {
+  getTaskHierarchy(
+    taskId: string,
+  ): AsyncResult<{ parent: Task | null; children: Task[]; siblings: Task[] }> {
     throw new Error('Method not implemented.');
   }
-  createWebhook(input: CreateWebhookInput & { createdBy: string; organizationId?: string; }): AsyncResult<Webhook> {
+  createWebhook(
+    input: CreateWebhookInput & { createdBy: string; organizationId?: string },
+  ): AsyncResult<Webhook> {
     throw new Error('Method not implemented.');
   }
   findWebhookById(id: string): AsyncResult<Webhook | null> {
@@ -90,25 +132,56 @@ export class OperationsRepository implements IOperations {
   triggerWebhooks(event: WebhookEvent, payload: Record<string, unknown>): AsyncResult<number> {
     throw new Error('Method not implemented.');
   }
-  recordWebhookDelivery(delivery: { webhookId: string; eventType: string; eventId: string; request: Record<string, unknown>; response?: Record<string, unknown>; status: 'pending' | 'success' | 'failed' | 'timeout'; attemptNumber: number; durationMs?: number; }): AsyncResult<boolean> {
+  recordWebhookDelivery(delivery: {
+    webhookId: string;
+    eventType: string;
+    eventId: string;
+    request: Record<string, unknown>;
+    response?: Record<string, unknown>;
+    status: 'pending' | 'success' | 'failed' | 'timeout';
+    attemptNumber: number;
+    durationMs?: number;
+  }): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  getWebhookDeliveryHistory(webhookId: string, limit?: number): AsyncResult<Array<{ eventType: string; status: string; deliveredAt: Date | null; responseCode: number | null; }>> {
+  getWebhookDeliveryHistory(
+    webhookId: string,
+    limit?: number,
+  ): AsyncResult<
+    Array<{
+      eventType: string;
+      status: string;
+      deliveredAt: Date | null;
+      responseCode: number | null;
+    }>
+  > {
     throw new Error('Method not implemented.');
   }
   retryWebhookDelivery(webhookId: string, eventId: string): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  updateWebhookStatus(id: string, updates: { consecutiveFailures?: number; lastFailureAt?: Date; lastFailureReason?: string; lastSuccessAt?: Date; totalDeliveries?: number; totalFailures?: number; }): AsyncResult<boolean> {
+  updateWebhookStatus(
+    id: string,
+    updates: {
+      consecutiveFailures?: number;
+      lastFailureAt?: Date;
+      lastFailureReason?: string;
+      lastSuccessAt?: Date;
+      totalDeliveries?: number;
+      totalFailures?: number;
+    },
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   disableFailingWebhooks(failureThreshold: number): AsyncResult<number> {
     throw new Error('Method not implemented.');
   }
-  checkWebhookRateLimit(id: string): AsyncResult<{ allowed: boolean; resetAt?: Date; }> {
+  checkWebhookRateLimit(id: string): AsyncResult<{ allowed: boolean; resetAt?: Date }> {
     throw new Error('Method not implemented.');
   }
-  createFeatureFlag(input: CreateFeatureFlagInput & { createdBy: string; organizationId?: string; }): AsyncResult<FeatureFlag> {
+  createFeatureFlag(
+    input: CreateFeatureFlagInput & { createdBy: string; organizationId?: string },
+  ): AsyncResult<FeatureFlag> {
     throw new Error('Method not implemented.');
   }
   findFeatureFlagById(id: string): AsyncResult<FeatureFlag | null> {
@@ -126,10 +199,17 @@ export class OperationsRepository implements IOperations {
   deleteFeatureFlag(id: string): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  evaluateFeatureFlag(key: string, input: EvaluateFeatureFlagInput): AsyncResult<{ enabled: boolean; variant?: string; payload?: Record<string, unknown>; }> {
+  evaluateFeatureFlag(
+    key: string,
+    input: EvaluateFeatureFlagInput,
+  ): AsyncResult<{ enabled: boolean; variant?: string; payload?: Record<string, unknown> }> {
     throw new Error('Method not implemented.');
   }
-  evaluateAllFlags(input: EvaluateFeatureFlagInput): AsyncResult<Record<string, { enabled: boolean; variant?: string; payload?: Record<string, unknown>; }>> {
+  evaluateAllFlags(
+    input: EvaluateFeatureFlagInput,
+  ): AsyncResult<
+    Record<string, { enabled: boolean; variant?: string; payload?: Record<string, unknown> }>
+  > {
     throw new Error('Method not implemented.');
   }
   recordFlagEvaluation(flagId: string): AsyncResult<boolean> {
@@ -138,7 +218,11 @@ export class OperationsRepository implements IOperations {
   addFeatureFlagRule(flagId: string, rule: FeatureFlag['rules'][0]): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  updateFeatureFlagRule(flagId: string, ruleId: string, updates: Partial<FeatureFlag['rules'][0]>): AsyncResult<boolean> {
+  updateFeatureFlagRule(
+    flagId: string,
+    ruleId: string,
+    updates: Partial<FeatureFlag['rules'][0]>,
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   removeFeatureFlagRule(flagId: string, ruleId: string): AsyncResult<boolean> {
@@ -147,13 +231,38 @@ export class OperationsRepository implements IOperations {
   reorderFeatureFlagRules(flagId: string, ruleIds: string[]): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  getTaskMetrics(filters?: { type?: string; from?: Date; to?: Date; organizationId?: string; }): AsyncResult<{ total: number; byStatus: Record<TaskStatus, number>; byPriority: Record<TaskPriority, number>; avgDuration: number; successRate: number; }> {
+  getTaskMetrics(filters?: {
+    type?: string;
+    from?: Date;
+    to?: Date;
+    organizationId?: string;
+  }): AsyncResult<{
+    total: number;
+    byStatus: Record<TaskStatus, number>;
+    byPriority: Record<TaskPriority, number>;
+    avgDuration: number;
+    successRate: number;
+  }> {
     throw new Error('Method not implemented.');
   }
-  getWebhookMetrics(webhookId?: string): AsyncResult<{ deliveryRate: number; avgResponseTime: number; errorRate: number; byEvent: Record<string, number>; }> {
+  getWebhookMetrics(
+    webhookId?: string,
+  ): AsyncResult<{
+    deliveryRate: number;
+    avgResponseTime: number;
+    errorRate: number;
+    byEvent: Record<string, number>;
+  }> {
     throw new Error('Method not implemented.');
   }
-  getFeatureFlagUsage(flagId: string): AsyncResult<{ evaluationCount: number; enabledCount: number; byVariant?: Record<string, number>; uniqueUsers: number; }> {
+  getFeatureFlagUsage(
+    flagId: string,
+  ): AsyncResult<{
+    evaluationCount: number;
+    enabledCount: number;
+    byVariant?: Record<string, number>;
+    uniqueUsers: number;
+  }> {
     throw new Error('Method not implemented.');
   }
   bulkCancelTasks(taskIds: string[]): AsyncResult<number> {

@@ -1,12 +1,27 @@
 import { Kysely } from 'kysely';
 import { Database } from '../types';
 import { ICommunication } from '../../../domain/interface/communication.interface';
-import { CreateThreadInput, Thread, UpdateThreadInput, AddThreadParticipantsInput, ThreadParticipant, UpdateThreadParticipantInput, MarkThreadReadInput, SendMessageInput, Message, UpdateMessageInput, AddReactionInput, MessageReadReceipt, Presence, TypingIndicator } from '../../../domain/entities';
+import {
+  CreateThreadInput,
+  Thread,
+  UpdateThreadInput,
+  AddThreadParticipantsInput,
+  ThreadParticipant,
+  UpdateThreadParticipantInput,
+  MarkThreadReadInput,
+  SendMessageInput,
+  Message,
+  UpdateMessageInput,
+  AddReactionInput,
+  MessageReadReceipt,
+  Presence,
+  TypingIndicator,
+} from '../../../domain/entities';
 import { AsyncResult } from '../../../shared/response';
 
 export class CommunicationRepository implements ICommunication {
   constructor(private db: Kysely<Database>) {}
-  createThread(input: CreateThreadInput & { createdBy: string; }): AsyncResult<Thread> {
+  createThread(input: CreateThreadInput & { createdBy: string }): AsyncResult<Thread> {
     throw new Error('Method not implemented.');
   }
   findThreadById(id: string): AsyncResult<Thread | null> {
@@ -45,7 +60,7 @@ export class CommunicationRepository implements ICommunication {
   searchThreads(query: string, userId: string): AsyncResult<Thread[]> {
     throw new Error('Method not implemented.');
   }
-  addParticipants(input: AddThreadParticipantsInput & { joinedBy: string; }): AsyncResult<boolean> {
+  addParticipants(input: AddThreadParticipantsInput & { joinedBy: string }): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   removeParticipant(threadId: string, userId: string, removedBy?: string): AsyncResult<boolean> {
@@ -57,16 +72,20 @@ export class CommunicationRepository implements ICommunication {
   findUserParticipation(userId: string): AsyncResult<ThreadParticipant[]> {
     throw new Error('Method not implemented.');
   }
-  updateParticipant(threadId: string, userId: string, updates: UpdateThreadParticipantInput): AsyncResult<boolean> {
+  updateParticipant(
+    threadId: string,
+    userId: string,
+    updates: UpdateThreadParticipantInput,
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   isUserInThread(threadId: string, userId: string): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  getUnreadCounts(userId: string): AsyncResult<Array<{ threadId: string; count: number; }>> {
+  getUnreadCounts(userId: string): AsyncResult<Array<{ threadId: string; count: number }>> {
     throw new Error('Method not implemented.');
   }
-  markThreadAsRead(input: MarkThreadReadInput & { userId: string; }): AsyncResult<boolean> {
+  markThreadAsRead(input: MarkThreadReadInput & { userId: string }): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   muteThread(threadId: string, userId: string, until?: Date): AsyncResult<boolean> {
@@ -75,19 +94,26 @@ export class CommunicationRepository implements ICommunication {
   unmuteThread(threadId: string, userId: string): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  createMessage(input: SendMessageInput & { authorId: string; }): AsyncResult<Message> {
+  createMessage(input: SendMessageInput & { authorId: string }): AsyncResult<Message> {
     throw new Error('Method not implemented.');
   }
   findMessageById(id: string): AsyncResult<Message | null> {
     throw new Error('Method not implemented.');
   }
-  findThreadMessages(threadId: string, options?: { limit?: number; before?: Date; after?: Date; includeDeleted?: boolean; }): AsyncResult<Message[]> {
+  findThreadMessages(
+    threadId: string,
+    options?: { limit?: number; before?: Date; after?: Date; includeDeleted?: boolean },
+  ): AsyncResult<Message[]> {
     throw new Error('Method not implemented.');
   }
   findMessageReplies(messageId: string): AsyncResult<Message[]> {
     throw new Error('Method not implemented.');
   }
-  updateMessage(id: string, authorId: string, update: UpdateMessageInput): AsyncResult<Message | null> {
+  updateMessage(
+    id: string,
+    authorId: string,
+    update: UpdateMessageInput,
+  ): AsyncResult<Message | null> {
     throw new Error('Method not implemented.');
   }
   deleteMessage(id: string, deletedBy: string, hard?: boolean): AsyncResult<boolean> {
@@ -102,7 +128,7 @@ export class CommunicationRepository implements ICommunication {
   findMentions(userId: string): AsyncResult<Message[]> {
     throw new Error('Method not implemented.');
   }
-  addReaction(input: AddReactionInput & { userId: string; }): AsyncResult<boolean> {
+  addReaction(input: AddReactionInput & { userId: string }): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   removeReaction(messageId: string, emoji: string, userId: string): AsyncResult<boolean> {
@@ -111,13 +137,18 @@ export class CommunicationRepository implements ICommunication {
   getMessageReactions(messageId: string): AsyncResult<Record<string, string[]>> {
     throw new Error('Method not implemented.');
   }
-  getUserReactions(userId: string, threadId?: string): AsyncResult<Array<{ messageId: string; emoji: string; }>> {
+  getUserReactions(
+    userId: string,
+    threadId?: string,
+  ): AsyncResult<Array<{ messageId: string; emoji: string }>> {
     throw new Error('Method not implemented.');
   }
   createReadReceipt(receipt: Omit<MessageReadReceipt, 'readAt'>): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  createBatchReadReceipts(receipts: Array<Omit<MessageReadReceipt, 'readAt'>>): AsyncResult<boolean> {
+  createBatchReadReceipts(
+    receipts: Array<Omit<MessageReadReceipt, 'readAt'>>,
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   findMessageReadReceipts(messageId: string): AsyncResult<MessageReadReceipt[]> {
@@ -132,7 +163,16 @@ export class CommunicationRepository implements ICommunication {
   countUnreadMessages(threadId: string, userId: string): AsyncResult<number> {
     throw new Error('Method not implemented.');
   }
-  updatePresence(userId: string, status: Presence['status'], metadata?: { statusMessage?: string; currentThreadId?: string; deviceType?: Presence['deviceType']; location?: { latitude: number; longitude: number; }; }): AsyncResult<boolean> {
+  updatePresence(
+    userId: string,
+    status: Presence['status'],
+    metadata?: {
+      statusMessage?: string;
+      currentThreadId?: string;
+      deviceType?: Presence['deviceType'];
+      location?: { latitude: number; longitude: number };
+    },
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   getPresence(userId: string): AsyncResult<Presence | null> {
@@ -150,7 +190,9 @@ export class CommunicationRepository implements ICommunication {
   cleanupStalePresence(beforeDate: Date): AsyncResult<number> {
     throw new Error('Method not implemented.');
   }
-  setTypingIndicator(indicator: Omit<TypingIndicator, 'startedAt' | 'expiresAt'>): AsyncResult<boolean> {
+  setTypingIndicator(
+    indicator: Omit<TypingIndicator, 'startedAt' | 'expiresAt'>,
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   removeTypingIndicator(threadId: string, userId: string): AsyncResult<boolean> {
@@ -162,19 +204,43 @@ export class CommunicationRepository implements ICommunication {
   cleanupExpiredTypingIndicators(): AsyncResult<number> {
     throw new Error('Method not implemented.');
   }
-  addMessageAttachments(messageId: string, attachments: Message['attachments']): AsyncResult<boolean> {
+  addMessageAttachments(
+    messageId: string,
+    attachments: Message['attachments'],
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   removeMessageAttachment(messageId: string, attachmentId: string): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  findThreadAttachments(threadId: string, type?: 'image' | 'video' | 'audio' | 'document'): AsyncResult<Array<{ messageId: string; attachment: Message['attachments'][0]; }>> {
+  findThreadAttachments(
+    threadId: string,
+    type?: 'image' | 'video' | 'audio' | 'document',
+  ): AsyncResult<Array<{ messageId: string; attachment: Message['attachments'][0] }>> {
     throw new Error('Method not implemented.');
   }
-  getThreadStats(threadId: string): AsyncResult<{ messageCount: number; participantCount: number; activeParticipants: number; lastActivity: Date | null; avgResponseTime: number; }> {
+  getThreadStats(
+    threadId: string,
+  ): AsyncResult<{
+    messageCount: number;
+    participantCount: number;
+    activeParticipants: number;
+    lastActivity: Date | null;
+    avgResponseTime: number;
+  }> {
     throw new Error('Method not implemented.');
   }
-  getUserCommunicationStats(userId: string, from?: Date, to?: Date): AsyncResult<{ messagesSent: number; messagesReceived: number; threadsParticipated: number; avgResponseTime: number; mostActiveHours: number[]; }> {
+  getUserCommunicationStats(
+    userId: string,
+    from?: Date,
+    to?: Date,
+  ): AsyncResult<{
+    messagesSent: number;
+    messagesReceived: number;
+    threadsParticipated: number;
+    avgResponseTime: number;
+    mostActiveHours: number[];
+  }> {
     throw new Error('Method not implemented.');
   }
   archiveInactiveThreads(inactiveDays: number): AsyncResult<number> {
@@ -186,7 +252,13 @@ export class CommunicationRepository implements ICommunication {
   exportThreadMessages(threadId: string): AsyncResult<Message[]> {
     throw new Error('Method not implemented.');
   }
-  purgeUserCommunicationData(userId: string): AsyncResult<{ threadsDeleted: number; messagesDeleted: number; participationsRemoved: number; }> {
+  purgeUserCommunicationData(
+    userId: string,
+  ): AsyncResult<{
+    threadsDeleted: number;
+    messagesDeleted: number;
+    participationsRemoved: number;
+  }> {
     throw new Error('Method not implemented.');
   }
 }

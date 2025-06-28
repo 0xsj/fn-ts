@@ -16,53 +16,81 @@ export interface PhoneNumberComponents {
 export class PhoneNumber {
   // E.164 format: +[country code][national number] (max 15 digits)
   private static readonly E164_REGEX = /^\+[1-9]\d{1,14}$/;
-  
+
   // More permissive input patterns
   private static readonly INPUT_PATTERNS = [
-    /^\+?[1-9]\d{0,14}$/,                    // International format
-    /^[0-9]{10}$/,                            // US 10-digit
-    /^[0-9]{11}$/,                            // With country code
-    /^\([0-9]{3}\)\s?[0-9]{3}-?[0-9]{4}$/,   // US formatted
-    /^[0-9]{3}-[0-9]{3}-[0-9]{4}$/,          // US with dashes
+    /^\+?[1-9]\d{0,14}$/, // International format
+    /^[0-9]{10}$/, // US 10-digit
+    /^[0-9]{11}$/, // With country code
+    /^\([0-9]{3}\)\s?[0-9]{3}-?[0-9]{4}$/, // US formatted
+    /^[0-9]{3}-[0-9]{3}-[0-9]{4}$/, // US with dashes
   ];
 
   private static readonly EMERGENCY_NUMBERS = new Set([
-    '911',    // US/Canada
-    '112',    // EU/GSM
-    '999',    // UK
-    '000',    // Australia
-    '110',    // Japan/China Police
-    '119',    // Japan/China Fire
-    '120',    // China Ambulance
+    '911', // US/Canada
+    '112', // EU/GSM
+    '999', // UK
+    '000', // Australia
+    '110', // Japan/China Police
+    '119', // Japan/China Fire
+    '120', // China Ambulance
   ]);
 
-  private static readonly US_TOLL_FREE_PREFIXES = [
-    '800', '833', '844', '855', '866', '877', '888'
-  ];
+  private static readonly US_TOLL_FREE_PREFIXES = ['800', '833', '844', '855', '866', '877', '888'];
 
   private static readonly schema = z
     .string()
-    .min(10, 'Phone number too short')
-    .max(15, 'Phone number too long')
     .transform((val) => PhoneNumber.normalize(val))
     .refine(
-      (val) => PhoneNumber.E164_REGEX.test(val),
-      { message: 'Invalid phone number format' }
+      (val) => {
+        // Allow emergency numbers (short)
+        const withoutPlus = val.replace('+', '');
+        if (withoutPlus.length >= 3 && withoutPlus.length <= 6) {
+          // Check if it's a known emergency pattern
+          const lastDigits = withoutPlus.slice(-3);
+          if (PhoneNumber.EMERGENCY_NUMBERS.has(lastDigits)) {
+            return true;
+          }
+        }
+
+        // For non-emergency, enforce minimum length
+        if (withoutPlus.length < 7) {
+          return false;
+        }
+
+        // Check E.164 format
+        return PhoneNumber.E164_REGEX.test(val);
+      },
+      { message: 'Invalid phone number format' },
     );
 
   private readonly value: string;
   private readonly components: PhoneNumberComponents;
+  private readonly extension?: string;
 
   constructor(value: string, defaultCountryCode: string = '1') {
-    const normalized = PhoneNumber.normalizeWithDefault(value, defaultCountryCode);
+    // Extract extension if present
+    const extensionMatch = value.match(/(?:x|ext|extension)\.?\s*(\d+)$/i);
+    let baseNumber = value;
+
+    if (extensionMatch) {
+      this.extension = extensionMatch[1];
+      baseNumber = value.substring(0, extensionMatch.index);
+    }
+
+    const normalized = PhoneNumber.normalizeWithDefault(baseNumber, defaultCountryCode);
     const result = PhoneNumber.schema.safeParse(normalized);
-    
+
     if (!result.success) {
       throw new Error(`Invalid phone number: ${result.error.errors[0].message}`);
     }
-    
+
     this.value = result.data;
     this.components = PhoneNumber.parseE164(this.value);
+
+    if (this.extension) {
+      this.components.extension = this.extension;
+    }
   }
 
   /**
@@ -71,12 +99,12 @@ export class PhoneNumber {
   private static normalize(value: string): string {
     // Remove all non-digit characters except +
     let cleaned = value.replace(/[^\d+]/g, '');
-    
+
     // Ensure it starts with +
     if (!cleaned.startsWith('+')) {
       cleaned = '+' + cleaned;
     }
-    
+
     return cleaned;
   }
 
@@ -91,7 +119,7 @@ export class PhoneNumber {
     }
 
     let cleaned = value.replace(/[^\d+]/g, '');
-    
+
     // If no country code, add default
     if (!cleaned.startsWith('+')) {
       if (cleaned.length === 10) {
@@ -100,7 +128,7 @@ export class PhoneNumber {
       }
       cleaned = '+' + cleaned;
     }
-    
+
     return cleaned;
   }
 
@@ -110,24 +138,24 @@ export class PhoneNumber {
   private static parseE164(e164: string): PhoneNumberComponents {
     // Remove the + prefix
     const withoutPlus = e164.substring(1);
-    
+
     // Common country codes (this is a simplified version)
     const countryCodePatterns = [
-      { code: '1', length: 1 },      // US/Canada
-      { code: '44', length: 2 },     // UK
-      { code: '33', length: 2 },     // France
-      { code: '49', length: 2 },     // Germany
-      { code: '81', length: 2 },     // Japan
-      { code: '86', length: 2 },     // China
-      { code: '91', length: 2 },     // India
-      { code: '7', length: 1 },      // Russia
-      { code: '55', length: 2 },     // Brazil
-      { code: '61', length: 2 },     // Australia
+      { code: '1', length: 1 }, // US/Canada
+      { code: '44', length: 2 }, // UK
+      { code: '33', length: 2 }, // France
+      { code: '49', length: 2 }, // Germany
+      { code: '81', length: 2 }, // Japan
+      { code: '86', length: 2 }, // China
+      { code: '91', length: 2 }, // India
+      { code: '7', length: 1 }, // Russia
+      { code: '55', length: 2 }, // Brazil
+      { code: '61', length: 2 }, // Australia
     ];
-    
+
     let countryCode = '';
     let nationalNumber = withoutPlus;
-    
+
     // Try to match country code
     for (const pattern of countryCodePatterns) {
       if (withoutPlus.startsWith(pattern.code)) {
@@ -136,13 +164,13 @@ export class PhoneNumber {
         break;
       }
     }
-    
+
     // Default to first digit as country code if no match
     if (!countryCode && withoutPlus.length > 0) {
       countryCode = withoutPlus[0];
       nationalNumber = withoutPlus.substring(1);
     }
-    
+
     return {
       countryCode,
       nationalNumber,
@@ -175,6 +203,13 @@ export class PhoneNumber {
   }
 
   /**
+   * Get the full value with extension
+   */
+  getFullValue(): string {
+    return this.extension ? `${this.value}x${this.extension}` : this.value;
+  }
+
+  /**
    * Get components
    */
   getComponents(): PhoneNumberComponents {
@@ -196,22 +231,41 @@ export class PhoneNumber {
   }
 
   /**
+   * Get extension
+   */
+  getExtension(): string | undefined {
+    return this.extension;
+  }
+
+  /**
    * Format for display
    */
   format(style: 'international' | 'national' | 'e164' = 'international'): string {
+    let formatted: string;
+
     switch (style) {
       case 'e164':
-        return this.value;
-      
+        formatted = this.value;
+        break;
+
       case 'international':
-        return this.formatInternational();
-      
+        formatted = this.formatInternational();
+        break;
+
       case 'national':
-        return this.formatNational();
-      
+        formatted = this.formatNational();
+        break;
+
       default:
-        return this.value;
+        formatted = this.value;
     }
+
+    // Add extension if present
+    if (this.extension) {
+      formatted += ` x${this.extension}`;
+    }
+
+    return formatted;
   }
 
   /**
@@ -219,7 +273,7 @@ export class PhoneNumber {
    */
   private formatInternational(): string {
     const { countryCode, nationalNumber } = this.components;
-    
+
     // US/Canada formatting
     if (countryCode === '1' && nationalNumber.length === 10) {
       const area = nationalNumber.substring(0, 3);
@@ -227,7 +281,7 @@ export class PhoneNumber {
       const subscriber = nationalNumber.substring(6);
       return `+1 (${area}) ${exchange}-${subscriber}`;
     }
-    
+
     // Generic international format
     return `+${countryCode} ${nationalNumber}`;
   }
@@ -237,7 +291,7 @@ export class PhoneNumber {
    */
   private formatNational(): string {
     const { countryCode, nationalNumber } = this.components;
-    
+
     // US/Canada formatting
     if (countryCode === '1' && nationalNumber.length === 10) {
       const area = nationalNumber.substring(0, 3);
@@ -245,7 +299,7 @@ export class PhoneNumber {
       const subscriber = nationalNumber.substring(6);
       return `(${area}) ${exchange}-${subscriber}`;
     }
-    
+
     // Default national format
     return nationalNumber;
   }
@@ -258,7 +312,7 @@ export class PhoneNumber {
     if (nationalNumber.length <= 4) {
       return `+${countryCode} ${'*'.repeat(nationalNumber.length)}`;
     }
-    
+
     const lastFour = nationalNumber.slice(-4);
     const maskedLength = nationalNumber.length - 4;
     return `+${countryCode} ${'*'.repeat(maskedLength)}${lastFour}`;
@@ -270,7 +324,7 @@ export class PhoneNumber {
   getType(): PhoneNumberType {
     // This is a simplified check - real implementation would need carrier lookup
     const { countryCode, nationalNumber } = this.components;
-    
+
     // US toll-free numbers
     if (countryCode === '1' && nationalNumber.length === 10) {
       const areaCode = nationalNumber.substring(0, 3);
@@ -278,7 +332,7 @@ export class PhoneNumber {
         return 'landline';
       }
     }
-    
+
     // Default to unknown without carrier lookup
     return 'unknown';
   }
@@ -288,8 +342,10 @@ export class PhoneNumber {
    */
   isEmergencyNumber(): boolean {
     const withoutCountry = this.components.nationalNumber;
-    return PhoneNumber.EMERGENCY_NUMBERS.has(withoutCountry) ||
-           PhoneNumber.EMERGENCY_NUMBERS.has(this.components.nationalNumber.slice(-3));
+    return (
+      PhoneNumber.EMERGENCY_NUMBERS.has(withoutCountry) ||
+      PhoneNumber.EMERGENCY_NUMBERS.has(this.components.nationalNumber.slice(-3))
+    );
   }
 
   /**
@@ -297,13 +353,13 @@ export class PhoneNumber {
    */
   isTollFree(): boolean {
     const { countryCode, nationalNumber } = this.components;
-    
+
     // US toll-free
     if (countryCode === '1' && nationalNumber.length === 10) {
       const areaCode = nationalNumber.substring(0, 3);
       return PhoneNumber.US_TOLL_FREE_PREFIXES.includes(areaCode);
     }
-    
+
     return false;
   }
 
@@ -313,7 +369,7 @@ export class PhoneNumber {
   isSmsCapable(): boolean {
     // Emergency numbers typically can't receive SMS
     if (this.isEmergencyNumber()) return false;
-    
+
     // Most numbers can receive SMS in modern networks
     // Real implementation would need carrier lookup
     return true;
@@ -323,9 +379,7 @@ export class PhoneNumber {
    * Equality check
    */
   equals(other: PhoneNumber | string): boolean {
-    const otherValue = other instanceof PhoneNumber 
-      ? other.value 
-      : PhoneNumber.normalize(other);
+    const otherValue = other instanceof PhoneNumber ? other.value : PhoneNumber.normalize(other);
     return this.value === otherValue;
   }
 
@@ -337,7 +391,7 @@ export class PhoneNumber {
   }
 
   toJSON(): string {
-    return this.value;
+    return this.getFullValue();
   }
 
   /**
@@ -353,8 +407,8 @@ export class PhoneNumber {
   static isValid(value: unknown, defaultCountryCode: string = '1'): boolean {
     if (typeof value !== 'string') return false;
     try {
-      const normalized = PhoneNumber.normalizeWithDefault(value, defaultCountryCode);
-      return PhoneNumber.schema.safeParse(normalized).success;
+      new PhoneNumber(value, defaultCountryCode);
+      return true;
     } catch {
       return false;
     }
@@ -376,6 +430,4 @@ export class PhoneNumber {
 }
 
 // Zod schema for validation in other schemas
-export const PhoneNumberSchema = z
-  .string()
-  .transform((val) => new PhoneNumber(val));
+export const PhoneNumberSchema = z.string().transform((val) => new PhoneNumber(val));

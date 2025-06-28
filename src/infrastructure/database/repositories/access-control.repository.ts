@@ -1,7 +1,17 @@
 import { Kysely } from 'kysely';
 import { Database } from '../types';
 import { IAccessControl } from '../../../domain/interface/access-control.interface';
-import { CreatePermissionInput, Permission, CreateRoleInput, Role, UpdateRoleInput, AssignRoleInput, UserRole, PermissionCheck, PermissionGrant } from '../../../domain/entities';
+import {
+  CreatePermissionInput,
+  Permission,
+  CreateRoleInput,
+  Role,
+  UpdateRoleInput,
+  AssignRoleInput,
+  UserRole,
+  PermissionCheck,
+  PermissionGrant,
+} from '../../../domain/entities';
 import { AsyncResult } from '../../../shared/response';
 
 export class AccessControlRepository implements IAccessControl {
@@ -18,7 +28,10 @@ export class AccessControlRepository implements IAccessControl {
   findAllPermissions(): AsyncResult<Permission[]> {
     throw new Error('Method not implemented.');
   }
-  updatePermission(id: string, updates: Partial<CreatePermissionInput>): AsyncResult<Permission | null> {
+  updatePermission(
+    id: string,
+    updates: Partial<CreatePermissionInput>,
+  ): AsyncResult<Permission | null> {
     throw new Error('Method not implemented.');
   }
   deletePermission(id: string): AsyncResult<boolean> {
@@ -45,7 +58,11 @@ export class AccessControlRepository implements IAccessControl {
   deleteRole(id: string): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  assignPermissionToRole(roleId: string, permissionId: string, grantedBy?: string): AsyncResult<boolean> {
+  assignPermissionToRole(
+    roleId: string,
+    permissionId: string,
+    grantedBy?: string,
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   removePermissionFromRole(roleId: string, permissionId: string): AsyncResult<boolean> {
@@ -57,7 +74,11 @@ export class AccessControlRepository implements IAccessControl {
   findRolesWithPermission(permissionId: string): AsyncResult<Role[]> {
     throw new Error('Method not implemented.');
   }
-  syncRolePermissions(roleId: string, permissionIds: string[], grantedBy?: string): AsyncResult<boolean> {
+  syncRolePermissions(
+    roleId: string,
+    permissionIds: string[],
+    grantedBy?: string,
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   assignRoleToUser(input: AssignRoleInput): AsyncResult<boolean> {
@@ -84,16 +105,33 @@ export class AccessControlRepository implements IAccessControl {
   getUserPermissions(userId: string): AsyncResult<Permission[]> {
     throw new Error('Method not implemented.');
   }
-  getUserEffectivePermissions(userId: string): AsyncResult<{ direct: Permission[]; fromRoles: { role: Role; permissions: Permission[]; }[]; all: Permission[]; }> {
+  getUserEffectivePermissions(
+    userId: string,
+  ): AsyncResult<{
+    direct: Permission[];
+    fromRoles: { role: Role; permissions: Permission[] }[];
+    all: Permission[];
+  }> {
     throw new Error('Method not implemented.');
   }
-  hasPermission(userId: string, resource: string, action: string, scope?: string): AsyncResult<boolean> {
+  hasPermission(
+    userId: string,
+    resource: string,
+    action: string,
+    scope?: string,
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  hasAnyPermission(userId: string, permissions: Array<{ resource: string; action: string; }>): AsyncResult<boolean> {
+  hasAnyPermission(
+    userId: string,
+    permissions: Array<{ resource: string; action: string }>,
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  hasAllPermissions(userId: string, permissions: Array<{ resource: string; action: string; }>): AsyncResult<boolean> {
+  hasAllPermissions(
+    userId: string,
+    permissions: Array<{ resource: string; action: string }>,
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   getRoleHierarchy(): AsyncResult<Role[]> {
@@ -105,10 +143,13 @@ export class AccessControlRepository implements IAccessControl {
   getInheritedRoles(roleId: string): AsyncResult<Role[]> {
     throw new Error('Method not implemented.');
   }
-  createDefaultRolesAndPermissions(): AsyncResult<{ roles: Role[]; permissions: Permission[]; }> {
+  createDefaultRolesAndPermissions(): AsyncResult<{ roles: Role[]; permissions: Permission[] }> {
     throw new Error('Method not implemented.');
   }
-  findUsersByPermission(resource: string, action: string): AsyncResult<Array<{ userId: string; roles: Role[]; }>> {
+  findUsersByPermission(
+    resource: string,
+    action: string,
+  ): AsyncResult<Array<{ userId: string; roles: Role[] }>> {
     throw new Error('Method not implemented.');
   }
   findOrganizationRoles(organizationId: string): AsyncResult<Role[]> {
@@ -117,7 +158,12 @@ export class AccessControlRepository implements IAccessControl {
   createOrganizationRole(organizationId: string, input: CreateRoleInput): AsyncResult<Role> {
     throw new Error('Method not implemented.');
   }
-  checkOrganizationPermission(userId: string, organizationId: string, resource: string, action: string): AsyncResult<PermissionGrant> {
+  checkOrganizationPermission(
+    userId: string,
+    organizationId: string,
+    resource: string,
+    action: string,
+  ): AsyncResult<PermissionGrant> {
     throw new Error('Method not implemented.');
   }
 }

@@ -1,9 +1,5 @@
 import { Kysely } from 'kysely';
-import {
-  IAuth,
-  ISession,
-  IToken,
-} from '../../../domain/interface/auth.interface';
+import { IAuth, ISession, IToken } from '../../../domain/interface/auth.interface';
 import { Database } from '../types';
 import {
   LoginRequest,

@@ -1,12 +1,22 @@
 import { Kysely } from 'kysely';
 import { Database } from '../types';
 import { ILocation } from '../../../domain/interface/location.interface';
-import { CreateLocationInput, Location, SearchLocationInput, NearbySearchInput, Coordinates, GeocodeRequest, ReverseGeocodeRequest, LocationHistory, Geofence } from '../../../domain/entities';
+import {
+  CreateLocationInput,
+  Location,
+  SearchLocationInput,
+  NearbySearchInput,
+  Coordinates,
+  GeocodeRequest,
+  ReverseGeocodeRequest,
+  LocationHistory,
+  Geofence,
+} from '../../../domain/entities';
 import { AsyncResult } from '../../../shared/response';
 
 export class LocationRepository implements ILocation {
   constructor(private db: Kysely<Database>) {}
-  createLocation(input: CreateLocationInput & { createdBy?: string; }): AsyncResult<Location> {
+  createLocation(input: CreateLocationInput & { createdBy?: string }): AsyncResult<Location> {
     throw new Error('Method not implemented.');
   }
   findLocationById(id: string): AsyncResult<Location | null> {
@@ -30,7 +40,11 @@ export class LocationRepository implements ILocation {
   findNearbyLocations(search: NearbySearchInput): AsyncResult<Location[]> {
     throw new Error('Method not implemented.');
   }
-  findLocationsWithinBounds(southwest: Coordinates, northeast: Coordinates, types?: Location['type'][]): AsyncResult<Location[]> {
+  findLocationsWithinBounds(
+    southwest: Coordinates,
+    northeast: Coordinates,
+    types?: Location['type'][],
+  ): AsyncResult<Location[]> {
     throw new Error('Method not implemented.');
   }
   findLocationsByType(type: Location['type'], limit?: number): AsyncResult<Location[]> {
@@ -45,7 +59,9 @@ export class LocationRepository implements ILocation {
   reverseGeocode(request: ReverseGeocodeRequest): AsyncResult<Location | null> {
     throw new Error('Method not implemented.');
   }
-  batchGeocode(addresses: string[]): AsyncResult<Array<{ address: string; location: Location | null; }>> {
+  batchGeocode(
+    addresses: string[],
+  ): AsyncResult<Array<{ address: string; location: Location | null }>> {
     throw new Error('Method not implemented.');
   }
   findByFipsCode(fipsCode: string): AsyncResult<Location | null> {
@@ -66,10 +82,20 @@ export class LocationRepository implements ILocation {
   getLocationHierarchy(locationId: string): AsyncResult<Location[]> {
     throw new Error('Method not implemented.');
   }
-  recordLocationHistory(history: Omit<LocationHistory, 'id' | 'createdAt'>): AsyncResult<LocationHistory> {
+  recordLocationHistory(
+    history: Omit<LocationHistory, 'id' | 'createdAt'>,
+  ): AsyncResult<LocationHistory> {
     throw new Error('Method not implemented.');
   }
-  findUserLocationHistory(userId: string, options?: { from?: Date; to?: Date; limit?: number; activityType?: LocationHistory['activityType']; }): AsyncResult<LocationHistory[]> {
+  findUserLocationHistory(
+    userId: string,
+    options?: {
+      from?: Date;
+      to?: Date;
+      limit?: number;
+      activityType?: LocationHistory['activityType'];
+    },
+  ): AsyncResult<LocationHistory[]> {
     throw new Error('Method not implemented.');
   }
   findLastUserLocation(userId: string): AsyncResult<LocationHistory | null> {
@@ -99,10 +125,16 @@ export class LocationRepository implements ILocation {
   findGeofencesContainingPoint(coordinates: Coordinates): AsyncResult<Geofence[]> {
     throw new Error('Method not implemented.');
   }
-  findNearestEmergencyServices(coordinates: Coordinates, serviceType: 'fire' | 'police' | 'hospital' | 'all'): AsyncResult<Location[]> {
+  findNearestEmergencyServices(
+    coordinates: Coordinates,
+    serviceType: 'fire' | 'police' | 'hospital' | 'all',
+  ): AsyncResult<Location[]> {
     throw new Error('Method not implemented.');
   }
-  updateEmergencyServices(locationId: string, services: Location['emergencyServices']): AsyncResult<boolean> {
+  updateEmergencyServices(
+    locationId: string,
+    services: Location['emergencyServices'],
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   findLocationsByDispatchZone(dispatchZone: string): AsyncResult<Location[]> {
@@ -111,10 +143,19 @@ export class LocationRepository implements ILocation {
   findLocationsByPSAP(psapId: string): AsyncResult<Location[]> {
     throw new Error('Method not implemented.');
   }
-  updateLocationStatistics(locationId: string, statistics: Location['statistics']): AsyncResult<boolean> {
+  updateLocationStatistics(
+    locationId: string,
+    statistics: Location['statistics'],
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  getLocationUsageStats(locationId: string): AsyncResult<{ usageCount: number; lastUsedAt: Date | null; topUsers: Array<{ userId: string; count: number; }>; }> {
+  getLocationUsageStats(
+    locationId: string,
+  ): AsyncResult<{
+    usageCount: number;
+    lastUsedAt: Date | null;
+    topUsers: Array<{ userId: string; count: number }>;
+  }> {
     throw new Error('Method not implemented.');
   }
   incrementLocationUsage(locationId: string): AsyncResult<boolean> {
@@ -123,13 +164,24 @@ export class LocationRepository implements ILocation {
   getMostUsedLocations(limit?: number, type?: Location['type']): AsyncResult<Location[]> {
     throw new Error('Method not implemented.');
   }
-  bulkCreateLocations(locations: Array<CreateLocationInput & { createdBy?: string; }>): AsyncResult<Location[]> {
+  bulkCreateLocations(
+    locations: Array<CreateLocationInput & { createdBy?: string }>,
+  ): AsyncResult<Location[]> {
     throw new Error('Method not implemented.');
   }
-  bulkUpdateLocations(updates: Array<{ id: string; updates: Partial<Location>; }>): AsyncResult<number> {
+  bulkUpdateLocations(
+    updates: Array<{ id: string; updates: Partial<Location> }>,
+  ): AsyncResult<number> {
     throw new Error('Method not implemented.');
   }
-  importLocationsFromSource(source: Location['source'], data: any[]): AsyncResult<{ imported: number; failed: number; errors: Array<{ index: number; error: string; }>; }> {
+  importLocationsFromSource(
+    source: Location['source'],
+    data: any[],
+  ): AsyncResult<{
+    imported: number;
+    failed: number;
+    errors: Array<{ index: number; error: string }>;
+  }> {
     throw new Error('Method not implemented.');
   }
   validateCoordinates(coordinates: Coordinates): AsyncResult<boolean> {
@@ -138,7 +190,9 @@ export class LocationRepository implements ILocation {
   normalizeAddress(address: Location['address']): AsyncResult<Location['address']> {
     throw new Error('Method not implemented.');
   }
-  deduplicateLocations(threshold: number): AsyncResult<{ merged: number; duplicates: Array<{ kept: string; removed: string[]; }>; }> {
+  deduplicateLocations(
+    threshold: number,
+  ): AsyncResult<{ merged: number; duplicates: Array<{ kept: string; removed: string[] }> }> {
     throw new Error('Method not implemented.');
   }
 }

@@ -1,24 +1,55 @@
 import { Kysely } from 'kysely';
 import { Database } from '../types';
 import { INotification } from '../../../domain/interface/notification.interface';
-import { SendNotificationInput, Notification, BatchNotificationInput, NotificationChannel, NotificationStatus, NotificationPriority, Template, Subscription, UpdateSubscriptionInput } from '../../../domain/entities';
+import {
+  SendNotificationInput,
+  Notification,
+  BatchNotificationInput,
+  NotificationChannel,
+  NotificationStatus,
+  NotificationPriority,
+  Template,
+  Subscription,
+  UpdateSubscriptionInput,
+} from '../../../domain/entities';
 import { AsyncResult } from '../../../shared/response';
 
 export class NotificationRepository implements INotification {
   constructor(private db: Kysely<Database>) {}
-  sendNotification(input: SendNotificationInput & { organizationId?: string; }): AsyncResult<Notification> {
+  sendNotification(
+    input: SendNotificationInput & { organizationId?: string },
+  ): AsyncResult<Notification> {
     throw new Error('Method not implemented.');
   }
-  sendBatchNotifications(input: BatchNotificationInput & { organizationId?: string; }): AsyncResult<Notification[]> {
+  sendBatchNotifications(
+    input: BatchNotificationInput & { organizationId?: string },
+  ): AsyncResult<Notification[]> {
     throw new Error('Method not implemented.');
   }
   findNotificationById(id: string): AsyncResult<Notification | null> {
     throw new Error('Method not implemented.');
   }
-  findNotificationsByUser(userId: string, options?: { channel?: NotificationChannel; status?: NotificationStatus; limit?: number; offset?: number; }): AsyncResult<Notification[]> {
+  findNotificationsByUser(
+    userId: string,
+    options?: {
+      channel?: NotificationChannel;
+      status?: NotificationStatus;
+      limit?: number;
+      offset?: number;
+    },
+  ): AsyncResult<Notification[]> {
     throw new Error('Method not implemented.');
   }
-  updateNotificationStatus(id: string, status: NotificationStatus, metadata?: { deliveredAt?: Date; failedAt?: Date; failureReason?: string; providerResponse?: Record<string, unknown>; }): AsyncResult<boolean> {
+  updateNotificationStatus(
+    id: string,
+    status: NotificationStatus,
+    metadata?: {
+      deliveredAt?: Date;
+      failedAt?: Date;
+      failureReason?: string;
+      providerResponse?: Record<string, unknown>;
+    },
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
   cancelNotification(id: string): AsyncResult<boolean> {
@@ -27,7 +58,19 @@ export class NotificationRepository implements INotification {
   retryFailedNotification(id: string): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  searchNotifications(filters: { recipientId?: string; channel?: NotificationChannel; status?: NotificationStatus; priority?: NotificationPriority; incidentId?: string; threadId?: string; tags?: string[]; from?: Date; to?: Date; limit?: number; offset?: number; }): AsyncResult<{ notifications: Notification[]; total: number; }> {
+  searchNotifications(filters: {
+    recipientId?: string;
+    channel?: NotificationChannel;
+    status?: NotificationStatus;
+    priority?: NotificationPriority;
+    incidentId?: string;
+    threadId?: string;
+    tags?: string[];
+    from?: Date;
+    to?: Date;
+    limit?: number;
+    offset?: number;
+  }): AsyncResult<{ notifications: Notification[]; total: number }> {
     throw new Error('Method not implemented.');
   }
   findScheduledNotifications(beforeDate: Date): AsyncResult<Notification[]> {
@@ -42,7 +85,9 @@ export class NotificationRepository implements INotification {
   findNotificationsByGroup(groupKey: string): AsyncResult<Notification[]> {
     throw new Error('Method not implemented.');
   }
-  createTemplate(template: Omit<Template, 'id' | 'createdAt' | 'updatedAt'>): AsyncResult<Template> {
+  createTemplate(
+    template: Omit<Template, 'id' | 'createdAt' | 'updatedAt'>,
+  ): AsyncResult<Template> {
     throw new Error('Method not implemented.');
   }
   findTemplateById(id: string): AsyncResult<Template | null> {
@@ -75,7 +120,10 @@ export class NotificationRepository implements INotification {
   findSubscriptionByUser(userId: string): AsyncResult<Subscription | null> {
     throw new Error('Method not implemented.');
   }
-  updateSubscription(userId: string, updates: UpdateSubscriptionInput): AsyncResult<Subscription | null> {
+  updateSubscription(
+    userId: string,
+    updates: UpdateSubscriptionInput,
+  ): AsyncResult<Subscription | null> {
     throw new Error('Method not implemented.');
   }
   unsubscribeUser(userId: string, token: string, categories?: string[]): AsyncResult<boolean> {
@@ -96,16 +144,42 @@ export class NotificationRepository implements INotification {
   trackNotificationComplaint(id: string, complaintType: string): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  getDeliveryStats(filters?: { channel?: NotificationChannel; from?: Date; to?: Date; organizationId?: string; }): AsyncResult<{ sent: number; delivered: number; opened: number; clicked: number; bounced: number; failed: number; }> {
+  getDeliveryStats(filters?: {
+    channel?: NotificationChannel;
+    from?: Date;
+    to?: Date;
+    organizationId?: string;
+  }): AsyncResult<{
+    sent: number;
+    delivered: number;
+    opened: number;
+    clicked: number;
+    bounced: number;
+    failed: number;
+  }> {
     throw new Error('Method not implemented.');
   }
-  updateProviderInfo(id: string, provider: { name: string; messageId: string; response?: Record<string, unknown>; cost?: number; }): AsyncResult<boolean> {
+  updateProviderInfo(
+    id: string,
+    provider: {
+      name: string;
+      messageId: string;
+      response?: Record<string, unknown>;
+      cost?: number;
+    },
+  ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  getProviderCosts(from: Date, to: Date, groupBy?: 'provider' | 'channel' | 'day'): AsyncResult<Array<{ group: string; cost: number; count: number; }>> {
+  getProviderCosts(
+    from: Date,
+    to: Date,
+    groupBy?: 'provider' | 'channel' | 'day',
+  ): AsyncResult<Array<{ group: string; cost: number; count: number }>> {
     throw new Error('Method not implemented.');
   }
-  queueNotification(notification: Omit<Notification, 'id' | 'createdAt' | 'updatedAt'>): AsyncResult<Notification> {
+  queueNotification(
+    notification: Omit<Notification, 'id' | 'createdAt' | 'updatedAt'>,
+  ): AsyncResult<Notification> {
     throw new Error('Method not implemented.');
   }
   dequeueNotifications(channel: NotificationChannel, limit: number): AsyncResult<Notification[]> {
@@ -117,7 +191,9 @@ export class NotificationRepository implements INotification {
   findNotificationsToRetry(): AsyncResult<Notification[]> {
     throw new Error('Method not implemented.');
   }
-  bulkUpdateStatus(updates: Array<{ id: string; status: NotificationStatus; metadata?: Record<string, unknown>; }>): AsyncResult<number> {
+  bulkUpdateStatus(
+    updates: Array<{ id: string; status: NotificationStatus; metadata?: Record<string, unknown> }>,
+  ): AsyncResult<number> {
     throw new Error('Method not implemented.');
   }
   bulkCancelNotifications(ids: string[]): AsyncResult<number> {
@@ -126,13 +202,40 @@ export class NotificationRepository implements INotification {
   archiveOldNotifications(beforeDate: Date): AsyncResult<number> {
     throw new Error('Method not implemented.');
   }
-  getNotificationMetrics(userId?: string, from?: Date, to?: Date): AsyncResult<{ byChannel: Record<NotificationChannel, number>; byStatus: Record<NotificationStatus, number>; byPriority: Record<NotificationPriority, number>; avgDeliveryTime: number; totalCost: number; }> {
+  getNotificationMetrics(
+    userId?: string,
+    from?: Date,
+    to?: Date,
+  ): AsyncResult<{
+    byChannel: Record<NotificationChannel, number>;
+    byStatus: Record<NotificationStatus, number>;
+    byPriority: Record<NotificationPriority, number>;
+    avgDeliveryTime: number;
+    totalCost: number;
+  }> {
     throw new Error('Method not implemented.');
   }
-  getTemplateUsageStats(templateId: string): AsyncResult<{ usageCount: number; lastUsedAt: Date | null; deliveryRate: number; openRate: number; clickRate: number; }> {
+  getTemplateUsageStats(
+    templateId: string,
+  ): AsyncResult<{
+    usageCount: number;
+    lastUsedAt: Date | null;
+    deliveryRate: number;
+    openRate: number;
+    clickRate: number;
+  }> {
     throw new Error('Method not implemented.');
   }
-  getUserEngagement(userId: string): AsyncResult<{ totalReceived: number; opened: number; clicked: number; openRate: number; clickRate: number; preferredChannel: NotificationChannel | null; }> {
+  getUserEngagement(
+    userId: string,
+  ): AsyncResult<{
+    totalReceived: number;
+    opened: number;
+    clicked: number;
+    openRate: number;
+    clickRate: number;
+    preferredChannel: NotificationChannel | null;
+  }> {
     throw new Error('Method not implemented.');
   }
   checkUserConsent(userId: string, category: string): AsyncResult<boolean> {
@@ -150,7 +253,10 @@ export class NotificationRepository implements INotification {
   checkQuietHours(userId: string, priority: NotificationPriority): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  checkFrequencyLimits(userId: string, channel: NotificationChannel): AsyncResult<{ allowed: boolean; resetAt?: Date; remaining?: number; }> {
+  checkFrequencyLimits(
+    userId: string,
+    channel: NotificationChannel,
+  ): AsyncResult<{ allowed: boolean; resetAt?: Date; remaining?: number }> {
     throw new Error('Method not implemented.');
   }
   incrementUserFrequency(userId: string, channel: NotificationChannel): AsyncResult<boolean> {
