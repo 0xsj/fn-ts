@@ -1,7 +1,8 @@
 // src/workers/worker.bootstrap.ts
+import { logger } from '../shared/utils';
 import { HeartbeatWorker } from './scheduled/heart-beat.worker';
 
-import { logger } from '../shared/utils';
+
 
 // Simple version - no DI needed
 const worker = new HeartbeatWorker();
