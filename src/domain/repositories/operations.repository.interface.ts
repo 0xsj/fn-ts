@@ -11,27 +11,33 @@ import {
   UpdateTaskProgressInput,
   CreateWebhookInput,
   CreateFeatureFlagInput,
-  EvaluateFeatureFlagInput
+  EvaluateFeatureFlagInput,
 } from '../entities';
 
 export interface IOperationsRepository {
   // ============================================
   // TASK OPERATIONS
   // ============================================
-  createTask(input: CreateTaskInput & { createdBy?: string; organizationId?: string }): AsyncResult<Task>;
+  createTask(
+    input: CreateTaskInput & { createdBy?: string; organizationId?: string },
+  ): AsyncResult<Task>;
   findTaskById(id: string): AsyncResult<Task | null>;
   findTasksByStatus(status: TaskStatus, limit?: number): AsyncResult<Task[]>;
-  updateTaskStatus(id: string, status: TaskStatus, metadata?: {
-    startedAt?: Date;
-    completedAt?: Date;
-    failedAt?: Date;
-    error?: Task['error'];
-    result?: Record<string, unknown>;
-  }): AsyncResult<boolean>;
+  updateTaskStatus(
+    id: string,
+    status: TaskStatus,
+    metadata?: {
+      startedAt?: Date;
+      completedAt?: Date;
+      failedAt?: Date;
+      error?: Task['error'];
+      result?: Record<string, unknown>;
+    },
+  ): AsyncResult<boolean>;
   updateTaskProgress(id: string, progress: UpdateTaskProgressInput): AsyncResult<boolean>;
   cancelTask(id: string): AsyncResult<boolean>;
   retryTask(id: string): AsyncResult<boolean>;
-  
+
   // ============================================
   // TASK QUEUE MANAGEMENT
   // ============================================
@@ -41,7 +47,7 @@ export interface IOperationsRepository {
   releaseTask(id: string): AsyncResult<boolean>;
   markTaskStalled(id: string): AsyncResult<boolean>;
   findStalledTasks(stallTimeoutMs: number): AsyncResult<Task[]>;
-  
+
   // ============================================
   // TASK SEARCH & FILTERING
   // ============================================
@@ -60,29 +66,34 @@ export interface IOperationsRepository {
   findScheduledTasks(beforeDate: Date): AsyncResult<Task[]>;
   findTasksToRetry(): AsyncResult<Task[]>;
   findDependentTasks(taskId: string): AsyncResult<Task[]>;
-  
+
   // ============================================
   // TASK DEPENDENCIES
   // ============================================
   checkTaskDependencies(taskId: string): AsyncResult<{ ready: boolean; pending: string[] }>;
-  createTaskHierarchy(parentTask: CreateTaskInput, childTasks: CreateTaskInput[]): AsyncResult<Task[]>;
+  createTaskHierarchy(
+    parentTask: CreateTaskInput,
+    childTasks: CreateTaskInput[],
+  ): AsyncResult<Task[]>;
   getTaskHierarchy(taskId: string): AsyncResult<{
     parent: Task | null;
     children: Task[];
     siblings: Task[];
   }>;
-  
+
   // ============================================
   // WEBHOOK OPERATIONS
   // ============================================
-  createWebhook(input: CreateWebhookInput & { createdBy: string; organizationId?: string }): AsyncResult<Webhook>;
+  createWebhook(
+    input: CreateWebhookInput & { createdBy: string; organizationId?: string },
+  ): AsyncResult<Webhook>;
   findWebhookById(id: string): AsyncResult<Webhook | null>;
   findWebhooksByEvent(event: WebhookEvent, organizationId?: string): AsyncResult<Webhook[]>;
   findActiveWebhooks(organizationId?: string): AsyncResult<Webhook[]>;
   updateWebhook(id: string, updates: Partial<Webhook>): AsyncResult<Webhook | null>;
   deleteWebhook(id: string): AsyncResult<boolean>;
   verifyWebhook(id: string): AsyncResult<boolean>;
-  
+
   // ============================================
   // WEBHOOK DELIVERY
   // ============================================
@@ -97,61 +108,83 @@ export interface IOperationsRepository {
     attemptNumber: number;
     durationMs?: number;
   }): AsyncResult<boolean>;
-  getWebhookDeliveryHistory(webhookId: string, limit?: number): AsyncResult<Array<{
-    eventType: string;
-    status: string;
-    deliveredAt: Date | null;
-    responseCode: number | null;
-  }>>;
+  getWebhookDeliveryHistory(
+    webhookId: string,
+    limit?: number,
+  ): AsyncResult<
+    Array<{
+      eventType: string;
+      status: string;
+      deliveredAt: Date | null;
+      responseCode: number | null;
+    }>
+  >;
   retryWebhookDelivery(webhookId: string, eventId: string): AsyncResult<boolean>;
-  
+
   // ============================================
   // WEBHOOK MANAGEMENT
   // ============================================
-  updateWebhookStatus(id: string, updates: {
-    consecutiveFailures?: number;
-    lastFailureAt?: Date;
-    lastFailureReason?: string;
-    lastSuccessAt?: Date;
-    totalDeliveries?: number;
-    totalFailures?: number;
-  }): AsyncResult<boolean>;
+  updateWebhookStatus(
+    id: string,
+    updates: {
+      consecutiveFailures?: number;
+      lastFailureAt?: Date;
+      lastFailureReason?: string;
+      lastSuccessAt?: Date;
+      totalDeliveries?: number;
+      totalFailures?: number;
+    },
+  ): AsyncResult<boolean>;
   disableFailingWebhooks(failureThreshold: number): AsyncResult<number>;
   checkWebhookRateLimit(id: string): AsyncResult<{ allowed: boolean; resetAt?: Date }>;
-  
+
   // ============================================
   // FEATURE FLAG OPERATIONS
   // ============================================
-  createFeatureFlag(input: CreateFeatureFlagInput & { createdBy: string; organizationId?: string }): AsyncResult<FeatureFlag>;
+  createFeatureFlag(
+    input: CreateFeatureFlagInput & { createdBy: string; organizationId?: string },
+  ): AsyncResult<FeatureFlag>;
   findFeatureFlagById(id: string): AsyncResult<FeatureFlag | null>;
   findFeatureFlagByKey(key: string, organizationId?: string): AsyncResult<FeatureFlag | null>;
   findActiveFeatureFlags(organizationId?: string): AsyncResult<FeatureFlag[]>;
   updateFeatureFlag(id: string, updates: Partial<FeatureFlag>): AsyncResult<FeatureFlag | null>;
   deleteFeatureFlag(id: string): AsyncResult<boolean>;
-  
+
   // ============================================
   // FEATURE FLAG EVALUATION
   // ============================================
-  evaluateFeatureFlag(key: string, input: EvaluateFeatureFlagInput): AsyncResult<{
+  evaluateFeatureFlag(
+    key: string,
+    input: EvaluateFeatureFlagInput,
+  ): AsyncResult<{
     enabled: boolean;
     variant?: string;
     payload?: Record<string, unknown>;
   }>;
-  evaluateAllFlags(input: EvaluateFeatureFlagInput): AsyncResult<Record<string, {
-    enabled: boolean;
-    variant?: string;
-    payload?: Record<string, unknown>;
-  }>>;
+  evaluateAllFlags(input: EvaluateFeatureFlagInput): AsyncResult<
+    Record<
+      string,
+      {
+        enabled: boolean;
+        variant?: string;
+        payload?: Record<string, unknown>;
+      }
+    >
+  >;
   recordFlagEvaluation(flagId: string): AsyncResult<boolean>;
-  
+
   // ============================================
   // FEATURE FLAG RULES
   // ============================================
   addFeatureFlagRule(flagId: string, rule: FeatureFlag['rules'][0]): AsyncResult<boolean>;
-  updateFeatureFlagRule(flagId: string, ruleId: string, updates: Partial<FeatureFlag['rules'][0]>): AsyncResult<boolean>;
+  updateFeatureFlagRule(
+    flagId: string,
+    ruleId: string,
+    updates: Partial<FeatureFlag['rules'][0]>,
+  ): AsyncResult<boolean>;
   removeFeatureFlagRule(flagId: string, ruleId: string): AsyncResult<boolean>;
   reorderFeatureFlagRules(flagId: string, ruleIds: string[]): AsyncResult<boolean>;
-  
+
   // ============================================
   // ANALYTICS & MONITORING
   // ============================================
@@ -179,7 +212,7 @@ export interface IOperationsRepository {
     byVariant?: Record<string, number>;
     uniqueUsers: number;
   }>;
-  
+
   // ============================================
   // BULK & CLEANUP OPERATIONS
   // ============================================

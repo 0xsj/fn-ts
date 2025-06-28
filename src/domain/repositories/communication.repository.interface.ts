@@ -14,7 +14,7 @@ import {
   UpdateThreadParticipantInput,
   AddReactionInput,
   MarkThreadReadInput,
-  AddThreadParticipantsInput
+  AddThreadParticipantsInput,
 } from '../entities';
 
 export interface ICommunicationRepository {
@@ -43,9 +43,9 @@ export interface ICommunicationRepository {
   findThreadParticipants(threadId: string): AsyncResult<ThreadParticipant[]>;
   findUserParticipation(userId: string): AsyncResult<ThreadParticipant[]>;
   updateParticipant(
-    threadId: string, 
-    userId: string, 
-    updates: UpdateThreadParticipantInput
+    threadId: string,
+    userId: string,
+    updates: UpdateThreadParticipantInput,
   ): AsyncResult<boolean>;
   isUserInThread(threadId: string, userId: string): AsyncResult<boolean>;
   getUnreadCounts(userId: string): AsyncResult<Array<{ threadId: string; count: number }>>;
@@ -59,16 +59,20 @@ export interface ICommunicationRepository {
   createMessage(input: SendMessageInput & { authorId: string }): AsyncResult<Message>;
   findMessageById(id: string): AsyncResult<Message | null>;
   findThreadMessages(
-    threadId: string, 
+    threadId: string,
     options?: {
       limit?: number;
       before?: Date;
       after?: Date;
       includeDeleted?: boolean;
-    }
+    },
   ): AsyncResult<Message[]>;
   findMessageReplies(messageId: string): AsyncResult<Message[]>;
-  updateMessage(id: string, authorId: string, update: UpdateMessageInput): AsyncResult<Message | null>;
+  updateMessage(
+    id: string,
+    authorId: string,
+    update: UpdateMessageInput,
+  ): AsyncResult<Message | null>;
   deleteMessage(id: string, deletedBy: string, hard?: boolean): AsyncResult<boolean>;
   searchMessages(threadId: string, query: string): AsyncResult<Message[]>;
   findMessagesByUser(userId: string, threadId?: string): AsyncResult<Message[]>;
@@ -80,16 +84,23 @@ export interface ICommunicationRepository {
   addReaction(input: AddReactionInput & { userId: string }): AsyncResult<boolean>;
   removeReaction(messageId: string, emoji: string, userId: string): AsyncResult<boolean>;
   getMessageReactions(messageId: string): AsyncResult<Record<string, string[]>>;
-  getUserReactions(userId: string, threadId?: string): AsyncResult<Array<{
-    messageId: string;
-    emoji: string;
-  }>>;
+  getUserReactions(
+    userId: string,
+    threadId?: string,
+  ): AsyncResult<
+    Array<{
+      messageId: string;
+      emoji: string;
+    }>
+  >;
 
   // ============================================
   // READ RECEIPTS
   // ============================================
   createReadReceipt(receipt: Omit<MessageReadReceipt, 'readAt'>): AsyncResult<boolean>;
-  createBatchReadReceipts(receipts: Array<Omit<MessageReadReceipt, 'readAt'>>): AsyncResult<boolean>;
+  createBatchReadReceipts(
+    receipts: Array<Omit<MessageReadReceipt, 'readAt'>>,
+  ): AsyncResult<boolean>;
   findMessageReadReceipts(messageId: string): AsyncResult<MessageReadReceipt[]>;
   findThreadReadReceipts(threadId: string, userId: string): AsyncResult<MessageReadReceipt[]>;
   getLastReadMessage(threadId: string, userId: string): AsyncResult<string | null>;
@@ -98,12 +109,16 @@ export interface ICommunicationRepository {
   // ============================================
   // PRESENCE
   // ============================================
-  updatePresence(userId: string, status: Presence['status'], metadata?: {
-    statusMessage?: string;
-    currentThreadId?: string;
-    deviceType?: Presence['deviceType'];
-    location?: { latitude: number; longitude: number };
-  }): AsyncResult<boolean>;
+  updatePresence(
+    userId: string,
+    status: Presence['status'],
+    metadata?: {
+      statusMessage?: string;
+      currentThreadId?: string;
+      deviceType?: Presence['deviceType'];
+      location?: { latitude: number; longitude: number };
+    },
+  ): AsyncResult<boolean>;
   getPresence(userId: string): AsyncResult<Presence | null>;
   getBulkPresence(userIds: string[]): AsyncResult<Presence[]>;
   getThreadPresence(threadId: string): AsyncResult<Presence[]>;
@@ -113,7 +128,9 @@ export interface ICommunicationRepository {
   // ============================================
   // TYPING INDICATORS
   // ============================================
-  setTypingIndicator(indicator: Omit<TypingIndicator, 'startedAt' | 'expiresAt'>): AsyncResult<boolean>;
+  setTypingIndicator(
+    indicator: Omit<TypingIndicator, 'startedAt' | 'expiresAt'>,
+  ): AsyncResult<boolean>;
   removeTypingIndicator(threadId: string, userId: string): AsyncResult<boolean>;
   getTypingIndicators(threadId: string): AsyncResult<TypingIndicator[]>;
   cleanupExpiredTypingIndicators(): AsyncResult<number>;
@@ -121,12 +138,20 @@ export interface ICommunicationRepository {
   // ============================================
   // ATTACHMENTS
   // ============================================
-  addMessageAttachments(messageId: string, attachments: Message['attachments']): AsyncResult<boolean>;
+  addMessageAttachments(
+    messageId: string,
+    attachments: Message['attachments'],
+  ): AsyncResult<boolean>;
   removeMessageAttachment(messageId: string, attachmentId: string): AsyncResult<boolean>;
-  findThreadAttachments(threadId: string, type?: 'image' | 'video' | 'audio' | 'document'): AsyncResult<Array<{
-    messageId: string;
-    attachment: Message['attachments'][0];
-  }>>;
+  findThreadAttachments(
+    threadId: string,
+    type?: 'image' | 'video' | 'audio' | 'document',
+  ): AsyncResult<
+    Array<{
+      messageId: string;
+      attachment: Message['attachments'][0];
+    }>
+  >;
 
   // ============================================
   // ANALYTICS & STATS
@@ -138,7 +163,11 @@ export interface ICommunicationRepository {
     lastActivity: Date | null;
     avgResponseTime: number;
   }>;
-  getUserCommunicationStats(userId: string, from?: Date, to?: Date): AsyncResult<{
+  getUserCommunicationStats(
+    userId: string,
+    from?: Date,
+    to?: Date,
+  ): AsyncResult<{
     messagesSent: number;
     messagesReceived: number;
     threadsParticipated: number;

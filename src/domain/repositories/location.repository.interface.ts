@@ -9,7 +9,7 @@ import {
   SearchLocationInput,
   NearbySearchInput,
   GeocodeRequest,
-  ReverseGeocodeRequest
+  ReverseGeocodeRequest,
 } from '../entities';
 
 export interface ILocationRepository {
@@ -22,7 +22,7 @@ export interface ILocationRepository {
   updateLocation(id: string, updates: Partial<Location>): AsyncResult<Location | null>;
   deleteLocation(id: string): AsyncResult<boolean>;
   verifyLocation(id: string, verifiedBy: string): AsyncResult<boolean>;
-  
+
   // ============================================
   // LOCATION SEARCH
   // ============================================
@@ -31,18 +31,20 @@ export interface ILocationRepository {
   findLocationsWithinBounds(
     southwest: Coordinates,
     northeast: Coordinates,
-    types?: Location['type'][]
+    types?: Location['type'][],
   ): AsyncResult<Location[]>;
   findLocationsByType(type: Location['type'], limit?: number): AsyncResult<Location[]>;
   findLocationsByParent(parentLocationId: string): AsyncResult<Location[]>;
-  
+
   // ============================================
   // GEOCODING
   // ============================================
   geocodeAddress(request: GeocodeRequest): AsyncResult<Location[]>;
   reverseGeocode(request: ReverseGeocodeRequest): AsyncResult<Location | null>;
-  batchGeocode(addresses: string[]): AsyncResult<Array<{ address: string; location: Location | null }>>;
-  
+  batchGeocode(
+    addresses: string[],
+  ): AsyncResult<Array<{ address: string; location: Location | null }>>;
+
   // ============================================
   // ADMINISTRATIVE LOOKUPS
   // ============================================
@@ -52,11 +54,13 @@ export interface ILocationRepository {
   findCitiesInState(stateCode: string): AsyncResult<Location[]>;
   findCountiesInState(stateCode: string): AsyncResult<Location[]>;
   getLocationHierarchy(locationId: string): AsyncResult<Location[]>;
-  
+
   // ============================================
   // LOCATION HISTORY
   // ============================================
-  recordLocationHistory(history: Omit<LocationHistory, 'id' | 'createdAt'>): AsyncResult<LocationHistory>;
+  recordLocationHistory(
+    history: Omit<LocationHistory, 'id' | 'createdAt'>,
+  ): AsyncResult<LocationHistory>;
   findUserLocationHistory(
     userId: string,
     options?: {
@@ -64,11 +68,11 @@ export interface ILocationRepository {
       to?: Date;
       limit?: number;
       activityType?: LocationHistory['activityType'];
-    }
+    },
   ): AsyncResult<LocationHistory[]>;
   findLastUserLocation(userId: string): AsyncResult<LocationHistory | null>;
   deleteUserLocationHistory(userId: string, beforeDate?: Date): AsyncResult<number>;
-  
+
   // ============================================
   // GEOFENCES
   // ============================================
@@ -79,22 +83,28 @@ export interface ILocationRepository {
   deleteGeofence(id: string): AsyncResult<boolean>;
   checkGeofenceEntry(coordinates: Coordinates, geofenceId: string): AsyncResult<boolean>;
   findGeofencesContainingPoint(coordinates: Coordinates): AsyncResult<Geofence[]>;
-  
+
   // ============================================
   // EMERGENCY SERVICES
   // ============================================
   findNearestEmergencyServices(
     coordinates: Coordinates,
-    serviceType: 'fire' | 'police' | 'hospital' | 'all'
+    serviceType: 'fire' | 'police' | 'hospital' | 'all',
   ): AsyncResult<Location[]>;
-  updateEmergencyServices(locationId: string, services: Location['emergencyServices']): AsyncResult<boolean>;
+  updateEmergencyServices(
+    locationId: string,
+    services: Location['emergencyServices'],
+  ): AsyncResult<boolean>;
   findLocationsByDispatchZone(dispatchZone: string): AsyncResult<Location[]>;
   findLocationsByPSAP(psapId: string): AsyncResult<Location[]>;
-  
+
   // ============================================
   // STATISTICS & ANALYTICS
   // ============================================
-  updateLocationStatistics(locationId: string, statistics: Location['statistics']): AsyncResult<boolean>;
+  updateLocationStatistics(
+    locationId: string,
+    statistics: Location['statistics'],
+  ): AsyncResult<boolean>;
   getLocationUsageStats(locationId: string): AsyncResult<{
     usageCount: number;
     lastUsedAt: Date | null;
@@ -102,18 +112,25 @@ export interface ILocationRepository {
   }>;
   incrementLocationUsage(locationId: string): AsyncResult<boolean>;
   getMostUsedLocations(limit?: number, type?: Location['type']): AsyncResult<Location[]>;
-  
+
   // ============================================
   // BULK OPERATIONS
   // ============================================
-  bulkCreateLocations(locations: Array<CreateLocationInput & { createdBy?: string }>): AsyncResult<Location[]>;
-  bulkUpdateLocations(updates: Array<{ id: string; updates: Partial<Location> }>): AsyncResult<number>;
-  importLocationsFromSource(source: Location['source'], data: any[]): AsyncResult<{
+  bulkCreateLocations(
+    locations: Array<CreateLocationInput & { createdBy?: string }>,
+  ): AsyncResult<Location[]>;
+  bulkUpdateLocations(
+    updates: Array<{ id: string; updates: Partial<Location> }>,
+  ): AsyncResult<number>;
+  importLocationsFromSource(
+    source: Location['source'],
+    data: any[],
+  ): AsyncResult<{
     imported: number;
     failed: number;
     errors: Array<{ index: number; error: string }>;
   }>;
-  
+
   // ============================================
   // VALIDATION & NORMALIZATION
   // ============================================
