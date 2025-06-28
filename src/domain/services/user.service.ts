@@ -1,7 +1,7 @@
 // src/domain/services/user.service.ts
 import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '../../core/di/tokens';
-import type { IUserRepository } from '../repositories/user.repository.interface';
+import type { IUser } from '../interface/user.interface';
 import type { CreateUserInput, UpdateUserInput, User } from '../entities';
 import type { AsyncResult } from '../../shared/response';
 import {
@@ -21,7 +21,7 @@ import { UserCreatedEvent, UserUpdatedEvent, UserDeletedEvent } from '../events/
 @injectable()
 export class UserService {
   constructor(
-    @inject(TOKENS.UserRepository) private userRepo: IUserRepository,
+    @inject(TOKENS.UserRepository) private userRepo: IUser,
     @inject(TOKENS.EventBus) private eventBus: EventBus,
   ) {}
 

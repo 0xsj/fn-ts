@@ -15,6 +15,28 @@ import { registerEventHandlers } from '../../infrastructure/events/event-bus.reg
 import { QueueManager } from '../../infrastructure/queue/queue.manager';
 import { logger } from '../../shared/utils';
 import { TOKENS } from './tokens';
+import {
+  AccessControlRepository,
+  AuthRepository,
+  CommunicationRepository,
+  FileRepository,
+  LocationRepository,
+  NotificationRepository,
+  OperationsRepository,
+  OrganizationRepository,
+} from '../../infrastructure/database/repositories';
+import { AnalyticsRepository } from '../../infrastructure/database/repositories/analytics.repository';
+import {
+  AccessControlService,
+  AuthService,
+  CommunicationService,
+  FileService,
+  LocationService,
+  NotificationService,
+  OperationsService,
+  OrganizationService,
+} from '../../domain/services';
+import { AnalyticsService } from '../../domain/services/analytics.service';
 
 export class DIContainer {
   private static initialized = false;
@@ -78,6 +100,65 @@ export class DIContainer {
   }
 
   private static registerRepositories(): void {
+    container.register(TOKENS.AccessControlRepository, {
+      useFactory: (c) => {
+        const db = c.resolve<Kysely<Database>>(TOKENS.Database);
+        return new AccessControlRepository(db);
+      },
+    });
+
+    container.register(TOKENS.AnalyticsRepository, {
+      useFactory: (c) => {
+        const db = c.resolve<Kysely<Database>>(TOKENS.Database);
+        return new AnalyticsRepository(db);
+      },
+    });
+    container.register(TOKENS.AuthRepository, {
+      useFactory: (c) => {
+        const db = c.resolve<Kysely<Database>>(TOKENS.Database);
+        return new AuthRepository(db);
+      },
+    });
+    container.register(TOKENS.CommunicationRepository, {
+      useFactory: (c) => {
+        const db = c.resolve<Kysely<Database>>(TOKENS.Database);
+        return new CommunicationRepository(db);
+      },
+    });
+    container.register(TOKENS.FileRepository, {
+      useFactory: (c) => {
+        const db = c.resolve<Kysely<Database>>(TOKENS.Database);
+        return new FileRepository(db);
+      },
+    });
+
+    container.register(TOKENS.LocationRepository, {
+      useFactory: (c) => {
+        const db = c.resolve<Kysely<Database>>(TOKENS.Database);
+        return new LocationRepository(db);
+      },
+    });
+
+    container.register(TOKENS.NotificationRepository, {
+      useFactory: (c) => {
+        const db = c.resolve<Kysely<Database>>(TOKENS.Database);
+        return new NotificationRepository(db);
+      },
+    });
+
+    container.register(TOKENS.OperationsRepository, {
+      useFactory: (c) => {
+        const db = c.resolve<Kysely<Database>>(TOKENS.Database);
+        return new OperationsRepository(db);
+      },
+    });
+    container.register(TOKENS.OrganizationRepository, {
+      useFactory: (c) => {
+        const db = c.resolve<Kysely<Database>>(TOKENS.Database);
+        return new OrganizationRepository(db);
+      },
+    });
+
     container.register(TOKENS.UserRepository, {
       useFactory: (c) => {
         const db = c.resolve<Kysely<Database>>(TOKENS.Database);
@@ -88,6 +169,15 @@ export class DIContainer {
 
   private static registerServices(): void {
     container.registerSingleton(TOKENS.UserService, UserService);
+    container.registerSingleton(TOKENS.AuthService, AuthService);
+    container.registerSingleton(TOKENS.OrganizationService, OrganizationService);
+    container.registerSingleton(TOKENS.AccessControlService, AccessControlService);
+    container.registerSingleton(TOKENS.NotificationService, NotificationService);
+    container.registerSingleton(TOKENS.CommunicationService, CommunicationService);
+    container.registerSingleton(TOKENS.LocationService, LocationService);
+    container.registerSingleton(TOKENS.FileService, FileService);
+    container.registerSingleton(TOKENS.OperationsService, OperationsService);
+    container.registerSingleton(TOKENS.AnalyticsService, AnalyticsService);
   }
 
   // Add this new method for EventBus

@@ -32,7 +32,7 @@ describe('Email Value Object', () => {
         'test@' + 'a'.repeat(254) + '.com', // domain too long
       ];
 
-      invalidEmails.forEach(invalid => {
+      invalidEmails.forEach((invalid) => {
         expect(() => new Email(invalid)).toThrow('Invalid email');
       });
     });
@@ -52,7 +52,7 @@ describe('Email Value Object', () => {
         'user_name@example.org',
       ];
 
-      validEmails.forEach(valid => {
+      validEmails.forEach((valid) => {
         expect(() => new Email(valid)).not.toThrow();
       });
     });
@@ -146,7 +146,7 @@ describe('Email Value Object', () => {
         'user@icloud.com',
       ];
 
-      personalEmails.forEach(email => {
+      personalEmails.forEach((email) => {
         const emailObj = new Email(email);
         expect(emailObj.isPersonalEmail()).toBe(true);
         expect(emailObj.isBusinessEmail()).toBe(false);
@@ -154,13 +154,9 @@ describe('Email Value Object', () => {
     });
 
     it('should identify business emails', () => {
-      const businessEmails = [
-        'user@company.com',
-        'user@organization.org',
-        'user@business.net',
-      ];
+      const businessEmails = ['user@company.com', 'user@organization.org', 'user@business.net'];
 
-      businessEmails.forEach(email => {
+      businessEmails.forEach((email) => {
         const emailObj = new Email(email);
         expect(emailObj.isPersonalEmail()).toBe(false);
         expect(emailObj.isBusinessEmail()).toBe(true);
@@ -175,7 +171,7 @@ describe('Email Value Object', () => {
         'system-noreply@example.com',
       ];
 
-      noReplyEmails.forEach(email => {
+      noReplyEmails.forEach((email) => {
         expect(new Email(email).isNoReply()).toBe(true);
       });
 

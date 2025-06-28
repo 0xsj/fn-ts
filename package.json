@@ -23,7 +23,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:unit": "jest --testPathPattern=unit",
-    "test:integration": "jest --testPathPattern=integration"
+    "test:integration": "jest --testPathPattern=integration",
+    "workers": "tsx src/workers/worker.bootstrap.ts"
   },
   "keywords": [
     "express",
@@ -61,6 +62,7 @@
     "bcrypt": "^6.0.0",
     "bullmq": "^5.56.0",
     "cors": "^2.8.5",
+    "cron": "^4.3.1",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "generic-pool": "^3.9.0",

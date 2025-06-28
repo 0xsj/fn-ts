@@ -7,7 +7,7 @@ import { z } from 'zod';
 export class Email {
   // More permissive email regex that supports international domains
   private static readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
+
   private static readonly schema = z
     .string()
     .toLowerCase()
@@ -16,30 +16,30 @@ export class Email {
       (email) => {
         // Basic format check
         if (!Email.EMAIL_REGEX.test(email)) return false;
-        
+
         // Additional validation for common issues
         const parts = email.split('@');
         if (parts.length !== 2) return false;
-        
+
         const [localPart, domain] = parts;
-        
+
         // Local part validation
         if (localPart.length === 0 || localPart.length > 64) return false; // RFC 5321
         if (localPart.startsWith('.') || localPart.endsWith('.')) return false;
         if (localPart.includes('..')) return false;
-        
+
         // Domain validation
         if (domain.length === 0 || domain.length > 253) return false;
         if (domain.startsWith('.') || domain.endsWith('.')) return false;
         if (domain.includes('..')) return false;
         if (!domain.includes('.')) return false;
-        
+
         // Check for spaces
         if (email.includes(' ')) return false;
-        
+
         return true;
       },
-      { message: 'Invalid email format' }
+      { message: 'Invalid email format' },
     );
 
   private readonly value: string;
@@ -106,7 +106,7 @@ export class Email {
    */
   isFromDomains(domains: string[]): boolean {
     const emailDomain = this.getDomain().toLowerCase();
-    return domains.some(d => d.toLowerCase() === emailDomain);
+    return domains.some((d) => d.toLowerCase() === emailDomain);
   }
 
   /**
@@ -116,15 +116,15 @@ export class Email {
   getMasked(): string {
     const localPart = this.getLocalPart();
     const domain = this.getDomain();
-    
+
     if (localPart.length <= 2) {
       return `**@${domain}`;
     }
-    
+
     const firstChar = localPart[0];
     const lastChar = localPart[localPart.length - 1];
     const asterisks = '*'.repeat(3);
-    
+
     return `${firstChar}${asterisks}${lastChar}@${domain}`;
   }
 
@@ -170,8 +170,14 @@ export class Email {
    */
   isPersonalEmail(): boolean {
     const personalDomains = [
-      'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 
-      'aol.com', 'icloud.com', 'mail.com', 'protonmail.com'
+      'gmail.com',
+      'yahoo.com',
+      'hotmail.com',
+      'outlook.com',
+      'aol.com',
+      'icloud.com',
+      'mail.com',
+      'protonmail.com',
     ];
     return this.isFromDomains(personalDomains);
   }
@@ -185,9 +191,11 @@ export class Email {
    */
   isNoReply(): boolean {
     const localPart = this.getLocalPart().toLowerCase();
-    return localPart.includes('noreply') || 
-           localPart.includes('no-reply') || 
-           localPart.includes('donotreply');
+    return (
+      localPart.includes('noreply') ||
+      localPart.includes('no-reply') ||
+      localPart.includes('donotreply')
+    );
   }
 
   /**
