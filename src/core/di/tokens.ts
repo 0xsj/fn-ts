@@ -6,7 +6,7 @@ export const TOKENS = {
   CacheService: Symbol.for('CacheService'),
   EventBus: Symbol.for('EventBus'),
   QueueManager: Symbol.for('QueueManager'),
-  
+
   // Repositories
   AnalyticsRepository: Symbol.for('AnalyticsRepository'),
   UserRepository: Symbol.for('UserRepository'),
@@ -18,7 +18,7 @@ export const TOKENS = {
   LocationRepository: Symbol.for('LocationRepository'),
   FileRepository: Symbol.for('FileRepository'),
   OperationsRepository: Symbol.for('OperationsRepository'),
-  
+
   // Services
   AnalyticsService: Symbol.for('AnalyticsService'),
   UserService: Symbol.for('UserService'),
@@ -30,7 +30,7 @@ export const TOKENS = {
   LocationService: Symbol.for('LocationService'),
   FileService: Symbol.for('FileService'),
   OperationsService: Symbol.for('OperationsService'),
-  
+
   // Supporting Services
   HealthCheckService: Symbol.for('HealthCheckService'),
   // JwtService: Symbol.for('JwtService'),
@@ -38,5 +38,4 @@ export const TOKENS = {
   // SmsService: Symbol.for('SmsService'),
   // StorageService: Symbol.for('StorageService'),
   // SearchService: Symbol.for('SearchService'),
-
 } as const;
