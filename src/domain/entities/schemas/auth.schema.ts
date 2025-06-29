@@ -113,7 +113,7 @@ export const SessionSchema = BaseEntitySchema.extend({
 
   // Computed field
   isActive: z.boolean().default(true), // This can be computed from revoked_at
-  
+
   revokedAt: z.date().nullable(),
   revokedBy: z.string().nullable(),
   revokeReason: z.string().nullable(), // Changed from revokedReason

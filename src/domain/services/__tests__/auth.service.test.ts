@@ -91,7 +91,7 @@ describe('AuthService Unit Tests', () => {
       regenerateBackupCodes: jest.fn(),
       deleteTwoFactorSecret: jest.fn(),
     } as jest.Mocked<IToken>;
-    
+
     // Create service with all three mocked repositories
     authService = new AuthService(mockAuthRepo, mockSessionRepo, mockTokenRepo);
   });
@@ -124,9 +124,7 @@ describe('AuthService Unit Tests', () => {
 
     it('should return session when repository finds it', async () => {
       // Arrange
-      mockSessionRepo.findSessionById.mockResolvedValueOnce(
-        ResponseBuilder.ok(mockSession)
-      );
+      mockSessionRepo.findSessionById.mockResolvedValueOnce(ResponseBuilder.ok(mockSession));
 
       // Act
       const result = await authService.getSession('session-123');
@@ -142,9 +140,7 @@ describe('AuthService Unit Tests', () => {
 
     it('should return NotFoundError when session does not exist', async () => {
       // Arrange
-      mockSessionRepo.findSessionById.mockResolvedValueOnce(
-        ResponseBuilder.ok(null)
-      );
+      mockSessionRepo.findSessionById.mockResolvedValueOnce(ResponseBuilder.ok(null));
 
       // Act
       const result = await authService.getSession('non-existent');
@@ -159,10 +155,7 @@ describe('AuthService Unit Tests', () => {
 
     it('should propagate repository errors', async () => {
       // Arrange
-      const dbError = new DatabaseError(
-        'findSessionById', 
-        new Error('Connection timeout')
-      );
+      const dbError = new DatabaseError('findSessionById', new Error('Connection timeout'));
       mockSessionRepo.findSessionById.mockResolvedValueOnce(dbError);
 
       // Act
@@ -182,9 +175,7 @@ describe('AuthService Unit Tests', () => {
         expiresAt: new Date('2020-01-01'), // Past date
         isActive: true,
       };
-      mockSessionRepo.findSessionById.mockResolvedValueOnce(
-        ResponseBuilder.ok(expiredSession)
-      );
+      mockSessionRepo.findSessionById.mockResolvedValueOnce(ResponseBuilder.ok(expiredSession));
 
       // Act
       const result = await authService.getSession('expired-session');
@@ -195,7 +186,7 @@ describe('AuthService Unit Tests', () => {
       if (result.success) {
         expect(result.body().data).toEqual(expiredSession);
       }
-      
+
       // TODO: You might want to add logic to check expiration
       // expect(result.success).toBe(false);
       // expect(result.body().error.message).toBe('Session expired');

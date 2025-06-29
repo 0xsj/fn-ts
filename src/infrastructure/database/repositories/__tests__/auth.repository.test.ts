@@ -20,7 +20,7 @@ export function createTestUser(overrides?: Partial<any>) {
     type: 'internal' as const,
     timezone: 'UTC',
     locale: 'en',
-    
+
     // JSON columns as strings (required fields)
     preferences: JSON.stringify({
       theme: 'system',
@@ -28,12 +28,12 @@ export function createTestUser(overrides?: Partial<any>) {
       date_format: 'YYYY-MM-DD',
       time_format: '24h',
       profile_visibility: 'organization',
-      show_online_status: true
+      show_online_status: true,
     }),
     cached_permissions: JSON.stringify([]),
     custom_fields: JSON.stringify({}),
     tags: JSON.stringify([]),
-    
+
     // Nullable fields
     display_name: null,
     username: null,
@@ -65,12 +65,13 @@ describe('AuthRepository Integration Tests', () => {
   beforeAll(async () => {
     db = await createDatabase();
     authRepository = new AuthRepository(db);
-    
+
     // Create a test user using the helper
     testUserId = uuidv4();
-    await db.insertInto('users').values(
-      createTestUser({ id: testUserId })
-    ).execute();
+    await db
+      .insertInto('users')
+      .values(createTestUser({ id: testUserId }))
+      .execute();
   });
 
   afterAll(async () => {
@@ -94,18 +95,21 @@ describe('AuthRepository Integration Tests', () => {
       // Create test session
       const sessionId = uuidv4();
       const now = new Date();
-      
-      await db.insertInto('sessions').values({
-        id: sessionId,
-        user_id: testUserId,
-        token_hash: 'test-token-hash',
-        refresh_token_hash: 'test-refresh-hash',
-        device_type: 'web' as const,
-        expires_at: new Date(now.getTime() + 3600000), // 1 hour
-        refresh_expires_at: new Date(now.getTime() + 86400000), // 24 hours
-        last_activity_at: now,
-        // Use type assertion for fields not in TypeScript types
-      } as any).execute();
+
+      await db
+        .insertInto('sessions')
+        .values({
+          id: sessionId,
+          user_id: testUserId,
+          token_hash: 'test-token-hash',
+          refresh_token_hash: 'test-refresh-hash',
+          device_type: 'web' as const,
+          expires_at: new Date(now.getTime() + 3600000), // 1 hour
+          refresh_expires_at: new Date(now.getTime() + 86400000), // 24 hours
+          last_activity_at: now,
+          // Use type assertion for fields not in TypeScript types
+        } as any)
+        .execute();
 
       // Test finding the session
       const result = await authRepository.findSessionById(sessionId);
@@ -129,32 +133,35 @@ describe('AuthRepository Integration Tests', () => {
       const sessionId = uuidv4();
       const now = new Date();
       const expiresAt = new Date(now.getTime() + 3600000);
-      
-      await db.insertInto('sessions').values({
-        id: sessionId,
-        user_id: testUserId,
-        token_hash: 'hash-123',
-        refresh_token_hash: 'refresh-123',
-        device_id: 'device-123',
-        device_name: 'Chrome on Mac',
-        device_type: 'web' as const,
-        user_agent: 'Mozilla/5.0...',
-        ip_address: '192.168.1.1',
-        expires_at: expiresAt,
-        refresh_expires_at: new Date(now.getTime() + 86400000),
-        idle_timeout_at: new Date(now.getTime() + 1800000),
-        last_activity_at: now,
-        revoked_at: null,
-        revoked_by: null,
-        revoke_reason: null,
-        // Additional fields that exist in DB but not in types
-        absolute_timeout_at: new Date(now.getTime() + 7200000),
-        is_mfa_verified: true,
-        security_stamp: 'stamp-123',
-      } as any).execute();
+
+      await db
+        .insertInto('sessions')
+        .values({
+          id: sessionId,
+          user_id: testUserId,
+          token_hash: 'hash-123',
+          refresh_token_hash: 'refresh-123',
+          device_id: 'device-123',
+          device_name: 'Chrome on Mac',
+          device_type: 'web' as const,
+          user_agent: 'Mozilla/5.0...',
+          ip_address: '192.168.1.1',
+          expires_at: expiresAt,
+          refresh_expires_at: new Date(now.getTime() + 86400000),
+          idle_timeout_at: new Date(now.getTime() + 1800000),
+          last_activity_at: now,
+          revoked_at: null,
+          revoked_by: null,
+          revoke_reason: null,
+          // Additional fields that exist in DB but not in types
+          absolute_timeout_at: new Date(now.getTime() + 7200000),
+          is_mfa_verified: true,
+          security_stamp: 'stamp-123',
+        } as any)
+        .execute();
 
       const result = await authRepository.findSessionById(sessionId);
-      
+
       expect(result.success).toBe(true);
       if (isSuccessResponse(result)) {
         const session = result.body().data;
