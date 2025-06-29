@@ -33,7 +33,7 @@ export interface CurrencyInfo {
  */
 export class Currency {
   private static readonly VALID_CURRENCY_REGEX = /^[A-Z]{3}$/;
-  
+
   private readonly cents: bigint; // Store as smallest unit to avoid float issues
   private readonly currencyInfo: CurrencyInfo;
 
@@ -52,7 +52,7 @@ export class Currency {
 
     // Convert amount to cents/smallest unit
     this.cents = Currency.amountToCents(amount, this.currencyInfo.decimals);
-    
+
     // Validate amount
     if (this.cents < 0n) {
       throw new Error('Currency amount cannot be negative');
@@ -64,12 +64,12 @@ export class Currency {
    */
   private static getCurrencyInfo(code: string): CurrencyInfo | null {
     const upperCode = code.toUpperCase();
-    
+
     // Check predefined currencies
     if (upperCode in CURRENCY_CODES) {
       return CURRENCY_CODES[upperCode as CurrencyCode];
     }
-    
+
     // For unknown currencies, validate format and use defaults
     if (Currency.VALID_CURRENCY_REGEX.test(upperCode)) {
       return {
@@ -79,7 +79,7 @@ export class Currency {
         decimals: 2, // Default to 2 decimal places
       };
     }
-    
+
     return null;
   }
 
@@ -92,32 +92,32 @@ export class Currency {
     }
 
     const multiplier = Math.pow(10, decimals);
-    
+
     if (typeof amount === 'number') {
       // Avoid floating point issues by rounding
       return BigInt(Math.round(amount * multiplier));
     }
-    
+
     // String amount
     const cleanAmount = amount.replace(/[^0-9.-]/g, '');
     const parts = cleanAmount.split('.');
-    
+
     if (parts.length === 1) {
       // No decimal part
       return BigInt(parts[0]) * BigInt(multiplier);
     }
-    
+
     // Handle decimal part
     const integerPart = BigInt(parts[0] || '0');
     let decimalPart = parts[1] || '';
-    
+
     // Pad or truncate decimal part
     if (decimalPart.length > decimals) {
       decimalPart = decimalPart.substring(0, decimals);
     } else {
       decimalPart = decimalPart.padEnd(decimals, '0');
     }
-    
+
     return integerPart * BigInt(multiplier) + BigInt(decimalPart);
   }
 
@@ -137,7 +137,7 @@ export class Currency {
     if (!currencyInfo) {
       throw new Error(`Invalid currency code: ${currencyCode}`);
     }
-    
+
     const currency = Object.create(Currency.prototype) as Currency;
     (currency as any).cents = BigInt(cents);
     (currency as any).currencyInfo = currencyInfo;
@@ -269,20 +269,20 @@ export class Currency {
 
     const amount = this.getAmount();
     const fixed = amount.toFixed(this.currencyInfo.decimals);
-    
+
     let [integerPart, decimalPart] = fixed.split('.');
-    
+
     // Add thousands separator
     if (thousandsSeparator && integerPart.length > 3) {
       integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     }
-    
+
     // Build the formatted string
     let formatted = integerPart;
     if (this.currencyInfo.decimals > 0 && decimalPart) {
       formatted += decimalSeparator + decimalPart;
     }
-    
+
     // Add currency symbol
     if (symbol) {
       if (symbolPosition === 'before') {
@@ -293,7 +293,7 @@ export class Currency {
     } else {
       formatted = formatted + ' ' + this.currencyInfo.code;
     }
-    
+
     return formatted;
   }
 
@@ -333,7 +333,9 @@ export class Currency {
     let remaining = this.cents;
 
     for (let i = 0; i < ratios.length - 1; i++) {
-      const share = (this.cents * BigInt(Math.round(ratios[i] * 1000000))) / BigInt(Math.round(total * 1000000));
+      const share =
+        (this.cents * BigInt(Math.round(ratios[i] * 1000000))) /
+        BigInt(Math.round(total * 1000000));
       results.push(Currency.fromCents(share, this.currencyInfo.code));
       remaining -= share;
     }
@@ -350,7 +352,7 @@ export class Currency {
   private assertSameCurrency(other: Currency): void {
     if (this.currencyInfo.code !== other.currencyInfo.code) {
       throw new Error(
-        `Cannot perform operation with different currencies: ${this.currencyInfo.code} and ${other.currencyInfo.code}`
+        `Cannot perform operation with different currencies: ${this.currencyInfo.code} and ${other.currencyInfo.code}`,
       );
     }
   }
@@ -399,7 +401,9 @@ export class Currency {
 }
 
 // Zod schema for validation
-export const CurrencySchema = z.object({
-  amount: z.union([z.string(), z.number()]),
-  currency: z.string().length(3).toUpperCase(),
-}).transform(data => Currency.fromJSON(data));
+export const CurrencySchema = z
+  .object({
+    amount: z.union([z.string(), z.number()]),
+    currency: z.string().length(3).toUpperCase(),
+  })
+  .transform((data) => Currency.fromJSON(data));

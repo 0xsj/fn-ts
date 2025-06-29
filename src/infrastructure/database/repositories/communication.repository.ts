@@ -219,9 +219,7 @@ export class CommunicationRepository implements ICommunication {
   ): AsyncResult<Array<{ messageId: string; attachment: Message['attachments'][0] }>> {
     throw new Error('Method not implemented.');
   }
-  getThreadStats(
-    threadId: string,
-  ): AsyncResult<{
+  getThreadStats(threadId: string): AsyncResult<{
     messageCount: number;
     participantCount: number;
     activeParticipants: number;
@@ -252,9 +250,7 @@ export class CommunicationRepository implements ICommunication {
   exportThreadMessages(threadId: string): AsyncResult<Message[]> {
     throw new Error('Method not implemented.');
   }
-  purgeUserCommunicationData(
-    userId: string,
-  ): AsyncResult<{
+  purgeUserCommunicationData(userId: string): AsyncResult<{
     threadsDeleted: number;
     messagesDeleted: number;
     participationsRemoved: number;

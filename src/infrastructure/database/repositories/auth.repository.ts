@@ -19,7 +19,7 @@ import {
   PasswordResetToken,
   TwoFactorSecretDB,
 } from '../../../domain/entities';
-import { AsyncResult } from '../../../shared/response';
+import { AsyncResult, DatabaseError, ok, ResponseBuilder } from '../../../shared/response';
 
 export class AuthRepository implements ISession, IToken, IAuth {
   constructor(private db: Kysely<Database>) {}
@@ -38,9 +38,58 @@ export class AuthRepository implements ISession, IToken, IAuth {
   ): AsyncResult<Session> {
     throw new Error('Method not implemented.');
   }
-  findSessionById(id: string): AsyncResult<Session | null> {
-    throw new Error('Method not implemented.');
+  async findSessionById(id: string): AsyncResult<Session | null> {
+    try {
+      const row = await this.db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('id', '=', id)
+        .executeTakeFirst();
+
+      if (!row) {
+        return ResponseBuilder.ok(null);
+      }
+
+      const session: Session = {
+        id: row.id,
+        userId: row.user_id,
+        tokenHash: row.token_hash,
+        refreshTokenHash: row.refresh_token_hash,
+
+        deviceId: row.device_id,
+        deviceName: row.device_name,
+        deviceType: row.device_type,
+        userAgent: row.user_agent,
+        ipAddress: row.ip_address,
+
+        expiresAt: row.expires_at,
+        refreshExpiresAt: row.refresh_expires_at,
+        idleTimeoutAt: row.idle_timeout_at,
+        absoluteTimeoutAt: row.absolute_timeout_at,
+
+        lastActivityAt: row.last_activity_at,
+
+        // Security fields
+        isMfaVerified: Boolean(row.is_mfa_verified),
+        securityStamp: row.security_stamp,
+
+        // Computed field
+        isActive: !row.revoked_at,
+
+        revokedAt: row.revoked_at,
+        revokedBy: row.revoked_by,
+        revokeReason: row.revoke_reason, // Note: different field name
+
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+
+      return ResponseBuilder.ok(session);
+    } catch (error) {
+      return new DatabaseError('findSessionById', error);
+    }
   }
+
   findSessionByTokenHash(tokenHash: string): AsyncResult<Session | null> {
     throw new Error('Method not implemented.');
   }

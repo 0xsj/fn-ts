@@ -42,7 +42,7 @@ describe('URL Value Object', () => {
         'file:///path/to/file',
       ];
 
-      protocols.forEach(urlString => {
+      protocols.forEach((urlString) => {
         expect(() => new Url(urlString)).not.toThrow();
       });
     });
@@ -133,7 +133,7 @@ describe('URL Value Object', () => {
       const url = new Url('https://example.com/path');
       const withPort = url.withPort(8443);
       expect(withPort.getValue()).toBe('https://example.com:8443/path');
-      
+
       const withoutPort = withPort.withPort(null);
       expect(withoutPort.getValue()).toBe('https://example.com/path');
     });
@@ -160,7 +160,7 @@ describe('URL Value Object', () => {
       const url = new Url('https://example.com/api/v1');
       const appended = url.appendPath('users/123');
       expect(appended.getValue()).toBe('https://example.com/api/v1/users/123');
-      
+
       const appendedWithSlash = url.appendPath('/users/456');
       expect(appendedWithSlash.getValue()).toBe('https://example.com/api/v1/users/456');
     });
@@ -223,7 +223,7 @@ describe('URL Value Object', () => {
     it('should set hash', () => {
       const newUrl = url.withHash('newsection');
       expect(newUrl.getHash()).toBe('#newsection');
-      
+
       const withHashSymbol = url.withHash('#anothersection');
       expect(withHashSymbol.getHash()).toBe('#anothersection');
     });
@@ -261,7 +261,7 @@ describe('URL Value Object', () => {
       const url1 = new Url('https://example.com/path?query=value#hash');
       const url2 = new Url('https://example.com/path?query=value#hash');
       const url3 = new Url('https://example.com/path?query=other#hash');
-      
+
       expect(url1.equals(url2)).toBe(true);
       expect(url1.equals(url3)).toBe(false);
       expect(url1.equals('https://example.com/path?query=value#hash')).toBe(true);
@@ -270,14 +270,14 @@ describe('URL Value Object', () => {
     it('should check equality ignoring hash', () => {
       const url1 = new Url('https://example.com/path#hash1');
       const url2 = new Url('https://example.com/path#hash2');
-      
+
       expect(url1.equalsIgnoringHash(url2)).toBe(true);
     });
 
     it('should check equality ignoring query', () => {
       const url1 = new Url('https://example.com/path?a=1');
       const url2 = new Url('https://example.com/path?b=2');
-      
+
       expect(url1.equalsIgnoringQuery(url2)).toBe(true);
     });
 
@@ -286,7 +286,7 @@ describe('URL Value Object', () => {
       const url2 = new Url('https://example.com/path2');
       const url3 = new Url('https://other.com/path');
       const url4 = new Url('http://example.com/path');
-      
+
       expect(url1.isSameOrigin(url2)).toBe(true);
       expect(url1.isSameOrigin(url3)).toBe(false);
       expect(url1.isSameOrigin(url4)).toBe(false); // Different protocol
@@ -303,7 +303,7 @@ describe('URL Value Object', () => {
 
     it('should check safe redirect with allowed hosts', () => {
       const allowedHosts = ['trusted.com', 'safe.com'];
-      
+
       expect(new Url('https://trusted.com/path').isSafeRedirect(allowedHosts)).toBe(true);
       expect(new Url('https://safe.com/path').isSafeRedirect(allowedHosts)).toBe(true);
       expect(new Url('https://evil.com/path').isSafeRedirect(allowedHosts)).toBe(false);
@@ -318,7 +318,9 @@ describe('URL Value Object', () => {
 
     it('should get filename', () => {
       expect(new Url('https://example.com/path/file.pdf').getFilename()).toBe('file.pdf');
-      expect(new Url('https://example.com/path/document.tar.gz').getFilename()).toBe('document.tar.gz');
+      expect(new Url('https://example.com/path/document.tar.gz').getFilename()).toBe(
+        'document.tar.gz',
+      );
       expect(new Url('https://example.com/path/').getFilename()).toBeNull();
       expect(new Url('https://example.com/directory').getFilename()).toBeNull();
     });
@@ -333,11 +335,13 @@ describe('URL Value Object', () => {
     it('should convert to relative', () => {
       const url = new Url('https://example.com/path/to/resource?query=value#hash');
       const base = new Url('https://example.com/');
-      
+
       expect(url.toRelative(base)).toBe('/path/to/resource?query=value#hash');
-      
+
       const differentOrigin = new Url('https://other.com/');
-      expect(url.toRelative(differentOrigin)).toBe('https://example.com/path/to/resource?query=value#hash');
+      expect(url.toRelative(differentOrigin)).toBe(
+        'https://example.com/path/to/resource?query=value#hash',
+      );
     });
   });
 

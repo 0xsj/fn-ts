@@ -18,7 +18,7 @@ describe('Percentage Value Object', () => {
     it('should create from percentage string', () => {
       const pct1 = new Percentage('15%');
       expect(pct1.toPercentage()).toBe(15);
-      
+
       const pct2 = new Percentage('15.5%');
       expect(pct2.toPercentage()).toBe(15.5);
     });
@@ -177,7 +177,7 @@ describe('Percentage Value Object', () => {
     it('should calculate what percentage of', () => {
       const pct = Percentage.whatPercentOf(15, 100);
       expect(pct.toPercentage()).toBe(15);
-      
+
       const pct2 = Percentage.whatPercentOf(50, 200);
       expect(pct2.toPercentage()).toBe(25);
     });
@@ -190,7 +190,7 @@ describe('Percentage Value Object', () => {
       const pct = new Percentage(25);
       const inverted = pct.invert();
       expect(inverted.toPercentage()).toBe(75);
-      
+
       expect(new Percentage(0).invert().toPercentage()).toBe(100);
       expect(new Percentage(100).invert().toPercentage()).toBe(0);
     });
@@ -300,11 +300,11 @@ describe('Percentage Value Object', () => {
       const pct = new Percentage(50);
       const clamped = pct.clamp(0, 100);
       expect(clamped.toPercentage()).toBe(50);
-      
+
       // Test clamping to minimum
       const clampedMin = new Percentage(5).clamp(10, 100);
       expect(clampedMin.toPercentage()).toBe(10);
-      
+
       // Test clamping to maximum
       const clampedMax = new Percentage(95).clamp(0, 90);
       expect(clampedMax.toPercentage()).toBe(90);
@@ -344,7 +344,7 @@ describe('Percentage Value Object', () => {
       const json = { value: 15.5, format: 'percentage' };
       const deserialized = Percentage.fromJSON(json);
       expect(deserialized.toPercentage()).toBe(15.5);
-      
+
       const decimalJson = { value: 0.155, format: 'decimal' };
       const decimalDeserialized = Percentage.fromJSON(decimalJson);
       expect(decimalDeserialized.toPercentage()).toBe(15.5);
@@ -358,7 +358,7 @@ describe('Percentage Value Object', () => {
       expect(Percentage.isValid(100)).toBe(true);
       expect(Percentage.isValid('50%')).toBe(true);
       expect(Percentage.isValid('50')).toBe(true);
-      
+
       expect(Percentage.isValid(-1)).toBe(false);
       expect(Percentage.isValid(101)).toBe(false);
       expect(Percentage.isValid('invalid')).toBe(false);
@@ -370,7 +370,7 @@ describe('Percentage Value Object', () => {
       expect(Percentage.isValid(0.5, true)).toBe(true);
       expect(Percentage.isValid(0, true)).toBe(true);
       expect(Percentage.isValid(1, true)).toBe(true);
-      
+
       expect(Percentage.isValid(1.1, true)).toBe(false);
       expect(Percentage.isValid(-0.1, true)).toBe(false);
     });
@@ -387,7 +387,7 @@ describe('Percentage Value Object', () => {
       const pct1 = new Percentage(33.33);
       const pct2 = new Percentage(33.34);
       const pct3 = new Percentage(33.33);
-      
+
       const sum = pct1.add(pct2).add(pct3);
       expect(sum.toPercentage()).toBeCloseTo(100, 2);
     });

@@ -102,9 +102,7 @@ export class OrganizationRepository implements IOrganization {
   ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  checkUsageLimits(
-    id: string,
-  ): AsyncResult<{
+  checkUsageLimits(id: string): AsyncResult<{
     withinLimits: boolean;
     exceeded: Array<{ metric: string; used: number; limit: number }>;
   }> {

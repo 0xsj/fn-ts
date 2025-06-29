@@ -120,9 +120,7 @@ export class FileRepository implements IFile {
   purgeDeletedFiles(beforeDate: Date): AsyncResult<number> {
     throw new Error('Method not implemented.');
   }
-  getStorageUsage(
-    organizationId?: string,
-  ): AsyncResult<{
+  getStorageUsage(organizationId?: string): AsyncResult<{
     totalSize: number;
     fileCount: number;
     byCategory: Record<FileCategory, { size: number; count: number }>;

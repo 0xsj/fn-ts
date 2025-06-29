@@ -215,9 +215,7 @@ export class NotificationRepository implements INotification {
   }> {
     throw new Error('Method not implemented.');
   }
-  getTemplateUsageStats(
-    templateId: string,
-  ): AsyncResult<{
+  getTemplateUsageStats(templateId: string): AsyncResult<{
     usageCount: number;
     lastUsedAt: Date | null;
     deliveryRate: number;
@@ -226,9 +224,7 @@ export class NotificationRepository implements INotification {
   }> {
     throw new Error('Method not implemented.');
   }
-  getUserEngagement(
-    userId: string,
-  ): AsyncResult<{
+  getUserEngagement(userId: string): AsyncResult<{
     totalReceived: number;
     opened: number;
     clicked: number;
