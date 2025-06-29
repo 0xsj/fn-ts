@@ -13,7 +13,7 @@ describe('IPAddress Value Object', () => {
         '0.0.0.0',
       ];
 
-      ips.forEach(ip => {
+      ips.forEach((ip) => {
         const ipAddr = new IPAddress(ip);
         expect(ipAddr.getValue()).toBe(ip);
         expect(ipAddr.isIPv4()).toBe(true);
@@ -31,7 +31,7 @@ describe('IPAddress Value Object', () => {
         '2001:db8::8a2e:370:7334',
       ];
 
-      ips.forEach(ip => {
+      ips.forEach((ip) => {
         const ipAddr = new IPAddress(ip);
         expect(ipAddr.getValue()).toBe(ip);
         expect(ipAddr.isIPv6()).toBe(true);
@@ -53,7 +53,7 @@ describe('IPAddress Value Object', () => {
         'gggg::1', // invalid hex
       ];
 
-      invalid.forEach(ip => {
+      invalid.forEach((ip) => {
         expect(() => new IPAddress(ip)).toThrow('Invalid IP address');
       });
     });
@@ -79,7 +79,7 @@ describe('IPAddress Value Object', () => {
     it('should create from decimal', () => {
       const ip = IPAddress.fromDecimal(3232235777); // 192.168.1.1
       expect(ip.getValue()).toBe('192.168.1.1');
-      
+
       const ip2 = IPAddress.fromDecimal(134744072); // 8.8.8.8
       expect(ip2.getValue()).toBe('8.8.8.8');
     });
@@ -105,14 +105,16 @@ describe('IPAddress Value Object', () => {
 
     it('should convert to decimal', () => {
       expect(ip.toDecimal()).toBe(3232235876);
-      
+
       expect(new IPAddress('0.0.0.0').toDecimal()).toBe(0);
       expect(new IPAddress('255.255.255.255').toDecimal()).toBe(4294967295);
     });
 
     it('should convert to binary', () => {
       expect(new IPAddress('192.168.1.1').toBinary()).toBe('11000000.10101000.00000001.00000001');
-      expect(new IPAddress('255.255.255.255').toBinary()).toBe('11111111.11111111.11111111.11111111');
+      expect(new IPAddress('255.255.255.255').toBinary()).toBe(
+        '11111111.11111111.11111111.11111111',
+      );
       expect(new IPAddress('0.0.0.0').toBinary()).toBe('00000000.00000000.00000000.00000000');
     });
 
@@ -136,7 +138,7 @@ describe('IPAddress Value Object', () => {
     it('should normalize IPv6 addresses', () => {
       const ip1 = new IPAddress('2001:db8::1');
       expect(ip1.getNormalized()).toBe('2001:0db8:0000:0000:0000:0000:0000:0001');
-      
+
       const ip2 = new IPAddress('::1');
       expect(ip2.getNormalized()).toBe('0000:0000:0000:0000:0000:0000:0000:0001');
     });
@@ -156,7 +158,7 @@ describe('IPAddress Value Object', () => {
         expect(new IPAddress('172.31.255.255').isPrivate()).toBe(true);
         expect(new IPAddress('192.168.0.1').isPrivate()).toBe(true);
         expect(new IPAddress('192.168.255.255').isPrivate()).toBe(true);
-        
+
         expect(new IPAddress('8.8.8.8').isPrivate()).toBe(false);
         expect(new IPAddress('172.32.0.1').isPrivate()).toBe(false);
       });
@@ -165,7 +167,7 @@ describe('IPAddress Value Object', () => {
         expect(new IPAddress('fc00::1').isPrivate()).toBe(true);
         expect(new IPAddress('fd00::1').isPrivate()).toBe(true);
         expect(new IPAddress('fe80::1').isPrivate()).toBe(true);
-        
+
         expect(new IPAddress('2001:db8::1').isPrivate()).toBe(false);
       });
     });
@@ -175,7 +177,7 @@ describe('IPAddress Value Object', () => {
         expect(new IPAddress('127.0.0.1').isLoopback()).toBe(true);
         expect(new IPAddress('127.0.0.255').isLoopback()).toBe(true);
         expect(new IPAddress('::1').isLoopback()).toBe(true);
-        
+
         expect(new IPAddress('192.168.1.1').isLoopback()).toBe(false);
         expect(new IPAddress('::2').isLoopback()).toBe(false);
       });
@@ -186,7 +188,7 @@ describe('IPAddress Value Object', () => {
         expect(new IPAddress('169.254.0.1').isLinkLocal()).toBe(true);
         expect(new IPAddress('169.254.255.255').isLinkLocal()).toBe(true);
         expect(new IPAddress('fe80::1').isLinkLocal()).toBe(true);
-        
+
         expect(new IPAddress('169.253.0.1').isLinkLocal()).toBe(false);
         expect(new IPAddress('2001:db8::1').isLinkLocal()).toBe(false);
       });
@@ -197,7 +199,7 @@ describe('IPAddress Value Object', () => {
         expect(new IPAddress('224.0.0.1').isMulticast()).toBe(true);
         expect(new IPAddress('239.255.255.255').isMulticast()).toBe(true);
         expect(new IPAddress('ff02::1').isMulticast()).toBe(true);
-        
+
         expect(new IPAddress('223.255.255.255').isMulticast()).toBe(false);
         expect(new IPAddress('240.0.0.1').isMulticast()).toBe(false);
       });
@@ -213,22 +215,22 @@ describe('IPAddress Value Object', () => {
   describe('CIDR range checking', () => {
     it('should check if IPv4 is in CIDR range', () => {
       const ip = new IPAddress('192.168.1.100');
-      
+
       expect(ip.isInRange('192.168.1.0/24')).toBe(true);
       expect(ip.isInRange('192.168.0.0/16')).toBe(true);
       expect(ip.isInRange('192.0.0.0/8')).toBe(true);
       expect(ip.isInRange('192.168.1.100/32')).toBe(true);
-      
+
       expect(ip.isInRange('192.168.2.0/24')).toBe(false);
       expect(ip.isInRange('10.0.0.0/8')).toBe(false);
     });
 
     it('should check if IPv6 is in CIDR range', () => {
       const ip = new IPAddress('2001:db8::1');
-      
+
       expect(ip.isInRange('2001:db8::/32')).toBe(true);
       expect(ip.isInRange('2001:db8::1/128')).toBe(true);
-      
+
       expect(ip.isInRange('2001:db9::/32')).toBe(false);
     });
   });
@@ -258,7 +260,7 @@ describe('IPAddress Value Object', () => {
       const ip1 = new IPAddress('192.168.1.1');
       const ip2 = new IPAddress('192.168.001.001');
       const ip3 = new IPAddress('192.168.1.2');
-      
+
       expect(ip1.equals(ip2)).toBe(true);
       expect(ip1.equals('192.168.1.1')).toBe(true);
       expect(ip1.equals(ip3)).toBe(false);
@@ -268,7 +270,7 @@ describe('IPAddress Value Object', () => {
       const ip1 = new IPAddress('192.168.1.1');
       const ip2 = new IPAddress('192.168.1.2');
       const ip3 = new IPAddress('192.168.1.1');
-      
+
       expect(ip1.lessThan(ip2)).toBe(true);
       expect(ip2.greaterThan(ip1)).toBe(true);
       expect(ip1.lessThan(ip3)).toBe(false);
@@ -278,7 +280,7 @@ describe('IPAddress Value Object', () => {
     it('should compare different versions', () => {
       const ipv4 = new IPAddress('192.168.1.1');
       const ipv6 = new IPAddress('::1');
-      
+
       expect(ipv4.compareTo(ipv6)).toBeLessThan(0);
       expect(ipv6.compareTo(ipv4)).toBeGreaterThan(0);
     });
@@ -287,7 +289,7 @@ describe('IPAddress Value Object', () => {
   describe('getInfo', () => {
     it('should return complete IPv4 info', () => {
       const info = new IPAddress('192.168.1.1').getInfo();
-      
+
       expect(info.version).toBe('IPv4');
       expect(info.octets).toEqual([192, 168, 1, 1]);
       expect(info.decimal).toBe(3232235777);
@@ -299,7 +301,7 @@ describe('IPAddress Value Object', () => {
 
     it('should return complete IPv6 info', () => {
       const info = new IPAddress('fe80::1').getInfo();
-      
+
       expect(info.version).toBe('IPv6');
       expect(info.segments).toHaveLength(8);
       expect(info.isPrivate).toBe(true);
@@ -358,8 +360,8 @@ describe('IPAddress Value Object', () => {
       ];
 
       const normalized = '2001:0db8:0000:0000:0000:0000:0000:0001';
-      
-      variations.forEach(ip => {
+
+      variations.forEach((ip) => {
         expect(new IPAddress(ip).getNormalized()).toBe(normalized);
       });
     });
@@ -373,7 +375,7 @@ describe('IPAddress Value Object', () => {
     it('should handle edge case IPv4 values', () => {
       expect(new IPAddress('0.0.0.0').isPrivate()).toBe(false);
       expect(new IPAddress('0.0.0.0').isLoopback()).toBe(false);
-      
+
       const broadcast = new IPAddress('255.255.255.255');
       expect(broadcast.isBroadcast()).toBe(true);
       expect(broadcast.isMulticast()).toBe(false);

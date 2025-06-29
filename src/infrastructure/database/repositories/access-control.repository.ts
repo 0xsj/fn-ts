@@ -105,9 +105,7 @@ export class AccessControlRepository implements IAccessControl {
   getUserPermissions(userId: string): AsyncResult<Permission[]> {
     throw new Error('Method not implemented.');
   }
-  getUserEffectivePermissions(
-    userId: string,
-  ): AsyncResult<{
+  getUserEffectivePermissions(userId: string): AsyncResult<{
     direct: Permission[];
     fromRoles: { role: Role; permissions: Permission[] }[];
     all: Permission[];

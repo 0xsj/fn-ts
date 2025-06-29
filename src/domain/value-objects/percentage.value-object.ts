@@ -20,13 +20,13 @@ export class Percentage {
       // Remove % sign if present
       const cleaned = value.trim().replace('%', '');
       const parsed = parseFloat(cleaned);
-      
+
       if (isNaN(parsed)) {
         throw new Error('Invalid percentage value');
       }
-      
+
       // If string had %, treat as percentage
-      decimal = value.includes('%') ? parsed / 100 : (isDecimal ? parsed : parsed / 100);
+      decimal = value.includes('%') ? parsed / 100 : isDecimal ? parsed : parsed / 100;
     } else {
       if (isNaN(value) || !isFinite(value)) {
         throw new Error('Invalid percentage value');
@@ -175,16 +175,12 @@ export class Percentage {
    * Comparison operations
    */
   equals(other: Percentage | number): boolean {
-    const otherValue = typeof other === 'number' 
-      ? other / 100 
-      : other.value;
+    const otherValue = typeof other === 'number' ? other / 100 : other.value;
     return Math.abs(this.value - otherValue) < Number.EPSILON;
   }
 
   lessThan(other: Percentage | number): boolean {
-    const otherValue = typeof other === 'number' 
-      ? other / 100 
-      : other.value;
+    const otherValue = typeof other === 'number' ? other / 100 : other.value;
     return this.value < otherValue;
   }
 
@@ -193,9 +189,7 @@ export class Percentage {
   }
 
   greaterThan(other: Percentage | number): boolean {
-    const otherValue = typeof other === 'number' 
-      ? other / 100 
-      : other.value;
+    const otherValue = typeof other === 'number' ? other / 100 : other.value;
     return this.value > otherValue;
   }
 
@@ -221,16 +215,8 @@ export class Percentage {
   /**
    * Formatting
    */
-  format(options?: {
-    decimals?: number;
-    includeSign?: boolean;
-    locale?: string;
-  }): string {
-    const {
-      decimals = 2,
-      includeSign = true,
-      locale = 'en-US',
-    } = options || {};
+  format(options?: { decimals?: number; includeSign?: boolean; locale?: string }): string {
+    const { decimals = 2, includeSign = true, locale = 'en-US' } = options || {};
 
     const percentage = this.toPercentage();
     const formatted = percentage.toLocaleString(locale, {
@@ -244,20 +230,12 @@ export class Percentage {
   /**
    * Format as change/delta
    */
-  formatChange(options?: {
-    decimals?: number;
-    showPlus?: boolean;
-    locale?: string;
-  }): string {
-    const {
-      decimals = 2,
-      showPlus = true,
-      locale = 'en-US',
-    } = options || {};
+  formatChange(options?: { decimals?: number; showPlus?: boolean; locale?: string }): string {
+    const { decimals = 2, showPlus = true, locale = 'en-US' } = options || {};
 
     const percentage = this.toPercentage();
     const sign = percentage > 0 && showPlus ? '+' : '';
-    
+
     return `${sign}${percentage.toLocaleString(locale, {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
@@ -279,7 +257,7 @@ export class Percentage {
   clamp(min: Percentage | number, max: Percentage | number): Percentage {
     const minValue = typeof min === 'number' ? min / 100 : min.value;
     const maxValue = typeof max === 'number' ? max / 100 : max.value;
-    
+
     if (this.value < minValue) {
       return Percentage.fromDecimal(minValue);
     }
@@ -342,13 +320,12 @@ export class Percentage {
 }
 
 // Zod schemas
-export const PercentageSchema = z.union([
-  z.number().min(0).max(100),
-  z.string().regex(/^\d+(\.\d+)?%?$/),
-]).transform(val => new Percentage(val));
+export const PercentageSchema = z
+  .union([z.number().min(0).max(100), z.string().regex(/^\d+(\.\d+)?%?$/)])
+  .transform((val) => new Percentage(val));
 
 export const DecimalPercentageSchema = z
   .number()
   .min(0)
   .max(1)
-  .transform(val => Percentage.fromDecimal(val));
+  .transform((val) => Percentage.fromDecimal(val));
