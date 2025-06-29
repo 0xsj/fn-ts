@@ -57,7 +57,7 @@ export const AuthProviderDBSchema = z.object({
 // ============================================
 export const SessionDBSchema = BaseEntityDBSchema.extend({
   user_id: z.string().uuid(),
-  token_hash: z.string(), // Hashed session token
+  token_hash: z.string(),
   refresh_token_hash: z.string().nullable(),
 
   // Device/Client info
@@ -70,17 +70,22 @@ export const SessionDBSchema = BaseEntityDBSchema.extend({
   // Expiration
   expires_at: z.date(),
   refresh_expires_at: z.date().nullable(),
-  idle_timeout_at: z.date().nullable(), // For idle session timeout
+  idle_timeout_at: z.date().nullable(),
+  absolute_timeout_at: z.date().nullable(), // Added
 
   // Activity tracking
-  last_activity_at: z.date(),
-  login_at: z.date(),
+  last_activity_at: z.date().nullable(), // Made nullable to match DB
+  // login_at removed - doesn't exist in DB
+
+  // Security
+  is_mfa_verified: z.boolean().default(false), // Added
+  security_stamp: z.string().nullable(), // Added
 
   // Status
-  is_active: z.boolean().default(true),
+  // is_active removed - not in DB as a column
   revoked_at: z.date().nullable(),
-  revoked_by: z.string().uuid().nullable(),
-  revoked_reason: z.string().nullable(),
+  revoked_by: z.string().nullable(), // Changed from uuid() to match DB
+  revoke_reason: z.string().nullable(), // Changed from revoked_reason
 });
 
 export const SessionSchema = BaseEntitySchema.extend({
@@ -97,14 +102,21 @@ export const SessionSchema = BaseEntitySchema.extend({
   expiresAt: z.date(),
   refreshExpiresAt: z.date().nullable(),
   idleTimeoutAt: z.date().nullable(),
+  absoluteTimeoutAt: z.date().nullable(), // Added
 
-  lastActivityAt: z.date(),
-  loginAt: z.date(),
+  lastActivityAt: z.date().nullable(), // Made nullable
+  // loginAt removed
 
-  isActive: z.boolean().default(true),
+  // Security
+  isMfaVerified: z.boolean().default(false), // Added
+  securityStamp: z.string().nullable(), // Added
+
+  // Computed field
+  isActive: z.boolean().default(true), // This can be computed from revoked_at
+  
   revokedAt: z.date().nullable(),
-  revokedBy: z.string().uuid().nullable(),
-  revokedReason: z.string().nullable(),
+  revokedBy: z.string().nullable(),
+  revokeReason: z.string().nullable(), // Changed from revokedReason
 });
 
 // ============================================
