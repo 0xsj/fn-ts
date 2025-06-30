@@ -466,9 +466,20 @@ export class AuthRepository implements ISession, IToken, IAuth {
   ): AsyncResult<PasswordResetToken> {
     throw new Error('Method not implemented.');
   }
-  findPasswordResetToken(tokenHash: string): AsyncResult<PasswordResetToken | null> {
-    throw new Error('Method not implemented.');
+  async findPasswordResetToken(tokenHash: string): AsyncResult<PasswordResetToken | null> {
+    try {
+      const row = await this.db
+        .selectFrom('password_reset_tokens')
+        .selectAll()
+        .where('token_hash', '=', tokenHash)
+        .executeTakeFirst();
+
+      return ResponseBuilder.ok(row ? this.mapToPasswordResetToken(row) : null);
+    } catch (error) {
+      return new DatabaseError('findPasswordResetToken', error);
+    }
   }
+
   findActivePasswordResetTokensByUserId(userId: string): AsyncResult<PasswordResetToken[]> {
     throw new Error('Method not implemented.');
   }
@@ -714,6 +725,19 @@ export class AuthRepository implements ISession, IToken, IAuth {
       revokedBy: row.revoked_by,
       revokeReason: row.revoke_reason,
 
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+  private mapToPasswordResetToken(row: any): PasswordResetToken {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      tokenHash: row.token_hash,
+      expiresAt: row.expires_at,
+      usedAt: row.used_at,
+      ipAddress: row.ip_address,
+      userAgent: row.user_agent,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

@@ -2654,4 +2654,286 @@ describe('AuthRepository Integration Tests', () => {
       }
     });
   });
+
+  describe('findPasswordResetToken', () => {
+    let validTokenId: string;
+    let expiredTokenId: string;
+    let usedTokenId: string;
+
+    beforeEach(async () => {
+      const now = new Date();
+
+      // Create valid password reset token
+      validTokenId = uuidv4();
+      await db
+        .insertInto('password_reset_tokens')
+        .values({
+          id: validTokenId,
+          user_id: testUserId,
+          token_hash: `valid-reset-token-${Date.now()}`,
+          expires_at: new Date(now.getTime() + 3600000), // 1 hour from now
+          used_at: null,
+          ip_address: '192.168.1.100',
+          user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      // Create expired token
+      expiredTokenId = uuidv4();
+      await db
+        .insertInto('password_reset_tokens')
+        .values({
+          id: expiredTokenId,
+          user_id: testUserId,
+          token_hash: `expired-reset-token-${Date.now()}`,
+          expires_at: new Date(now.getTime() - 3600000), // 1 hour ago
+          used_at: null,
+          ip_address: '192.168.1.101',
+          user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+          created_at: new Date(now.getTime() - 7200000),
+          updated_at: now,
+        })
+        .execute();
+
+      // Create used token
+      usedTokenId = uuidv4();
+      await db
+        .insertInto('password_reset_tokens')
+        .values({
+          id: usedTokenId,
+          user_id: testUserId,
+          token_hash: `used-reset-token-${Date.now()}`,
+          expires_at: new Date(now.getTime() + 3600000), // Still valid time-wise
+          used_at: new Date(now.getTime() - 1800000), // Used 30 minutes ago
+          ip_address: '192.168.1.102',
+          user_agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6)',
+          created_at: new Date(now.getTime() - 3600000),
+          updated_at: now,
+        })
+        .execute();
+    });
+
+    afterEach(async () => {
+      await db
+        .deleteFrom('password_reset_tokens')
+        .where('id', 'in', [validTokenId, expiredTokenId, usedTokenId])
+        .execute();
+    });
+
+    it('should find valid password reset token', async () => {
+      const tokenHash = `valid-reset-token-${Date.now()}`;
+
+      // Update the token to use our known hash
+      await db
+        .updateTable('password_reset_tokens')
+        .set({ token_hash: tokenHash })
+        .where('id', '=', validTokenId)
+        .execute();
+
+      const result = await authRepository.findPasswordResetToken(tokenHash);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const token = result.body().data;
+        expect(token).toBeDefined();
+        expect(token?.id).toBe(validTokenId);
+        expect(token?.userId).toBe(testUserId);
+        expect(token?.tokenHash).toBe(tokenHash);
+        expect(token?.usedAt).toBeNull();
+        expect(token?.ipAddress).toBe('192.168.1.100');
+        expect(token?.userAgent).toBe('Mozilla/5.0 (Windows NT 10.0; Win64; x64)');
+        expect(token?.expiresAt).toBeInstanceOf(Date);
+        expect(token?.createdAt).toBeInstanceOf(Date);
+      }
+    });
+
+    it('should return null for non-existent token', async () => {
+      const result = await authRepository.findPasswordResetToken('non-existent-token-hash');
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBeNull();
+      }
+    });
+
+    it('should find expired token (still returns it)', async () => {
+      const tokenHash = `expired-token-${Date.now()}`;
+
+      await db
+        .updateTable('password_reset_tokens')
+        .set({ token_hash: tokenHash })
+        .where('id', '=', expiredTokenId)
+        .execute();
+
+      const result = await authRepository.findPasswordResetToken(tokenHash);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const token = result.body().data;
+        expect(token).toBeDefined();
+        expect(token?.id).toBe(expiredTokenId);
+        // Verify it's expired
+        expect(token?.expiresAt.getTime()).toBeLessThan(new Date().getTime());
+      }
+    });
+
+    it('should find used token (still returns it)', async () => {
+      const tokenHash = `used-token-${Date.now()}`;
+
+      await db
+        .updateTable('password_reset_tokens')
+        .set({ token_hash: tokenHash })
+        .where('id', '=', usedTokenId)
+        .execute();
+
+      const result = await authRepository.findPasswordResetToken(tokenHash);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const token = result.body().data;
+        expect(token).toBeDefined();
+        expect(token?.id).toBe(usedTokenId);
+        expect(token?.usedAt).not.toBeNull();
+        expect(token?.usedAt).toBeInstanceOf(Date);
+      }
+    });
+
+    it('should map all fields correctly', async () => {
+      const now = new Date();
+      const tokenId = uuidv4();
+      const tokenHash = `detailed-token-${Date.now()}`;
+      const ipAddress = '10.0.0.1';
+      const userAgent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36';
+
+      await db
+        .insertInto('password_reset_tokens')
+        .values({
+          id: tokenId,
+          user_id: testUserId,
+          token_hash: tokenHash,
+          expires_at: new Date(now.getTime() + 1800000), // 30 minutes
+          used_at: null,
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      const result = await authRepository.findPasswordResetToken(tokenHash);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const token = result.body().data;
+        expect(token).toEqual({
+          id: tokenId,
+          userId: testUserId,
+          tokenHash: tokenHash,
+          expiresAt: expect.any(Date),
+          usedAt: null,
+          ipAddress: ipAddress,
+          userAgent: userAgent,
+          createdAt: expect.any(Date),
+          updatedAt: expect.any(Date),
+        });
+      }
+
+      // Cleanup
+      await db.deleteFrom('password_reset_tokens').where('id', '=', tokenId).execute();
+    });
+
+    it('should handle null optional fields', async () => {
+      const tokenId = uuidv4();
+      const tokenHash = `minimal-token-${Date.now()}`;
+
+      await db
+        .insertInto('password_reset_tokens')
+        .values({
+          id: tokenId,
+          user_id: testUserId,
+          token_hash: tokenHash,
+          expires_at: new Date(Date.now() + 3600000),
+          used_at: null,
+          ip_address: null,
+          user_agent: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
+        .execute();
+
+      const result = await authRepository.findPasswordResetToken(tokenHash);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const token = result.body().data;
+        expect(token).toBeDefined();
+        expect(token?.ipAddress).toBeNull();
+        expect(token?.userAgent).toBeNull();
+      }
+
+      // Cleanup
+      await db.deleteFrom('password_reset_tokens').where('id', '=', tokenId).execute();
+    });
+
+    it('should handle database errors gracefully', async () => {
+      const mockDb = {
+        selectFrom: jest.fn().mockReturnThis(),
+        selectAll: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        executeTakeFirst: jest.fn().mockRejectedValue(new Error('Database connection lost')),
+      };
+
+      const repoWithMockDb = new AuthRepository(mockDb as any);
+      const result = await repoWithMockDb.findPasswordResetToken('any-token');
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.body().error.code).toBe('DATABASE_ERROR');
+        const details = result.body().error.details as { operation: string } | undefined;
+        expect(details?.operation).toBe('findPasswordResetToken');
+      }
+    });
+
+    it('should handle tokens for different users', async () => {
+      // Create another user
+      const otherUserId = uuidv4();
+      await db
+        .insertInto('users')
+        .values(createTestUser({ id: otherUserId }))
+        .execute();
+
+      // Create token for other user
+      const otherUserTokenId = uuidv4();
+      const otherUserTokenHash = `other-user-token-${Date.now()}`;
+
+      await db
+        .insertInto('password_reset_tokens')
+        .values({
+          id: otherUserTokenId,
+          user_id: otherUserId,
+          token_hash: otherUserTokenHash,
+          expires_at: new Date(Date.now() + 3600000),
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
+        .execute();
+
+      // Find the other user's token
+      const result = await authRepository.findPasswordResetToken(otherUserTokenHash);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const token = result.body().data;
+        expect(token).toBeDefined();
+        expect(token?.userId).toBe(otherUserId);
+        expect(token?.id).toBe(otherUserTokenId);
+      }
+
+      // Cleanup
+      await db.deleteFrom('password_reset_tokens').where('id', '=', otherUserTokenId).execute();
+      await db.deleteFrom('users').where('id', '=', otherUserId).execute();
+    });
+  });
 });
