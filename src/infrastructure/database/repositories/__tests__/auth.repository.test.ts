@@ -824,4 +824,266 @@ describe('AuthRepository Integration Tests', () => {
       await db.deleteFrom('users').where('id', '=', otherUserId).execute();
     });
   });
+
+  describe('updateSession', () => {
+    let testSessionId: string;
+
+    beforeEach(async () => {
+      // Create a test session for update tests
+      testSessionId = uuidv4();
+      const now = new Date();
+
+      await db
+        .insertInto('sessions')
+        .values({
+          id: testSessionId,
+          user_id: testUserId,
+          token_hash: 'original-token-hash',
+          refresh_token_hash: 'original-refresh-hash',
+          device_type: 'web',
+          device_name: 'Chrome Browser',
+          expires_at: new Date(now.getTime() + 3600000),
+          refresh_expires_at: new Date(now.getTime() + 86400000),
+          last_activity_at: new Date(now.getTime() - 600000), // 10 minutes ago
+          created_at: now,
+          updated_at: now,
+        } as any)
+        .execute();
+    });
+
+    afterEach(async () => {
+      // Cleanup
+      await db.deleteFrom('sessions').where('id', '=', testSessionId).execute();
+    });
+
+    it('should update lastActivityAt only', async () => {
+      const newActivityTime = new Date();
+
+      const result = await authRepository.updateSession(testSessionId, {
+        lastActivityAt: newActivityTime,
+      });
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const session = result.body().data;
+        expect(session).toBeDefined();
+        expect(session?.lastActivityAt).not.toBeNull();
+        // Compare timestamps without milliseconds
+        expect(Math.floor(session!.lastActivityAt!.getTime() / 1000)).toBe(
+          Math.floor(newActivityTime.getTime() / 1000),
+        );
+        expect(session?.refreshTokenHash).toBe('original-refresh-hash'); // Unchanged
+        expect(session?.updatedAt.getTime()).toBeGreaterThanOrEqual(
+          Math.floor(newActivityTime.getTime() / 1000) * 1000,
+        );
+      }
+    });
+
+    it('should update refreshTokenHash only', async () => {
+      const newRefreshToken = 'new-refresh-token-hash';
+
+      const result = await authRepository.updateSession(testSessionId, {
+        refreshTokenHash: newRefreshToken,
+      });
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const session = result.body().data;
+        expect(session).toBeDefined();
+        expect(session?.refreshTokenHash).toBe(newRefreshToken);
+        expect(session?.tokenHash).toBe('original-token-hash'); // Unchanged
+      }
+    });
+
+    it('should update refreshExpiresAt only', async () => {
+      const newExpiryTime = new Date();
+      newExpiryTime.setDate(newExpiryTime.getDate() + 7); // 7 days from now
+
+      const result = await authRepository.updateSession(testSessionId, {
+        refreshExpiresAt: newExpiryTime,
+      });
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const session = result.body().data;
+        expect(session).toBeDefined();
+        expect(session?.refreshExpiresAt).not.toBeNull();
+        // Compare timestamps without milliseconds
+        expect(Math.floor(session!.refreshExpiresAt!.getTime() / 1000)).toBe(
+          Math.floor(newExpiryTime.getTime() / 1000),
+        );
+      }
+    });
+
+    it('should update multiple fields at once', async () => {
+      const now = new Date();
+      const updates = {
+        lastActivityAt: now,
+        refreshTokenHash: 'multi-update-refresh-hash',
+        refreshExpiresAt: new Date(now.getTime() + 172800000), // 2 days
+      };
+
+      const result = await authRepository.updateSession(testSessionId, updates);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const session = result.body().data;
+        expect(session).toBeDefined();
+        expect(session?.lastActivityAt).not.toBeNull();
+        expect(session?.refreshExpiresAt).not.toBeNull();
+        // Compare timestamps without milliseconds
+        expect(Math.floor(session!.lastActivityAt!.getTime() / 1000)).toBe(
+          Math.floor(updates.lastActivityAt.getTime() / 1000),
+        );
+        expect(session?.refreshTokenHash).toBe(updates.refreshTokenHash);
+        expect(Math.floor(session!.refreshExpiresAt!.getTime() / 1000)).toBe(
+          Math.floor(updates.refreshExpiresAt.getTime() / 1000),
+        );
+      }
+    });
+
+    it('should return null when session does not exist', async () => {
+      const nonExistentId = uuidv4();
+
+      const result = await authRepository.updateSession(nonExistentId, {
+        lastActivityAt: new Date(),
+      });
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBeNull();
+      }
+    });
+
+    it('should handle empty updates object', async () => {
+      const beforeUpdate = await db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('id', '=', testSessionId)
+        .executeTakeFirst();
+
+      // Ensure we found the session
+      expect(beforeUpdate).toBeDefined();
+      if (!beforeUpdate) {
+        throw new Error('Test session not found');
+      }
+
+      // Add a small delay to ensure updated_at will be different
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const result = await authRepository.updateSession(testSessionId, {});
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const session = result.body().data;
+        expect(session).toBeDefined();
+
+        // Only updated_at should change - compare without milliseconds
+        expect(Math.floor(session!.updatedAt.getTime() / 1000)).toBeGreaterThanOrEqual(
+          Math.floor(beforeUpdate.updated_at.getTime() / 1000),
+        );
+
+        // Handle potential null values in comparison
+        if (beforeUpdate.last_activity_at && session?.lastActivityAt) {
+          expect(session.lastActivityAt).toEqual(beforeUpdate.last_activity_at);
+        } else {
+          expect(session?.lastActivityAt).toBe(beforeUpdate.last_activity_at);
+        }
+
+        expect(session?.refreshTokenHash).toBe(beforeUpdate.refresh_token_hash);
+      }
+    });
+
+    it('should handle database errors gracefully', async () => {
+      // Create a mock that throws an error
+      const mockDb = {
+        updateTable: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockRejectedValue(new Error('Database connection lost')),
+      };
+
+      const repoWithMockDb = new AuthRepository(mockDb as any);
+      const result = await repoWithMockDb.updateSession(testSessionId, {
+        lastActivityAt: new Date(),
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.body().error.code).toBe('DATABASE_ERROR');
+        const details = result.body().error.details as { operation: string } | undefined;
+        expect(details?.operation).toBe('updateSession');
+      }
+    });
+
+    it('should not affect other sessions', async () => {
+      // Create another session
+      const otherSessionId = uuidv4();
+      await db
+        .insertInto('sessions')
+        .values({
+          id: otherSessionId,
+          user_id: testUserId,
+          token_hash: 'other-token-hash',
+          refresh_token_hash: 'other-refresh-hash',
+          device_type: 'mobile',
+          expires_at: new Date(Date.now() + 3600000),
+          refresh_expires_at: new Date(Date.now() + 86400000),
+          last_activity_at: new Date(),
+        } as any)
+        .execute();
+
+      // Update the first session
+      await authRepository.updateSession(testSessionId, {
+        refreshTokenHash: 'updated-refresh-hash',
+      });
+
+      // Verify other session is unchanged
+      const otherSession = await db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('id', '=', otherSessionId)
+        .executeTakeFirst();
+
+      expect(otherSession?.refresh_token_hash).toBe('other-refresh-hash');
+
+      // Cleanup
+      await db.deleteFrom('sessions').where('id', '=', otherSessionId).execute();
+    });
+
+    it('should preserve all non-updated fields', async () => {
+      // Get original session
+      const originalRow = await db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('id', '=', testSessionId)
+        .executeTakeFirst();
+
+      // Ensure we found the session
+      expect(originalRow).toBeDefined();
+      if (!originalRow) {
+        throw new Error('Test session not found');
+      }
+
+      // Update only lastActivityAt
+      const result = await authRepository.updateSession(testSessionId, {
+        lastActivityAt: new Date(),
+      });
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const session = result.body().data;
+
+        // Check that other fields remain unchanged
+        expect(session?.id).toBe(originalRow.id);
+        expect(session?.userId).toBe(originalRow.user_id);
+        expect(session?.tokenHash).toBe(originalRow.token_hash);
+        expect(session?.refreshTokenHash).toBe(originalRow.refresh_token_hash);
+        expect(session?.deviceType).toBe(originalRow.device_type);
+        expect(session?.deviceName).toBe(originalRow.device_name);
+        expect(session?.expiresAt).toEqual(originalRow.expires_at);
+        expect(session?.createdAt).toEqual(originalRow.created_at);
+      }
+    });
+  });
 });

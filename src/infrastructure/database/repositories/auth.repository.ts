@@ -207,12 +207,57 @@ export class AuthRepository implements ISession, IToken, IAuth {
     }
   }
 
-  updateSession(
+  async updateSession(
     id: string,
-    updates: { lastActivityAt?: Date; refreshTokenHash?: string; refreshExpiresAt?: Date },
+    updates: {
+      lastActivityAt?: Date;
+      refreshTokenHash?: string;
+      refreshExpiresAt?: Date;
+    },
   ): AsyncResult<Session | null> {
-    throw new Error('Method not implemented.');
+    try {
+      // Build update object with only the fields that need updating
+      const dbUpdates: any = {
+        updated_at: new Date(),
+      };
+
+      if (updates.lastActivityAt !== undefined) {
+        dbUpdates.last_activity_at = updates.lastActivityAt;
+      }
+
+      if (updates.refreshTokenHash !== undefined) {
+        dbUpdates.refresh_token_hash = updates.refreshTokenHash;
+      }
+
+      if (updates.refreshExpiresAt !== undefined) {
+        dbUpdates.refresh_expires_at = updates.refreshExpiresAt;
+      }
+
+      // Perform the update
+      const result = await this.db
+        .updateTable('sessions')
+        .set(dbUpdates)
+        .where('id', '=', id)
+        .execute();
+
+      // If no rows were updated, session doesn't exist
+      if (result.length === 0) {
+        return ResponseBuilder.ok(null);
+      }
+
+      // Fetch and return the updated session
+      const row = await this.db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('id', '=', id)
+        .executeTakeFirst();
+
+      return ResponseBuilder.ok(row ? this.mapToSession(row) : null);
+    } catch (error) {
+      return new DatabaseError('updateSession', error);
+    }
   }
+
   extendSession(id: string, extendBy: number): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
