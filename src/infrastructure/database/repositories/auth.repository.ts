@@ -20,10 +20,11 @@ import {
   TwoFactorSecretDB,
 } from '../../../domain/entities';
 import { AsyncResult, DatabaseError, ok, ResponseBuilder } from '../../../shared/response';
+import { v4 as uuidv4 } from 'uuid';
 
 export class AuthRepository implements ISession, IToken, IAuth {
   constructor(private db: Kysely<Database>) {}
-  createSession(
+  async createSession(
     userId: string,
     tokenHash: string,
     refreshTokenHash: string,
@@ -36,7 +37,96 @@ export class AuthRepository implements ISession, IToken, IAuth {
     },
     expiresIn?: number,
   ): AsyncResult<Session> {
-    throw new Error('Method not implemented.');
+    try {
+      const sessionId = uuidv4();
+      const now = new Date();
+
+      // Default expiration times if not provided
+      const tokenExpiresIn = expiresIn || 3600; // 1 hour default
+      const refreshExpiresIn = 86400; // 24 hours for refresh token
+
+      const expiresAt = new Date(now.getTime() + tokenExpiresIn * 1000);
+      const refreshExpiresAt = new Date(now.getTime() + refreshExpiresIn * 1000);
+
+      // Calculate timeout values
+      const idleTimeoutAt = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes idle timeout
+      const absoluteTimeoutAt = new Date(now.getTime() + 8 * 60 * 60 * 1000); // 8 hours absolute timeout
+
+      await this.db
+        .insertInto('sessions')
+        .values({
+          id: sessionId,
+          user_id: userId,
+          token_hash: tokenHash,
+          refresh_token_hash: refreshTokenHash,
+
+          // Device info
+          device_id: deviceInfo?.deviceId || null,
+          device_name: deviceInfo?.deviceName || null,
+          device_type: deviceInfo?.deviceType || 'web',
+          user_agent: deviceInfo?.userAgent || null,
+          ip_address: deviceInfo?.ipAddress || null,
+
+          // Expiration
+          expires_at: expiresAt,
+          refresh_expires_at: refreshExpiresAt,
+          idle_timeout_at: idleTimeoutAt,
+          absolute_timeout_at: absoluteTimeoutAt,
+
+          // Activity
+          last_activity_at: now,
+
+          // Security
+          is_mfa_verified: false,
+          security_stamp: null,
+
+          // Not revoked
+          revoked_at: null,
+          revoked_by: null,
+          revoke_reason: null,
+
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      // Return the created session
+      const session: Session = {
+        id: sessionId,
+        userId,
+        tokenHash,
+        refreshTokenHash,
+
+        deviceId: deviceInfo?.deviceId || null,
+        deviceName: deviceInfo?.deviceName || null,
+        deviceType: deviceInfo?.deviceType || 'web',
+        userAgent: deviceInfo?.userAgent || null,
+        ipAddress: deviceInfo?.ipAddress || null,
+
+        expiresAt,
+        refreshExpiresAt,
+        idleTimeoutAt,
+        absoluteTimeoutAt,
+
+        lastActivityAt: now,
+
+        isMfaVerified: false,
+        securityStamp: null,
+
+        isActive: true,
+
+        revokedAt: null,
+        revokedBy: null,
+        revokeReason: null,
+
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      return ResponseBuilder.ok(session);
+    } catch (error) {
+      return new DatabaseError('createSession', error);
+    }
   }
   async findSessionById(id: string): AsyncResult<Session | null> {
     try {
@@ -46,89 +136,327 @@ export class AuthRepository implements ISession, IToken, IAuth {
         .where('id', '=', id)
         .executeTakeFirst();
 
-      if (!row) {
-        return ResponseBuilder.ok(null);
-      }
-
-      const session: Session = {
-        id: row.id,
-        userId: row.user_id,
-        tokenHash: row.token_hash,
-        refreshTokenHash: row.refresh_token_hash,
-
-        deviceId: row.device_id,
-        deviceName: row.device_name,
-        deviceType: row.device_type,
-        userAgent: row.user_agent,
-        ipAddress: row.ip_address,
-
-        expiresAt: row.expires_at,
-        refreshExpiresAt: row.refresh_expires_at,
-        idleTimeoutAt: row.idle_timeout_at,
-        absoluteTimeoutAt: row.absolute_timeout_at,
-
-        lastActivityAt: row.last_activity_at,
-
-        // Security fields
-        isMfaVerified: Boolean(row.is_mfa_verified),
-        securityStamp: row.security_stamp,
-
-        // Computed field
-        isActive: !row.revoked_at,
-
-        revokedAt: row.revoked_at,
-        revokedBy: row.revoked_by,
-        revokeReason: row.revoke_reason, // Note: different field name
-
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
-
-      return ResponseBuilder.ok(session);
+      return ResponseBuilder.ok(row ? this.mapToSession(row) : null);
     } catch (error) {
       return new DatabaseError('findSessionById', error);
     }
   }
 
-  findSessionByTokenHash(tokenHash: string): AsyncResult<Session | null> {
-    throw new Error('Method not implemented.');
+  async findSessionByTokenHash(tokenHash: string): AsyncResult<Session | null> {
+    try {
+      const row = await this.db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('token_hash', '=', tokenHash)
+        .executeTakeFirst();
+
+      return ResponseBuilder.ok(row ? this.mapToSession(row) : null);
+    } catch (error) {
+      return new DatabaseError('findSessionByTokenHash', error);
+    }
   }
-  findSessionByRefreshTokenHash(refreshTokenHash: string): AsyncResult<Session | null> {
-    throw new Error('Method not implemented.');
+
+  async findSessionByRefreshTokenHash(refreshTokenHash: string): AsyncResult<Session | null> {
+    try {
+      const row = await this.db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('refresh_token_hash', '=', refreshTokenHash)
+        .executeTakeFirst();
+
+      return ResponseBuilder.ok(row ? this.mapToSession(row) : null);
+    } catch (error) {
+      return new DatabaseError('findSessionByRefreshTokenHash', error);
+    }
   }
-  findActiveSessionsByUserId(userId: string): AsyncResult<Session[]> {
-    throw new Error('Method not implemented.');
+
+  async findActiveSessionsByUserId(userId: string): AsyncResult<Session[]> {
+    try {
+      const rows = await this.db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('user_id', '=', userId)
+        .where('revoked_at', 'is', null)
+        .where('expires_at', '>', new Date())
+        .execute();
+
+      return ResponseBuilder.ok(rows.map((row) => this.mapToSession(row)));
+    } catch (error) {
+      return new DatabaseError('findActiveSessionsByUserId', error);
+    }
   }
-  findActiveSessionsByDeviceId(userId: string, deviceId: string): AsyncResult<Session | null> {
-    throw new Error('Method not implemented.');
-  }
-  updateSession(
-    id: string,
-    updates: { lastActivityAt?: Date; refreshTokenHash?: string; refreshExpiresAt?: Date },
+
+  async findActiveSessionsByDeviceId(
+    userId: string,
+    deviceId: string,
   ): AsyncResult<Session | null> {
-    throw new Error('Method not implemented.');
+    try {
+      const row = await this.db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('user_id', '=', userId)
+        .where('device_id', '=', deviceId)
+        .where('revoked_at', 'is', null)
+        .where('expires_at', '>', new Date())
+        .orderBy('created_at', 'desc')
+        .executeTakeFirst();
+
+      return ResponseBuilder.ok(row ? this.mapToSession(row) : null);
+    } catch (error) {
+      return new DatabaseError('findActiveSessionsByDeviceId', error);
+    }
   }
-  extendSession(id: string, extendBy: number): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async updateSession(
+    id: string,
+    updates: {
+      lastActivityAt?: Date;
+      refreshTokenHash?: string;
+      refreshExpiresAt?: Date;
+    },
+  ): AsyncResult<Session | null> {
+    try {
+      // Build update object with only the fields that need updating
+      const dbUpdates: any = {
+        updated_at: new Date(),
+      };
+
+      if (updates.lastActivityAt !== undefined) {
+        dbUpdates.last_activity_at = updates.lastActivityAt;
+      }
+
+      if (updates.refreshTokenHash !== undefined) {
+        dbUpdates.refresh_token_hash = updates.refreshTokenHash;
+      }
+
+      if (updates.refreshExpiresAt !== undefined) {
+        dbUpdates.refresh_expires_at = updates.refreshExpiresAt;
+      }
+
+      // Perform the update
+      const result = await this.db
+        .updateTable('sessions')
+        .set(dbUpdates)
+        .where('id', '=', id)
+        .execute();
+
+      // If no rows were updated, session doesn't exist
+      if (result.length === 0) {
+        return ResponseBuilder.ok(null);
+      }
+
+      // Fetch and return the updated session
+      const row = await this.db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('id', '=', id)
+        .executeTakeFirst();
+
+      return ResponseBuilder.ok(row ? this.mapToSession(row) : null);
+    } catch (error) {
+      return new DatabaseError('updateSession', error);
+    }
   }
-  revokeSession(id: string, revokedBy?: string, reason?: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async extendSession(id: string, extendBy: number): AsyncResult<boolean> {
+    try {
+      // Get current session to calculate new expiration
+      const currentSession = await this.db
+        .selectFrom('sessions')
+        .select(['expires_at', 'refresh_expires_at', 'revoked_at'])
+        .where('id', '=', id)
+        .executeTakeFirst();
+
+      if (!currentSession || currentSession.revoked_at) {
+        return ResponseBuilder.ok(false);
+      }
+
+      const now = new Date();
+      const currentExpiry = currentSession.expires_at;
+
+      // Calculate new expiration times
+      const newExpiresAt = new Date(
+        Math.max(currentExpiry.getTime(), now.getTime()) + extendBy * 1000,
+      );
+
+      // Also extend refresh token if it exists
+      const newRefreshExpiresAt = currentSession.refresh_expires_at
+        ? new Date(newExpiresAt.getTime() + 86400000) // 24 hours after token expiry
+        : null;
+
+      const result = await this.db
+        .updateTable('sessions')
+        .set({
+          expires_at: newExpiresAt,
+          refresh_expires_at: newRefreshExpiresAt,
+          updated_at: new Date(),
+        })
+        .where('id', '=', id)
+        .where('revoked_at', 'is', null)
+        .execute();
+
+      return ResponseBuilder.ok(result.length > 0);
+    } catch (error) {
+      return new DatabaseError('extendSession', error);
+    }
   }
-  revokeAllUserSessions(userId: string, exceptSessionId?: string): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+
+  async revokeSession(id: string, revokedBy?: string, reason?: string): AsyncResult<boolean> {
+    try {
+      const now = new Date();
+
+      // First check if the session exists and is not already revoked
+      const existingSession = await this.db
+        .selectFrom('sessions')
+        .select(['id'])
+        .where('id', '=', id)
+        .where('revoked_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!existingSession) {
+        return ResponseBuilder.ok(false);
+      }
+
+      // Now perform the update
+      await this.db
+        .updateTable('sessions')
+        .set({
+          revoked_at: now,
+          revoked_by: revokedBy || null,
+          revoke_reason: reason || null,
+          updated_at: now,
+        })
+        .where('id', '=', id)
+        .execute();
+
+      return ResponseBuilder.ok(true);
+    } catch (error) {
+      return new DatabaseError('revokeSession', error);
+    }
   }
-  revokeExpiredSessions(): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+
+  async revokeAllUserSessions(userId: string, exceptSessionId?: string): AsyncResult<number> {
+    try {
+      const now = new Date();
+
+      let query = this.db
+        .updateTable('sessions')
+        .set({
+          revoked_at: now,
+          revoked_by: userId, // User revoked their own sessions
+          revoke_reason: 'Bulk revocation',
+          updated_at: now,
+        })
+        .where('user_id', '=', userId)
+        .where('revoked_at', 'is', null); // Only revoke active sessions
+
+      // Exclude specific session if provided (e.g., current session)
+      if (exceptSessionId) {
+        query = query.where('id', '!=', exceptSessionId);
+      }
+
+      const result = await query.execute();
+
+      // Get the number of sessions that were revoked
+      // Convert BigInt to number
+      const numRevoked = (result as any)[0]?.numUpdatedRows ?? 0n;
+      return ResponseBuilder.ok(Number(numRevoked));
+    } catch (error) {
+      return new DatabaseError('revokeAllUserSessions', error);
+    }
   }
-  updateLastActivity(id: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async revokeExpiredSessions(): AsyncResult<number> {
+    try {
+      const now = new Date();
+
+      const result = await this.db
+        .updateTable('sessions')
+        .set({
+          revoked_at: now,
+          revoked_by: 'system',
+          revoke_reason: 'Session expired',
+          updated_at: now,
+        })
+        .where('expires_at', '<', now)
+        .where('revoked_at', 'is', null) // Only revoke sessions that aren't already revoked
+        .execute();
+
+      // Get the number of sessions that were revoked
+      // Convert BigInt to number
+      const numRevoked = (result as any)[0]?.numUpdatedRows ?? 0n;
+      return ResponseBuilder.ok(Number(numRevoked));
+    } catch (error) {
+      return new DatabaseError('revokeExpiredSessions', error);
+    }
   }
-  deleteInactiveSessions(beforeDate: Date): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+  async updateLastActivity(id: string): AsyncResult<boolean> {
+    try {
+      const now = new Date();
+
+      // First check if session exists and is not revoked
+      const session = await this.db
+        .selectFrom('sessions')
+        .select(['id'])
+        .where('id', '=', id)
+        .where('revoked_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!session) {
+        return ResponseBuilder.ok(false);
+      }
+
+      // Now update the session
+      await this.db
+        .updateTable('sessions')
+        .set({
+          last_activity_at: now,
+          updated_at: now,
+        })
+        .where('id', '=', id)
+        .execute();
+
+      return ResponseBuilder.ok(true);
+    } catch (error) {
+      return new DatabaseError('updateLastActivity', error);
+    }
   }
-  deleteRevokedSessions(beforeDate: Date): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+
+  async deleteInactiveSessions(beforeDate: Date): AsyncResult<number> {
+    try {
+      // Delete sessions that haven't been active since the specified date
+      // and are expired (to avoid deleting valid but unused sessions)
+      const result = await this.db
+        .deleteFrom('sessions')
+        .where('last_activity_at', '<', beforeDate)
+        .where('expires_at', '<', new Date()) // Also must be expired
+        .execute();
+
+      // Convert BigInt to number
+      const numDeleted = (result as any)[0]?.numDeletedRows ?? 0n;
+      return ResponseBuilder.ok(Number(numDeleted));
+    } catch (error) {
+      return new DatabaseError('deleteInactiveSessions', error);
+    }
   }
+
+  async deleteRevokedSessions(beforeDate: Date): AsyncResult<number> {
+    try {
+      // Delete sessions that were revoked before the specified date
+      const result = await this.db
+        .deleteFrom('sessions')
+        .where('revoked_at', '<', beforeDate)
+        .where('revoked_at', 'is not', null) // Ensure they are actually revoked
+        .execute();
+
+      // Convert BigInt to number
+      const numDeleted = (result as any)[0]?.numDeletedRows ?? 0n;
+      return ResponseBuilder.ok(Number(numDeleted));
+    } catch (error) {
+      return new DatabaseError('deleteRevokedSessions', error);
+    }
+  }
+
   createPasswordResetToken(
     userId: string,
     tokenHash: string,
@@ -138,9 +466,20 @@ export class AuthRepository implements ISession, IToken, IAuth {
   ): AsyncResult<PasswordResetToken> {
     throw new Error('Method not implemented.');
   }
-  findPasswordResetToken(tokenHash: string): AsyncResult<PasswordResetToken | null> {
-    throw new Error('Method not implemented.');
+  async findPasswordResetToken(tokenHash: string): AsyncResult<PasswordResetToken | null> {
+    try {
+      const row = await this.db
+        .selectFrom('password_reset_tokens')
+        .selectAll()
+        .where('token_hash', '=', tokenHash)
+        .executeTakeFirst();
+
+      return ResponseBuilder.ok(row ? this.mapToPasswordResetToken(row) : null);
+    } catch (error) {
+      return new DatabaseError('findPasswordResetToken', error);
+    }
   }
+
   findActivePasswordResetTokensByUserId(userId: string): AsyncResult<PasswordResetToken[]> {
     throw new Error('Method not implemented.');
   }
@@ -353,5 +692,54 @@ export class AuthRepository implements ISession, IToken, IAuth {
     failedAttempts: number;
   }> {
     throw new Error('Method not implemented.');
+  }
+
+  private mapToSession(row: any): Session {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      tokenHash: row.token_hash,
+      refreshTokenHash: row.refresh_token_hash,
+
+      deviceId: row.device_id,
+      deviceName: row.device_name,
+      deviceType: row.device_type,
+      userAgent: row.user_agent,
+      ipAddress: row.ip_address,
+
+      expiresAt: row.expires_at,
+      refreshExpiresAt: row.refresh_expires_at,
+      idleTimeoutAt: row.idle_timeout_at,
+      absoluteTimeoutAt: row.absolute_timeout_at,
+
+      lastActivityAt: row.last_activity_at,
+
+      // Security fields
+      isMfaVerified: Boolean(row.is_mfa_verified),
+      securityStamp: row.security_stamp,
+
+      // Computed field
+      isActive: !row.revoked_at,
+
+      revokedAt: row.revoked_at,
+      revokedBy: row.revoked_by,
+      revokeReason: row.revoke_reason,
+
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+  private mapToPasswordResetToken(row: any): PasswordResetToken {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      tokenHash: row.token_hash,
+      expiresAt: row.expires_at,
+      usedAt: row.used_at,
+      ipAddress: row.ip_address,
+      userAgent: row.user_agent,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
   }
 }

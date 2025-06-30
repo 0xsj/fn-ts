@@ -5,6 +5,7 @@ import { AuthRepository } from '../../../infrastructure/database/repositories/au
 import { Session } from '../../entities';
 import { ResponseBuilder, NotFoundError, DatabaseError } from '../../../shared/response';
 import type { IAuth, ISession, IToken } from '../../interface/auth.interface';
+import { v4 as uuidv4 } from 'uuid'; // Add this import at the top
 
 describe('AuthService Unit Tests', () => {
   let authService: AuthService;
@@ -96,10 +97,17 @@ describe('AuthService Unit Tests', () => {
     authService = new AuthService(mockAuthRepo, mockSessionRepo, mockTokenRepo);
   });
 
+  // In src/domain/services/__tests__/auth.service.test.ts
+
+  // Then update the tests:
+
   describe('getSession', () => {
+    const futureDate = new Date();
+    futureDate.setFullYear(futureDate.getFullYear() + 1); // Set to future date
+
     const mockSession: Session = {
-      id: 'session-123',
-      userId: 'user-123',
+      id: uuidv4(),
+      userId: uuidv4(),
       tokenHash: 'token-hash',
       refreshTokenHash: 'refresh-hash',
       deviceId: null,
@@ -107,14 +115,14 @@ describe('AuthService Unit Tests', () => {
       deviceType: 'web',
       userAgent: null,
       ipAddress: null,
-      expiresAt: new Date('2024-12-31T23:59:59Z'),
-      refreshExpiresAt: new Date('2025-01-07T23:59:59Z'),
+      expiresAt: futureDate, // Use future date to avoid expiration
+      refreshExpiresAt: new Date(futureDate.getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days later
       idleTimeoutAt: null,
       absoluteTimeoutAt: null,
       lastActivityAt: new Date(),
       isMfaVerified: false,
       securityStamp: null,
-      isActive: true,
+      isActive: true, // Ensure session is active
       revokedAt: null,
       revokedBy: null,
       revokeReason: null,
@@ -124,26 +132,44 @@ describe('AuthService Unit Tests', () => {
 
     it('should return session when repository finds it', async () => {
       // Arrange
-      mockSessionRepo.findSessionById.mockResolvedValueOnce(ResponseBuilder.ok(mockSession));
+      const sessionId = uuidv4();
+      const sessionWithId = { ...mockSession, id: sessionId };
+      mockSessionRepo.findSessionById.mockResolvedValueOnce(ResponseBuilder.ok(sessionWithId));
 
       // Act
-      const result = await authService.getSession('session-123');
+      const result = await authService.getSession(sessionId);
 
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.body().data).toEqual(mockSession);
+        expect(result.body().data).toEqual(sessionWithId);
       }
-      expect(mockSessionRepo.findSessionById).toHaveBeenCalledWith('session-123');
+      expect(mockSessionRepo.findSessionById).toHaveBeenCalledWith(sessionId);
       expect(mockSessionRepo.findSessionById).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return validation error for invalid UUID', async () => {
+      // Act
+      const result = await authService.getSession('invalid-uuid');
+
+      // Assert
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.body().error.code).toBe('VALIDATION_ERROR');
+        expect(result.body().error.details).toEqual({
+          sessionId: ['Invalid session ID format'],
+        });
+      }
+      expect(mockSessionRepo.findSessionById).not.toHaveBeenCalled();
     });
 
     it('should return NotFoundError when session does not exist', async () => {
       // Arrange
+      const sessionId = uuidv4();
       mockSessionRepo.findSessionById.mockResolvedValueOnce(ResponseBuilder.ok(null));
 
       // Act
-      const result = await authService.getSession('non-existent');
+      const result = await authService.getSession(sessionId);
 
       // Assert
       expect(result.success).toBe(false);
@@ -155,11 +181,12 @@ describe('AuthService Unit Tests', () => {
 
     it('should propagate repository errors', async () => {
       // Arrange
+      const sessionId = uuidv4();
       const dbError = new DatabaseError('findSessionById', new Error('Connection timeout'));
       mockSessionRepo.findSessionById.mockResolvedValueOnce(dbError);
 
       // Act
-      const result = await authService.getSession('any-id');
+      const result = await authService.getSession(sessionId);
 
       // Assert
       expect(result.success).toBe(false);
@@ -168,28 +195,79 @@ describe('AuthService Unit Tests', () => {
       }
     });
 
-    it('should handle expired sessions', async () => {
+    it('should return validation error for expired sessions', async () => {
       // Arrange
+      const sessionId = uuidv4();
       const expiredSession: Session = {
         ...mockSession,
+        id: sessionId,
         expiresAt: new Date('2020-01-01'), // Past date
         isActive: true,
       };
       mockSessionRepo.findSessionById.mockResolvedValueOnce(ResponseBuilder.ok(expiredSession));
 
       // Act
-      const result = await authService.getSession('expired-session');
+      const result = await authService.getSession(sessionId);
 
       // Assert
-      // Currently returns the session as-is
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.body().data).toEqual(expiredSession);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.body().error.code).toBe('VALIDATION_ERROR');
+        expect(result.body().error.details).toEqual({
+          session: ['Session has expired'],
+        });
       }
+    });
 
-      // TODO: You might want to add logic to check expiration
-      // expect(result.success).toBe(false);
-      // expect(result.body().error.message).toBe('Session expired');
+    it('should return validation error for revoked sessions', async () => {
+      // Arrange
+      const sessionId = uuidv4();
+      const revokedSession: Session = {
+        ...mockSession,
+        id: sessionId,
+        isActive: false, // Session is not active
+        revokedAt: new Date(),
+        revokedBy: 'admin-user',
+        revokeReason: 'Security violation',
+      };
+      mockSessionRepo.findSessionById.mockResolvedValueOnce(ResponseBuilder.ok(revokedSession));
+
+      // Act
+      const result = await authService.getSession(sessionId);
+
+      // Assert
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.body().error.code).toBe('VALIDATION_ERROR');
+        expect(result.body().error.details).toEqual({
+          session: ['Session has been revoked'],
+        });
+      }
+    });
+
+    it('should handle sessions that are both expired and revoked', async () => {
+      // Arrange
+      const sessionId = uuidv4();
+      const invalidSession: Session = {
+        ...mockSession,
+        id: sessionId,
+        expiresAt: new Date('2020-01-01'), // Past date
+        isActive: false, // Also revoked
+      };
+      mockSessionRepo.findSessionById.mockResolvedValueOnce(ResponseBuilder.ok(invalidSession));
+
+      // Act
+      const result = await authService.getSession(sessionId);
+
+      // Assert
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.body().error.code).toBe('VALIDATION_ERROR');
+        // It will fail on the first check (expiration)
+        expect(result.body().error.details).toEqual({
+          session: ['Session has expired'],
+        });
+      }
     });
   });
 });
