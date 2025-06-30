@@ -46,7 +46,7 @@ export const validators = {
    */
   isValidJWT: (value: string): boolean => {
     const parts = value.split('.');
-    return parts.length === 3 && parts.every(part => part.length > 0);
+    return parts.length === 3 && parts.every((part) => part.length > 0);
   },
 
   /**
