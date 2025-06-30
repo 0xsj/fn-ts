@@ -20,10 +20,11 @@ import {
   TwoFactorSecretDB,
 } from '../../../domain/entities';
 import { AsyncResult, DatabaseError, ok, ResponseBuilder } from '../../../shared/response';
+import { v4 as uuidv4 } from 'uuid';
 
 export class AuthRepository implements ISession, IToken, IAuth {
   constructor(private db: Kysely<Database>) {}
-  createSession(
+  async createSession(
     userId: string,
     tokenHash: string,
     refreshTokenHash: string,
@@ -36,7 +37,96 @@ export class AuthRepository implements ISession, IToken, IAuth {
     },
     expiresIn?: number,
   ): AsyncResult<Session> {
-    throw new Error('Method not implemented.');
+    try {
+      const sessionId = uuidv4();
+      const now = new Date();
+
+      // Default expiration times if not provided
+      const tokenExpiresIn = expiresIn || 3600; // 1 hour default
+      const refreshExpiresIn = 86400; // 24 hours for refresh token
+
+      const expiresAt = new Date(now.getTime() + tokenExpiresIn * 1000);
+      const refreshExpiresAt = new Date(now.getTime() + refreshExpiresIn * 1000);
+
+      // Calculate timeout values
+      const idleTimeoutAt = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes idle timeout
+      const absoluteTimeoutAt = new Date(now.getTime() + 8 * 60 * 60 * 1000); // 8 hours absolute timeout
+
+      await this.db
+        .insertInto('sessions')
+        .values({
+          id: sessionId,
+          user_id: userId,
+          token_hash: tokenHash,
+          refresh_token_hash: refreshTokenHash,
+
+          // Device info
+          device_id: deviceInfo?.deviceId || null,
+          device_name: deviceInfo?.deviceName || null,
+          device_type: deviceInfo?.deviceType || 'web',
+          user_agent: deviceInfo?.userAgent || null,
+          ip_address: deviceInfo?.ipAddress || null,
+
+          // Expiration
+          expires_at: expiresAt,
+          refresh_expires_at: refreshExpiresAt,
+          idle_timeout_at: idleTimeoutAt,
+          absolute_timeout_at: absoluteTimeoutAt,
+
+          // Activity
+          last_activity_at: now,
+
+          // Security
+          is_mfa_verified: false,
+          security_stamp: null,
+
+          // Not revoked
+          revoked_at: null,
+          revoked_by: null,
+          revoke_reason: null,
+
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      // Return the created session
+      const session: Session = {
+        id: sessionId,
+        userId,
+        tokenHash,
+        refreshTokenHash,
+
+        deviceId: deviceInfo?.deviceId || null,
+        deviceName: deviceInfo?.deviceName || null,
+        deviceType: deviceInfo?.deviceType || 'web',
+        userAgent: deviceInfo?.userAgent || null,
+        ipAddress: deviceInfo?.ipAddress || null,
+
+        expiresAt,
+        refreshExpiresAt,
+        idleTimeoutAt,
+        absoluteTimeoutAt,
+
+        lastActivityAt: now,
+
+        isMfaVerified: false,
+        securityStamp: null,
+
+        isActive: true,
+
+        revokedAt: null,
+        revokedBy: null,
+        revokeReason: null,
+
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      return ResponseBuilder.ok(session);
+    } catch (error) {
+      return new DatabaseError('createSession', error);
+    }
   }
   async findSessionById(id: string): AsyncResult<Session | null> {
     try {

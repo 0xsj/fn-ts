@@ -8,18 +8,18 @@ export const jwtUtils = {
   generateAccessToken(payload: AccessTokenPayload): string {
     const secret = config.app.security.jwtSecret;
     const options: SignOptions = {
-      expiresIn: '15m' as const  
+      expiresIn: '15m' as const,
     };
-    
+
     return jwt.sign(payload, secret, options);
   },
 
   generateRefreshToken(payload: RefreshTokenPayload): string {
     const secret = config.app.security.jwtSecret;
     const options: SignOptions = {
-      expiresIn: config.app.security.refreshTokenExpiresIn as any 
+      expiresIn: config.app.security.refreshTokenExpiresIn as any,
     };
-    
+
     return jwt.sign(payload, secret, options);
   },
 
