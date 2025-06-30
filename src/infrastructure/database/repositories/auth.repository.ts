@@ -366,12 +366,62 @@ export class AuthRepository implements ISession, IToken, IAuth {
     }
   }
 
-  revokeExpiredSessions(): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+  async revokeExpiredSessions(): AsyncResult<number> {
+    try {
+      const now = new Date();
+
+      const result = await this.db
+        .updateTable('sessions')
+        .set({
+          revoked_at: now,
+          revoked_by: 'system',
+          revoke_reason: 'Session expired',
+          updated_at: now,
+        })
+        .where('expires_at', '<', now)
+        .where('revoked_at', 'is', null) // Only revoke sessions that aren't already revoked
+        .execute();
+
+      // Get the number of sessions that were revoked
+      // Convert BigInt to number
+      const numRevoked = (result as any)[0]?.numUpdatedRows ?? 0n;
+      return ResponseBuilder.ok(Number(numRevoked));
+    } catch (error) {
+      return new DatabaseError('revokeExpiredSessions', error);
+    }
   }
-  updateLastActivity(id: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+  async updateLastActivity(id: string): AsyncResult<boolean> {
+    try {
+      const now = new Date();
+
+      // First check if session exists and is not revoked
+      const session = await this.db
+        .selectFrom('sessions')
+        .select(['id'])
+        .where('id', '=', id)
+        .where('revoked_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!session) {
+        return ResponseBuilder.ok(false);
+      }
+
+      // Now update the session
+      await this.db
+        .updateTable('sessions')
+        .set({
+          last_activity_at: now,
+          updated_at: now,
+        })
+        .where('id', '=', id)
+        .execute();
+
+      return ResponseBuilder.ok(true);
+    } catch (error) {
+      return new DatabaseError('updateLastActivity', error);
+    }
   }
+
   deleteInactiveSessions(beforeDate: Date): AsyncResult<number> {
     throw new Error('Method not implemented.');
   }

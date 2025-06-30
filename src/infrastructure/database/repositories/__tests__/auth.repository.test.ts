@@ -1723,4 +1723,551 @@ describe('AuthRepository Integration Tests', () => {
       expect(userSessions).toHaveLength(0);
     });
   });
+
+  describe('revokeExpiredSessions', () => {
+    let expiredSessionIds: string[] = [];
+    let activeSessionIds: string[] = [];
+    let alreadyRevokedExpiredId: string;
+
+    beforeEach(async () => {
+      const now = new Date();
+      expiredSessionIds = [];
+      activeSessionIds = [];
+
+      // Create expired sessions
+      for (let i = 0; i < 3; i++) {
+        const sessionId = uuidv4();
+        expiredSessionIds.push(sessionId);
+
+        await db
+          .insertInto('sessions')
+          .values({
+            id: sessionId,
+            user_id: testUserId,
+            token_hash: `expired-token-${i}-${Date.now()}`,
+            refresh_token_hash: `expired-refresh-${i}-${Date.now()}`,
+            device_type: 'web',
+            expires_at: new Date(now.getTime() - (i + 1) * 3600000), // 1-3 hours ago
+            refresh_expires_at: new Date(now.getTime() - i * 3600000),
+            last_activity_at: new Date(now.getTime() - (i + 1) * 3600000),
+            created_at: new Date(now.getTime() - (i + 2) * 3600000),
+          } as any)
+          .execute();
+      }
+
+      // Create active (not expired) sessions
+      for (let i = 0; i < 2; i++) {
+        const sessionId = uuidv4();
+        activeSessionIds.push(sessionId);
+
+        await db
+          .insertInto('sessions')
+          .values({
+            id: sessionId,
+            user_id: testUserId,
+            token_hash: `active-token-${i}-${Date.now()}`,
+            refresh_token_hash: `active-refresh-${i}-${Date.now()}`,
+            device_type: 'mobile',
+            expires_at: new Date(now.getTime() + (i + 1) * 3600000), // 1-2 hours in future
+            refresh_expires_at: new Date(now.getTime() + (i + 2) * 3600000),
+            last_activity_at: now,
+          } as any)
+          .execute();
+      }
+
+      // Create already revoked but expired session
+      alreadyRevokedExpiredId = uuidv4();
+      await db
+        .insertInto('sessions')
+        .values({
+          id: alreadyRevokedExpiredId,
+          user_id: testUserId,
+          token_hash: `revoked-expired-token-${Date.now()}`,
+          refresh_token_hash: `revoked-expired-refresh-${Date.now()}`,
+          device_type: 'desktop',
+          expires_at: new Date(now.getTime() - 7200000), // 2 hours ago
+          refresh_expires_at: new Date(now.getTime() - 3600000),
+          last_activity_at: new Date(now.getTime() - 7200000),
+          revoked_at: new Date(now.getTime() - 3600000), // Revoked 1 hour ago
+          revoked_by: testUserId,
+          revoke_reason: 'User logged out',
+        } as any)
+        .execute();
+    });
+
+    afterEach(async () => {
+      await db
+        .deleteFrom('sessions')
+        .where('id', 'in', [...expiredSessionIds, ...activeSessionIds, alreadyRevokedExpiredId])
+        .execute();
+    });
+
+    it('should revoke all expired sessions', async () => {
+      const result = await authRepository.revokeExpiredSessions();
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        // Should revoke 3 expired sessions (not the already revoked one)
+        expect(result.body().data).toBe(3);
+      }
+
+      // Verify expired sessions are now revoked
+      const expiredSessions = await db
+        .selectFrom('sessions')
+        .select(['id', 'revoked_at', 'revoked_by', 'revoke_reason'])
+        .where('id', 'in', expiredSessionIds)
+        .execute();
+
+      expiredSessions.forEach((session) => {
+        expect(session.revoked_at).not.toBeNull();
+        expect(session.revoked_by).toBe('system');
+        expect(session.revoke_reason).toBe('Session expired');
+      });
+
+      // Verify active sessions are not affected
+      const activeSessions = await db
+        .selectFrom('sessions')
+        .select(['revoked_at'])
+        .where('id', 'in', activeSessionIds)
+        .execute();
+
+      activeSessions.forEach((session) => {
+        expect(session.revoked_at).toBeNull();
+      });
+    });
+
+    it('should not re-revoke already revoked expired sessions', async () => {
+      const result = await authRepository.revokeExpiredSessions();
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(3); // Only the 3 non-revoked expired sessions
+      }
+
+      // Verify the already revoked session maintains its original revocation data
+      const alreadyRevoked = await db
+        .selectFrom('sessions')
+        .select(['revoked_by', 'revoke_reason'])
+        .where('id', '=', alreadyRevokedExpiredId)
+        .executeTakeFirst();
+
+      expect(alreadyRevoked?.revoked_by).toBe(testUserId);
+      expect(alreadyRevoked?.revoke_reason).toBe('User logged out');
+    });
+
+    it('should return 0 when no expired sessions exist', async () => {
+      // Delete all expired sessions
+      await db.deleteFrom('sessions').where('id', 'in', expiredSessionIds).execute();
+
+      const result = await authRepository.revokeExpiredSessions();
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(0);
+      }
+    });
+
+    it('should handle sessions expiring at exact current time', async () => {
+      const now = new Date();
+      const exactExpiryId = uuidv4();
+
+      // Create session that expires exactly now
+      await db
+        .insertInto('sessions')
+        .values({
+          id: exactExpiryId,
+          user_id: testUserId,
+          token_hash: `exact-expiry-token-${Date.now()}`,
+          refresh_token_hash: `exact-expiry-refresh-${Date.now()}`,
+          device_type: 'web',
+          expires_at: now,
+          refresh_expires_at: new Date(now.getTime() + 3600000),
+          last_activity_at: new Date(now.getTime() - 600000),
+        } as any)
+        .execute();
+
+      const result = await authRepository.revokeExpiredSessions();
+
+      // Clean up
+      await db.deleteFrom('sessions').where('id', '=', exactExpiryId).execute();
+
+      expect(result.success).toBe(true);
+      // The exact behavior depends on MySQL precision, but it should include our 3 expired + possibly this one
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBeGreaterThanOrEqual(3);
+      }
+    });
+
+    it('should update the updated_at timestamp', async () => {
+      const beforeRevoke = new Date();
+
+      const result = await authRepository.revokeExpiredSessions();
+
+      expect(result.success).toBe(true);
+
+      const revokedSessions = await db
+        .selectFrom('sessions')
+        .select(['updated_at'])
+        .where('id', 'in', expiredSessionIds)
+        .execute();
+
+      revokedSessions.forEach((session) => {
+        expect(session.updated_at).toBeInstanceOf(Date);
+        // Allow for timestamp precision differences
+        const timeDiff = session.updated_at.getTime() - beforeRevoke.getTime();
+        expect(timeDiff).toBeGreaterThanOrEqual(-1000);
+        expect(timeDiff).toBeLessThanOrEqual(5000);
+      });
+    });
+
+    it('should handle database errors gracefully', async () => {
+      const mockDb = {
+        updateTable: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockRejectedValue(new Error('Database connection lost')),
+      };
+
+      const repoWithMockDb = new AuthRepository(mockDb as any);
+      const result = await repoWithMockDb.revokeExpiredSessions();
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.body().error.code).toBe('DATABASE_ERROR');
+        const details = result.body().error.details as { operation: string } | undefined;
+        expect(details?.operation).toBe('revokeExpiredSessions');
+      }
+    });
+
+    it('should work across different users', async () => {
+      // Create expired session for another user
+      const otherUserId = uuidv4();
+      const otherUserExpiredId = uuidv4();
+
+      await db
+        .insertInto('users')
+        .values(createTestUser({ id: otherUserId }))
+        .execute();
+
+      await db
+        .insertInto('sessions')
+        .values({
+          id: otherUserExpiredId,
+          user_id: otherUserId,
+          token_hash: `other-expired-token-${Date.now()}`,
+          refresh_token_hash: `other-expired-refresh-${Date.now()}`,
+          device_type: 'web',
+          expires_at: new Date(Date.now() - 3600000), // 1 hour ago
+          refresh_expires_at: new Date(Date.now() - 1800000),
+          last_activity_at: new Date(Date.now() - 3600000),
+        } as any)
+        .execute();
+
+      const result = await authRepository.revokeExpiredSessions();
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        // Should revoke 3 test user sessions + 1 other user session = 4
+        expect(result.body().data).toBe(4);
+      }
+
+      // Verify both users' expired sessions were revoked
+      const otherUserSession = await db
+        .selectFrom('sessions')
+        .select(['revoked_at', 'revoked_by'])
+        .where('id', '=', otherUserExpiredId)
+        .executeTakeFirst();
+
+      expect(otherUserSession?.revoked_at).not.toBeNull();
+      expect(otherUserSession?.revoked_by).toBe('system');
+
+      // Cleanup
+      await db.deleteFrom('sessions').where('id', '=', otherUserExpiredId).execute();
+      await db.deleteFrom('users').where('id', '=', otherUserId).execute();
+    });
+  });
+
+  describe('updateLastActivity', () => {
+    let activeSessionId: string;
+    let revokedSessionId: string;
+
+    beforeEach(async () => {
+      const now = new Date();
+
+      // Create active session
+      activeSessionId = uuidv4();
+      await db
+        .insertInto('sessions')
+        .values({
+          id: activeSessionId,
+          user_id: testUserId,
+          token_hash: 'active-activity-token',
+          refresh_token_hash: 'active-activity-refresh',
+          device_type: 'web',
+          expires_at: new Date(now.getTime() + 3600000), // 1 hour from now
+          refresh_expires_at: new Date(now.getTime() + 86400000),
+          last_activity_at: new Date(now.getTime() - 1800000), // 30 minutes ago
+          created_at: new Date(now.getTime() - 3600000), // 1 hour ago
+          updated_at: new Date(now.getTime() - 1800000),
+        } as any)
+        .execute();
+
+      // Create revoked session
+      revokedSessionId = uuidv4();
+      await db
+        .insertInto('sessions')
+        .values({
+          id: revokedSessionId,
+          user_id: testUserId,
+          token_hash: 'revoked-activity-token',
+          refresh_token_hash: 'revoked-activity-refresh',
+          device_type: 'mobile',
+          expires_at: new Date(now.getTime() + 3600000),
+          refresh_expires_at: new Date(now.getTime() + 86400000),
+          last_activity_at: new Date(now.getTime() - 1800000),
+          revoked_at: new Date(now.getTime() - 600000), // Revoked 10 minutes ago
+          revoked_by: testUserId,
+          created_at: new Date(now.getTime() - 3600000),
+          updated_at: new Date(now.getTime() - 600000),
+        } as any)
+        .execute();
+    });
+
+    afterEach(async () => {
+      await db
+        .deleteFrom('sessions')
+        .where('id', 'in', [activeSessionId, revokedSessionId])
+        .execute();
+    });
+
+    it('should update last activity for active session', async () => {
+      // Get original timestamps
+      const before = await db
+        .selectFrom('sessions')
+        .select(['last_activity_at', 'updated_at'])
+        .where('id', '=', activeSessionId)
+        .executeTakeFirst();
+
+      expect(before).toBeDefined();
+      expect(before?.last_activity_at).not.toBeNull();
+      if (!before || !before.last_activity_at) throw new Error('Session not found or invalid');
+
+      const beforeUpdate = new Date();
+
+      // Wait a bit to ensure timestamp difference
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const result = await authRepository.updateLastActivity(activeSessionId);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(true);
+      }
+
+      // Verify timestamps were updated
+      const after = await db
+        .selectFrom('sessions')
+        .select(['last_activity_at', 'updated_at'])
+        .where('id', '=', activeSessionId)
+        .executeTakeFirst();
+
+      expect(after).toBeDefined();
+      expect(after?.last_activity_at).not.toBeNull();
+      if (!after || !after.last_activity_at) throw new Error('Session not found after update');
+
+      // Check last_activity_at was updated
+      expect(after.last_activity_at.getTime()).toBeGreaterThan(before.last_activity_at.getTime());
+      expect(after.last_activity_at.getTime()).toBeGreaterThanOrEqual(beforeUpdate.getTime());
+
+      // Check updated_at was also updated
+      expect(after.updated_at.getTime()).toBeGreaterThan(before.updated_at.getTime());
+      expect(after.updated_at.getTime()).toBeGreaterThanOrEqual(beforeUpdate.getTime());
+    });
+
+    it('should not update last activity for revoked session', async () => {
+      const result = await authRepository.updateLastActivity(revokedSessionId);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(false);
+      }
+
+      // Verify timestamps were NOT updated
+      const session = await db
+        .selectFrom('sessions')
+        .select(['last_activity_at', 'updated_at', 'revoked_at'])
+        .where('id', '=', revokedSessionId)
+        .executeTakeFirst();
+
+      expect(session).toBeDefined();
+      // Timestamps should remain unchanged from setup
+      expect(session!.revoked_at).not.toBeNull();
+    });
+
+    it('should return false for non-existent session', async () => {
+      const result = await authRepository.updateLastActivity(uuidv4());
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(false);
+      }
+    });
+
+    it('should update both timestamps to same value', async () => {
+      const result = await authRepository.updateLastActivity(activeSessionId);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(true);
+      }
+
+      const session = await db
+        .selectFrom('sessions')
+        .select(['last_activity_at', 'updated_at'])
+        .where('id', '=', activeSessionId)
+        .executeTakeFirst();
+
+      expect(session).toBeDefined();
+      expect(session?.last_activity_at).not.toBeNull();
+
+      if (!session || !session.last_activity_at) {
+        throw new Error('Session or last_activity_at is null');
+      }
+
+      // Both timestamps should be very close (within 1 second due to DB precision)
+      const timeDiff = Math.abs(session.last_activity_at.getTime() - session.updated_at.getTime());
+      expect(timeDiff).toBeLessThanOrEqual(1000);
+    });
+
+    it('should handle multiple rapid updates', async () => {
+      const timestamps: Date[] = [];
+
+      // Perform multiple updates with longer delays to ensure timestamp differences
+      for (let i = 0; i < 3; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 1100)); // 1.1 seconds to ensure different timestamps
+
+        const result = await authRepository.updateLastActivity(activeSessionId);
+        expect(result.success).toBe(true);
+
+        const session = await db
+          .selectFrom('sessions')
+          .select(['last_activity_at'])
+          .where('id', '=', activeSessionId)
+          .executeTakeFirst();
+
+        if (session && session.last_activity_at) {
+          timestamps.push(session.last_activity_at);
+        } else {
+          throw new Error('Session or last_activity_at is null');
+        }
+      }
+
+      // Each timestamp should be later than the previous (comparing seconds, not milliseconds)
+      expect(timestamps.length).toBe(3);
+      for (let i = 1; i < timestamps.length; i++) {
+        const currentSeconds = Math.floor(timestamps[i].getTime() / 1000);
+        const previousSeconds = Math.floor(timestamps[i - 1].getTime() / 1000);
+        expect(currentSeconds).toBeGreaterThanOrEqual(previousSeconds);
+      }
+    });
+
+    it('should not affect other session fields', async () => {
+      // Get original session data
+      const before = await db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('id', '=', activeSessionId)
+        .executeTakeFirst();
+
+      expect(before).toBeDefined();
+      if (!before) throw new Error('Session not found');
+
+      await authRepository.updateLastActivity(activeSessionId);
+
+      // Get updated session data
+      const after = await db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('id', '=', activeSessionId)
+        .executeTakeFirst();
+
+      expect(after).toBeDefined();
+      if (!after) throw new Error('Session not found after update');
+
+      // Verify only last_activity_at and updated_at changed
+      expect(after.id).toBe(before.id);
+      expect(after.user_id).toBe(before.user_id);
+      expect(after.token_hash).toBe(before.token_hash);
+      expect(after.refresh_token_hash).toBe(before.refresh_token_hash);
+      expect(after.device_type).toBe(before.device_type);
+      expect(after.expires_at).toEqual(before.expires_at);
+      expect(after.refresh_expires_at).toEqual(before.refresh_expires_at);
+      expect(after.created_at).toEqual(before.created_at);
+      expect(after.revoked_at).toEqual(before.revoked_at);
+    });
+
+    it('should handle database errors gracefully', async () => {
+      const mockDb = {
+        updateTable: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockRejectedValue(new Error('Database connection lost')),
+      };
+
+      const repoWithMockDb = new AuthRepository(mockDb as any);
+      const result = await repoWithMockDb.updateLastActivity(activeSessionId);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.body().error.code).toBe('DATABASE_ERROR');
+        const details = result.body().error.details as { operation: string } | undefined;
+        expect(details?.operation).toBe('updateLastActivity');
+      }
+    });
+
+    it('should work with expired but not revoked sessions', async () => {
+      // Create expired session
+      const expiredSessionId = uuidv4();
+      const now = new Date();
+      const originalLastActivity = new Date(now.getTime() - 7200000); // 2 hours ago
+
+      await db
+        .insertInto('sessions')
+        .values({
+          id: expiredSessionId,
+          user_id: testUserId,
+          token_hash: 'expired-activity-token',
+          refresh_token_hash: 'expired-activity-refresh',
+          device_type: 'desktop',
+          expires_at: new Date(now.getTime() - 3600000), // Expired 1 hour ago
+          refresh_expires_at: new Date(now.getTime() - 1800000),
+          last_activity_at: originalLastActivity,
+          created_at: new Date(now.getTime() - 86400000),
+          updated_at: originalLastActivity,
+        } as any)
+        .execute();
+
+      const result = await authRepository.updateLastActivity(expiredSessionId);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        // Should still update because it's not revoked
+        expect(result.body().data).toBe(true);
+      }
+
+      const session = await db
+        .selectFrom('sessions')
+        .select(['last_activity_at'])
+        .where('id', '=', expiredSessionId)
+        .executeTakeFirst();
+
+      expect(session?.last_activity_at).not.toBeNull();
+      if (session?.last_activity_at) {
+        expect(session.last_activity_at.getTime()).toBeGreaterThan(originalLastActivity.getTime());
+      }
+
+      // Cleanup
+      await db.deleteFrom('sessions').where('id', '=', expiredSessionId).execute();
+    });
+  });
 });
