@@ -868,10 +868,9 @@ describe('AuthRepository Integration Tests', () => {
         const session = result.body().data;
         expect(session).toBeDefined();
         expect(session?.lastActivityAt).not.toBeNull();
-        // Compare timestamps without milliseconds
-        expect(Math.floor(session!.lastActivityAt!.getTime() / 1000)).toBe(
-          Math.floor(newActivityTime.getTime() / 1000),
-        );
+        // Allow 1 second difference for MySQL timestamp precision
+        const diff = Math.abs(session!.lastActivityAt!.getTime() - newActivityTime.getTime());
+        expect(diff).toBeLessThanOrEqual(1000);
         expect(session?.refreshTokenHash).toBe('original-refresh-hash'); // Unchanged
         expect(session?.updatedAt.getTime()).toBeGreaterThanOrEqual(
           Math.floor(newActivityTime.getTime() / 1000) * 1000,
@@ -908,10 +907,9 @@ describe('AuthRepository Integration Tests', () => {
         const session = result.body().data;
         expect(session).toBeDefined();
         expect(session?.refreshExpiresAt).not.toBeNull();
-        // Compare timestamps without milliseconds
-        expect(Math.floor(session!.refreshExpiresAt!.getTime() / 1000)).toBe(
-          Math.floor(newExpiryTime.getTime() / 1000),
-        );
+        // Allow 1 second difference
+        const diff = Math.abs(session!.refreshExpiresAt!.getTime() - newExpiryTime.getTime());
+        expect(diff).toBeLessThanOrEqual(1000);
       }
     });
 
@@ -931,14 +929,19 @@ describe('AuthRepository Integration Tests', () => {
         expect(session).toBeDefined();
         expect(session?.lastActivityAt).not.toBeNull();
         expect(session?.refreshExpiresAt).not.toBeNull();
-        // Compare timestamps without milliseconds
-        expect(Math.floor(session!.lastActivityAt!.getTime() / 1000)).toBe(
-          Math.floor(updates.lastActivityAt.getTime() / 1000),
+
+        // Allow 1 second difference for timestamps
+        const activityDiff = Math.abs(
+          session!.lastActivityAt!.getTime() - updates.lastActivityAt.getTime(),
         );
+        expect(activityDiff).toBeLessThanOrEqual(1000);
+
         expect(session?.refreshTokenHash).toBe(updates.refreshTokenHash);
-        expect(Math.floor(session!.refreshExpiresAt!.getTime() / 1000)).toBe(
-          Math.floor(updates.refreshExpiresAt.getTime() / 1000),
+
+        const refreshDiff = Math.abs(
+          session!.refreshExpiresAt!.getTime() - updates.refreshExpiresAt.getTime(),
         );
+        expect(refreshDiff).toBeLessThanOrEqual(1000);
       }
     });
 
@@ -1083,6 +1086,401 @@ describe('AuthRepository Integration Tests', () => {
         expect(session?.deviceName).toBe(originalRow.device_name);
         expect(session?.expiresAt).toEqual(originalRow.expires_at);
         expect(session?.createdAt).toEqual(originalRow.created_at);
+      }
+    });
+  });
+
+  describe('extendSession', () => {
+    let activeSessionId: string;
+    let expiredSessionId: string;
+    let revokedSessionId: string;
+
+    beforeEach(async () => {
+      const now = new Date();
+
+      // Create active session
+      activeSessionId = uuidv4();
+      await db
+        .insertInto('sessions')
+        .values({
+          id: activeSessionId,
+          user_id: testUserId,
+          token_hash: 'active-extend-token',
+          refresh_token_hash: 'active-extend-refresh',
+          device_type: 'web',
+          expires_at: new Date(now.getTime() + 3600000), // 1 hour from now
+          refresh_expires_at: new Date(now.getTime() + 90000000), // 25 hours from now
+          last_activity_at: now,
+        } as any)
+        .execute();
+
+      // Create expired session
+      expiredSessionId = uuidv4();
+      await db
+        .insertInto('sessions')
+        .values({
+          id: expiredSessionId,
+          user_id: testUserId,
+          token_hash: 'expired-extend-token',
+          refresh_token_hash: 'expired-extend-refresh',
+          device_type: 'web',
+          expires_at: new Date(now.getTime() - 3600000), // 1 hour ago
+          refresh_expires_at: new Date(now.getTime() - 600000), // 10 minutes ago
+          last_activity_at: now,
+        } as any)
+        .execute();
+
+      // Create revoked session
+      revokedSessionId = uuidv4();
+      await db
+        .insertInto('sessions')
+        .values({
+          id: revokedSessionId,
+          user_id: testUserId,
+          token_hash: 'revoked-extend-token',
+          refresh_token_hash: 'revoked-extend-refresh',
+          device_type: 'web',
+          expires_at: new Date(now.getTime() + 3600000), // Still valid
+          refresh_expires_at: new Date(now.getTime() + 90000000),
+          last_activity_at: now,
+          revoked_at: new Date(now.getTime() - 300000), // Revoked 5 min ago
+          revoked_by: testUserId,
+          revoke_reason: 'User logged out',
+        } as any)
+        .execute();
+    });
+
+    afterEach(async () => {
+      await db
+        .deleteFrom('sessions')
+        .where('id', 'in', [activeSessionId, expiredSessionId, revokedSessionId])
+        .execute();
+    });
+
+    it('should extend active session by specified seconds', async () => {
+      const extendBySeconds = 1800; // 30 minutes
+
+      // Get original expiry
+      const originalSession = await db
+        .selectFrom('sessions')
+        .select(['expires_at', 'refresh_expires_at'])
+        .where('id', '=', activeSessionId)
+        .executeTakeFirst();
+
+      expect(originalSession).toBeDefined();
+      if (!originalSession) {
+        throw new Error('Test session not found');
+      }
+
+      const result = await authRepository.extendSession(activeSessionId, extendBySeconds);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(true);
+
+        // Verify the session was extended
+        const updatedSession = await db
+          .selectFrom('sessions')
+          .select(['expires_at', 'refresh_expires_at'])
+          .where('id', '=', activeSessionId)
+          .executeTakeFirst();
+
+        expect(updatedSession).toBeDefined();
+        if (!updatedSession) {
+          throw new Error('Updated session not found');
+        }
+
+        // Check token expiry was extended
+        const expectedNewExpiry = new Date(
+          originalSession.expires_at.getTime() + extendBySeconds * 1000,
+        );
+        expect(Math.floor(updatedSession.expires_at.getTime() / 1000)).toBe(
+          Math.floor(expectedNewExpiry.getTime() / 1000),
+        );
+
+        // Check refresh token was also extended
+        if (updatedSession.refresh_expires_at && originalSession.refresh_expires_at) {
+          expect(updatedSession.refresh_expires_at.getTime()).toBeGreaterThan(
+            originalSession.refresh_expires_at.getTime(),
+          );
+        }
+      }
+    });
+
+    it('should extend expired session from current time', async () => {
+      const extendBySeconds = 3600; // 1 hour
+      const now = new Date();
+
+      const result = await authRepository.extendSession(expiredSessionId, extendBySeconds);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(true);
+
+        // Verify the session was extended from NOW, not from expired time
+        const updatedSession = await db
+          .selectFrom('sessions')
+          .select(['expires_at'])
+          .where('id', '=', expiredSessionId)
+          .executeTakeFirst();
+
+        expect(updatedSession).toBeDefined();
+        if (!updatedSession) {
+          throw new Error('Updated session not found');
+        }
+
+        // Should be approximately now + extendBy
+        const expectedMinExpiry = now.getTime() + extendBySeconds * 1000 - 5000; // 5 sec buffer
+        const expectedMaxExpiry = now.getTime() + extendBySeconds * 1000 + 5000; // 5 sec buffer
+
+        expect(updatedSession.expires_at.getTime()).toBeGreaterThanOrEqual(expectedMinExpiry);
+        expect(updatedSession.expires_at.getTime()).toBeLessThanOrEqual(expectedMaxExpiry);
+      }
+    });
+
+    it('should not extend revoked session', async () => {
+      const result = await authRepository.extendSession(revokedSessionId, 1800);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(false);
+
+        // Verify session remains unchanged
+        const session = await db
+          .selectFrom('sessions')
+          .select(['expires_at', 'revoked_at'])
+          .where('id', '=', revokedSessionId)
+          .executeTakeFirst();
+
+        expect(session?.revoked_at).not.toBeNull();
+      }
+    });
+
+    it('should return false for non-existent session', async () => {
+      const result = await authRepository.extendSession(uuidv4(), 1800);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(false);
+      }
+    });
+
+    it('should handle session without refresh token', async () => {
+      // Create session without refresh token
+      const noRefreshSessionId = uuidv4();
+      await db
+        .insertInto('sessions')
+        .values({
+          id: noRefreshSessionId,
+          user_id: testUserId,
+          token_hash: 'no-refresh-token',
+          device_type: 'api',
+          expires_at: new Date(Date.now() + 3600000),
+          refresh_token_hash: null,
+          refresh_expires_at: null,
+        } as any)
+        .execute();
+
+      const result = await authRepository.extendSession(noRefreshSessionId, 1800);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(true);
+
+        const session = await db
+          .selectFrom('sessions')
+          .select(['refresh_expires_at'])
+          .where('id', '=', noRefreshSessionId)
+          .executeTakeFirst();
+
+        expect(session?.refresh_expires_at).toBeNull();
+      }
+
+      await db.deleteFrom('sessions').where('id', '=', noRefreshSessionId).execute();
+    });
+  });
+
+  describe('revokeSession', () => {
+    let activeSessionId: string;
+    let alreadyRevokedSessionId: string;
+
+    beforeEach(async () => {
+      const now = new Date();
+
+      // Create active session
+      activeSessionId = uuidv4();
+      await db
+        .insertInto('sessions')
+        .values({
+          id: activeSessionId,
+          user_id: testUserId,
+          token_hash: 'active-revoke-token',
+          refresh_token_hash: 'active-revoke-refresh',
+          device_type: 'web',
+          expires_at: new Date(now.getTime() + 3600000),
+          refresh_expires_at: new Date(now.getTime() + 90000000),
+          last_activity_at: now,
+        } as any)
+        .execute();
+
+      // Create already revoked session
+      alreadyRevokedSessionId = uuidv4();
+      await db
+        .insertInto('sessions')
+        .values({
+          id: alreadyRevokedSessionId,
+          user_id: testUserId,
+          token_hash: 'already-revoked-token',
+          refresh_token_hash: 'already-revoked-refresh',
+          device_type: 'mobile',
+          expires_at: new Date(now.getTime() + 3600000),
+          refresh_expires_at: new Date(now.getTime() + 90000000),
+          last_activity_at: now,
+          revoked_at: new Date(now.getTime() - 600000), // 10 min ago
+          revoked_by: 'admin-user',
+          revoke_reason: 'Security violation',
+        } as any)
+        .execute();
+    });
+
+    afterEach(async () => {
+      await db
+        .deleteFrom('sessions')
+        .where('id', 'in', [activeSessionId, alreadyRevokedSessionId])
+        .execute();
+    });
+
+    it('should revoke active session without revokedBy and reason', async () => {
+      const result = await authRepository.revokeSession(activeSessionId);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(true);
+
+        // Verify session was revoked
+        const session = await db
+          .selectFrom('sessions')
+          .select(['revoked_at', 'revoked_by', 'revoke_reason'])
+          .where('id', '=', activeSessionId)
+          .executeTakeFirst();
+
+        expect(session).toBeDefined();
+        expect(session!.revoked_at).not.toBeNull();
+        expect(session!.revoked_by).toBeNull();
+        expect(session!.revoke_reason).toBeNull();
+      }
+    });
+
+    it('should revoke active session with revokedBy and reason', async () => {
+      const revokedBy = 'admin-123';
+      const reason = 'Suspicious activity detected';
+
+      const result = await authRepository.revokeSession(activeSessionId, revokedBy, reason);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(true);
+
+        // Verify session was revoked with metadata
+        const session = await db
+          .selectFrom('sessions')
+          .select(['revoked_at', 'revoked_by', 'revoke_reason'])
+          .where('id', '=', activeSessionId)
+          .executeTakeFirst();
+
+        expect(session).toBeDefined();
+        expect(session!.revoked_at).not.toBeNull();
+        expect(session!.revoked_by).toBe(revokedBy);
+        expect(session!.revoke_reason).toBe(reason);
+      }
+    });
+
+    it('should not re-revoke already revoked session', async () => {
+      const originalSession = await db
+        .selectFrom('sessions')
+        .select(['revoked_at', 'revoked_by', 'revoke_reason'])
+        .where('id', '=', alreadyRevokedSessionId)
+        .executeTakeFirst();
+
+      expect(originalSession).toBeDefined();
+      if (!originalSession) {
+        throw new Error('Test session not found');
+      }
+
+      const result = await authRepository.revokeSession(
+        alreadyRevokedSessionId,
+        'new-admin',
+        'Attempt to re-revoke',
+      );
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(false);
+
+        // Verify original revocation data unchanged
+        const session = await db
+          .selectFrom('sessions')
+          .select(['revoked_at', 'revoked_by', 'revoke_reason'])
+          .where('id', '=', alreadyRevokedSessionId)
+          .executeTakeFirst();
+
+        expect(session).toBeDefined();
+        if (!session) {
+          throw new Error('Session not found after revoke attempt');
+        }
+
+        expect(session.revoked_at).toEqual(originalSession.revoked_at);
+        expect(session.revoked_by).toBe(originalSession.revoked_by);
+        expect(session.revoke_reason).toBe(originalSession.revoke_reason);
+      }
+    });
+
+    it('should return false for non-existent session', async () => {
+      const result = await authRepository.revokeSession(uuidv4(), 'admin', 'Test');
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(false);
+      }
+    });
+
+    it('should update the updated_at timestamp when revoking', async () => {
+      const result = await authRepository.revokeSession(activeSessionId);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(true);
+      }
+
+      // Verify the session was revoked and has an updated_at timestamp
+      const revokedSession = await db
+        .selectFrom('sessions')
+        .select(['updated_at', 'revoked_at'])
+        .where('id', '=', activeSessionId)
+        .executeTakeFirst();
+
+      expect(revokedSession).toBeDefined();
+      expect(revokedSession?.revoked_at).not.toBeNull();
+      expect(revokedSession?.updated_at).toBeInstanceOf(Date);
+    });
+
+    it('should handle database errors gracefully', async () => {
+      // Mock for extendSession
+      const mockDbExtend = {
+        selectFrom: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        executeTakeFirst: jest.fn().mockRejectedValue(new Error('DB connection lost')),
+      };
+
+      const repoWithMockDb = new AuthRepository(mockDbExtend as any);
+      const extendResult = await repoWithMockDb.extendSession('any-id', 1800);
+
+      expect(extendResult.success).toBe(false);
+      if (!extendResult.success) {
+        expect(extendResult.body().error.code).toBe('DATABASE_ERROR');
+        const details = extendResult.body().error.details as { operation: string } | undefined;
+        expect(details?.operation).toBe('extendSession');
       }
     });
   });

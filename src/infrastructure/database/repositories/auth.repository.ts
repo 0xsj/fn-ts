@@ -258,12 +258,83 @@ export class AuthRepository implements ISession, IToken, IAuth {
     }
   }
 
-  extendSession(id: string, extendBy: number): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+  async extendSession(id: string, extendBy: number): AsyncResult<boolean> {
+    try {
+      // Get current session to calculate new expiration
+      const currentSession = await this.db
+        .selectFrom('sessions')
+        .select(['expires_at', 'refresh_expires_at', 'revoked_at'])
+        .where('id', '=', id)
+        .executeTakeFirst();
+
+      if (!currentSession || currentSession.revoked_at) {
+        return ResponseBuilder.ok(false);
+      }
+
+      const now = new Date();
+      const currentExpiry = currentSession.expires_at;
+
+      // Calculate new expiration times
+      const newExpiresAt = new Date(
+        Math.max(currentExpiry.getTime(), now.getTime()) + extendBy * 1000,
+      );
+
+      // Also extend refresh token if it exists
+      const newRefreshExpiresAt = currentSession.refresh_expires_at
+        ? new Date(newExpiresAt.getTime() + 86400000) // 24 hours after token expiry
+        : null;
+
+      const result = await this.db
+        .updateTable('sessions')
+        .set({
+          expires_at: newExpiresAt,
+          refresh_expires_at: newRefreshExpiresAt,
+          updated_at: new Date(),
+        })
+        .where('id', '=', id)
+        .where('revoked_at', 'is', null)
+        .execute();
+
+      return ResponseBuilder.ok(result.length > 0);
+    } catch (error) {
+      return new DatabaseError('extendSession', error);
+    }
   }
-  revokeSession(id: string, revokedBy?: string, reason?: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async revokeSession(id: string, revokedBy?: string, reason?: string): AsyncResult<boolean> {
+    try {
+      const now = new Date();
+
+      // First check if the session exists and is not already revoked
+      const existingSession = await this.db
+        .selectFrom('sessions')
+        .select(['id'])
+        .where('id', '=', id)
+        .where('revoked_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!existingSession) {
+        return ResponseBuilder.ok(false);
+      }
+
+      // Now perform the update
+      await this.db
+        .updateTable('sessions')
+        .set({
+          revoked_at: now,
+          revoked_by: revokedBy || null,
+          revoke_reason: reason || null,
+          updated_at: now,
+        })
+        .where('id', '=', id)
+        .execute();
+
+      return ResponseBuilder.ok(true);
+    } catch (error) {
+      return new DatabaseError('revokeSession', error);
+    }
   }
+
   revokeAllUserSessions(userId: string, exceptSessionId?: string): AsyncResult<number> {
     throw new Error('Method not implemented.');
   }
