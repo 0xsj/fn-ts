@@ -156,15 +156,57 @@ export class AuthRepository implements ISession, IToken, IAuth {
     }
   }
 
-  findSessionByRefreshTokenHash(refreshTokenHash: string): AsyncResult<Session | null> {
-    throw new Error('Method not implemented.');
+  async findSessionByRefreshTokenHash(refreshTokenHash: string): AsyncResult<Session | null> {
+    try {
+      const row = await this.db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('refresh_token_hash', '=', refreshTokenHash)
+        .executeTakeFirst();
+
+      return ResponseBuilder.ok(row ? this.mapToSession(row) : null);
+    } catch (error) {
+      return new DatabaseError('findSessionByRefreshTokenHash', error);
+    }
   }
-  findActiveSessionsByUserId(userId: string): AsyncResult<Session[]> {
-    throw new Error('Method not implemented.');
+
+  async findActiveSessionsByUserId(userId: string): AsyncResult<Session[]> {
+    try {
+      const rows = await this.db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('user_id', '=', userId)
+        .where('revoked_at', 'is', null)
+        .where('expires_at', '>', new Date())
+        .execute();
+
+      return ResponseBuilder.ok(rows.map((row) => this.mapToSession(row)));
+    } catch (error) {
+      return new DatabaseError('findActiveSessionsByUserId', error);
+    }
   }
-  findActiveSessionsByDeviceId(userId: string, deviceId: string): AsyncResult<Session | null> {
-    throw new Error('Method not implemented.');
+
+  async findActiveSessionsByDeviceId(
+    userId: string,
+    deviceId: string,
+  ): AsyncResult<Session | null> {
+    try {
+      const row = await this.db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('user_id', '=', userId)
+        .where('device_id', '=', deviceId)
+        .where('revoked_at', 'is', null)
+        .where('expires_at', '>', new Date())
+        .orderBy('created_at', 'desc')
+        .executeTakeFirst();
+
+      return ResponseBuilder.ok(row ? this.mapToSession(row) : null);
+    } catch (error) {
+      return new DatabaseError('findActiveSessionsByDeviceId', error);
+    }
   }
+
   updateSession(
     id: string,
     updates: { lastActivityAt?: Date; refreshTokenHash?: string; refreshExpiresAt?: Date },
