@@ -186,4 +186,231 @@ describe('AuthRepository Integration Tests', () => {
       await db.deleteFrom('sessions').where('id', '=', sessionId).execute();
     });
   });
+  describe('createSession', () => {
+    it('should create a session with minimal parameters', async () => {
+      // Arrange
+      const tokenHash = 'test-token-hash-' + Date.now();
+      const refreshTokenHash = 'test-refresh-hash-' + Date.now();
+
+      // Act
+      const result = await authRepository.createSession(testUserId, tokenHash, refreshTokenHash);
+
+      // Assert
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const session = result.body().data;
+
+        // Basic fields
+        expect(session.id).toBeDefined();
+        expect(session.userId).toBe(testUserId);
+        expect(session.tokenHash).toBe(tokenHash);
+        expect(session.refreshTokenHash).toBe(refreshTokenHash);
+
+        // Default device info
+        expect(session.deviceType).toBe('web');
+        expect(session.deviceId).toBeNull();
+        expect(session.deviceName).toBeNull();
+        expect(session.userAgent).toBeNull();
+        expect(session.ipAddress).toBeNull();
+
+        // Expiration times
+        expect(session.expiresAt).toBeInstanceOf(Date);
+        expect(session.refreshExpiresAt).toBeInstanceOf(Date);
+        expect(session.idleTimeoutAt).toBeInstanceOf(Date);
+        expect(session.absoluteTimeoutAt).toBeInstanceOf(Date);
+
+        // Default expiration should be 1 hour for token
+        const now = new Date();
+        const tokenExpiry = session.expiresAt.getTime() - now.getTime();
+        expect(tokenExpiry).toBeGreaterThan(3500000); // ~1 hour minus some test execution time
+        expect(tokenExpiry).toBeLessThan(3610000); // ~1 hour plus some buffer
+
+        // Other fields
+        expect(session.isActive).toBe(true);
+        expect(session.isMfaVerified).toBe(false);
+        expect(session.securityStamp).toBeNull();
+        expect(session.revokedAt).toBeNull();
+        expect(session.revokedBy).toBeNull();
+        expect(session.revokeReason).toBeNull();
+
+        // Cleanup
+        await db.deleteFrom('sessions').where('id', '=', session.id).execute();
+      }
+    });
+
+    it('should create a session with full device info', async () => {
+      // Arrange
+      const tokenHash = 'test-token-hash-' + Date.now();
+      const refreshTokenHash = 'test-refresh-hash-' + Date.now();
+      const deviceInfo = {
+        deviceId: 'device-123',
+        deviceName: 'iPhone 12',
+        deviceType: 'mobile' as const,
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X)',
+        ipAddress: '192.168.1.100',
+      };
+
+      // Act
+      const result = await authRepository.createSession(
+        testUserId,
+        tokenHash,
+        refreshTokenHash,
+        deviceInfo,
+      );
+
+      // Assert
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const session = result.body().data;
+
+        expect(session.deviceId).toBe(deviceInfo.deviceId);
+        expect(session.deviceName).toBe(deviceInfo.deviceName);
+        expect(session.deviceType).toBe(deviceInfo.deviceType);
+        expect(session.userAgent).toBe(deviceInfo.userAgent);
+        expect(session.ipAddress).toBe(deviceInfo.ipAddress);
+
+        // Cleanup
+        await db.deleteFrom('sessions').where('id', '=', session.id).execute();
+      }
+    });
+
+    it('should create a session with custom expiration time', async () => {
+      // Arrange
+      const tokenHash = 'test-token-hash-' + Date.now();
+      const refreshTokenHash = 'test-refresh-hash-' + Date.now();
+      const customExpiresIn = 7200; // 2 hours in seconds
+
+      // Act
+      const result = await authRepository.createSession(
+        testUserId,
+        tokenHash,
+        refreshTokenHash,
+        undefined,
+        customExpiresIn,
+      );
+
+      // Assert
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const session = result.body().data;
+
+        // Check custom expiration
+        const now = new Date();
+        const tokenExpiry = session.expiresAt.getTime() - now.getTime();
+        expect(tokenExpiry).toBeGreaterThan(7190000); // ~2 hours minus some test execution time
+        expect(tokenExpiry).toBeLessThan(7210000); // ~2 hours plus some buffer
+
+        // Cleanup
+        await db.deleteFrom('sessions').where('id', '=', session.id).execute();
+      }
+    });
+
+    it('should handle database errors gracefully', async () => {
+      // Arrange
+      const invalidUserId = 'non-existent-user-id';
+      const tokenHash = 'test-token-hash-' + Date.now();
+      const refreshTokenHash = 'test-refresh-hash-' + Date.now();
+
+      // Act
+      const result = await authRepository.createSession(invalidUserId, tokenHash, refreshTokenHash);
+
+      // Assert
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.body().error.code).toBe('DATABASE_ERROR');
+
+        // Type-check the details field
+        const details = result.body().error.details;
+        expect(details).toBeDefined();
+        expect(details).toHaveProperty('operation', 'createSession');
+
+        // Or alternatively, if you want to be more explicit:
+        if (details && typeof details === 'object' && 'operation' in details) {
+          expect(details.operation).toBe('createSession');
+        }
+      }
+    });
+
+    it('should verify session data is correctly stored in database', async () => {
+      // Arrange
+      const tokenHash = 'test-token-hash-' + Date.now();
+      const refreshTokenHash = 'test-refresh-hash-' + Date.now();
+      const deviceInfo = {
+        deviceId: 'test-device',
+        deviceName: 'Test Browser',
+        deviceType: 'desktop' as const,
+        userAgent: 'Test User Agent',
+        ipAddress: '127.0.0.1',
+      };
+
+      // Act
+      const result = await authRepository.createSession(
+        testUserId,
+        tokenHash,
+        refreshTokenHash,
+        deviceInfo,
+        3600,
+      );
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const session = result.body().data;
+
+        // Verify in database
+        const dbSession = await db
+          .selectFrom('sessions')
+          .selectAll()
+          .where('id', '=', session.id)
+          .executeTakeFirst();
+
+        expect(dbSession).toBeDefined();
+        expect(dbSession?.user_id).toBe(testUserId);
+        expect(dbSession?.token_hash).toBe(tokenHash);
+        expect(dbSession?.refresh_token_hash).toBe(refreshTokenHash);
+        expect(dbSession?.device_id).toBe(deviceInfo.deviceId);
+        expect(dbSession?.device_name).toBe(deviceInfo.deviceName);
+        expect(dbSession?.device_type).toBe(deviceInfo.deviceType);
+        expect(dbSession?.user_agent).toBe(deviceInfo.userAgent);
+        expect(dbSession?.ip_address).toBe(deviceInfo.ipAddress);
+        expect(dbSession?.is_mfa_verified).toBe(0); // MySQL boolean stored as 0/1
+        expect(dbSession?.revoked_at).toBeNull();
+
+        // Cleanup
+        await db.deleteFrom('sessions').where('id', '=', session.id).execute();
+      }
+    });
+
+    it('should create multiple sessions for the same user', async () => {
+      // Arrange
+      const sessions: string[] = [];
+
+      // Act - Create 3 sessions
+      for (let i = 0; i < 3; i++) {
+        const result = await authRepository.createSession(
+          testUserId,
+          `token-hash-${i}-${Date.now()}`,
+          `refresh-hash-${i}-${Date.now()}`,
+          { deviceType: 'web' },
+        );
+
+        expect(result.success).toBe(true);
+        if (isSuccessResponse(result)) {
+          sessions.push(result.body().data.id);
+        }
+      }
+
+      // Assert - Verify all sessions exist
+      const dbSessions = await db
+        .selectFrom('sessions')
+        .select(['id'])
+        .where('user_id', '=', testUserId)
+        .where('id', 'in', sessions)
+        .execute();
+
+      expect(dbSessions).toHaveLength(3);
+
+      // Cleanup
+      await db.deleteFrom('sessions').where('id', 'in', sessions).execute();
+    });
+  });
 });
