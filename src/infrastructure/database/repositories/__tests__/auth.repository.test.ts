@@ -2077,11 +2077,18 @@ describe('AuthRepository Integration Tests', () => {
 
       // Check last_activity_at was updated
       expect(after.last_activity_at.getTime()).toBeGreaterThan(before.last_activity_at.getTime());
-      expect(after.last_activity_at.getTime()).toBeGreaterThanOrEqual(beforeUpdate.getTime());
+
+      // Allow for MySQL timestamp precision (compare at second level)
+      const afterSeconds = Math.floor(after.last_activity_at.getTime() / 1000);
+      const beforeUpdateSeconds = Math.floor(beforeUpdate.getTime() / 1000);
+      expect(afterSeconds).toBeGreaterThanOrEqual(beforeUpdateSeconds);
 
       // Check updated_at was also updated
       expect(after.updated_at.getTime()).toBeGreaterThan(before.updated_at.getTime());
-      expect(after.updated_at.getTime()).toBeGreaterThanOrEqual(beforeUpdate.getTime());
+
+      // Compare updated_at at second level too
+      const updatedAtSeconds = Math.floor(after.updated_at.getTime() / 1000);
+      expect(updatedAtSeconds).toBeGreaterThanOrEqual(beforeUpdateSeconds);
     });
 
     it('should not update last activity for revoked session', async () => {
@@ -2268,6 +2275,383 @@ describe('AuthRepository Integration Tests', () => {
 
       // Cleanup
       await db.deleteFrom('sessions').where('id', '=', expiredSessionId).execute();
+    });
+  });
+
+  describe('deleteInactiveSessions', () => {
+    let oldInactiveExpiredIds: string[] = [];
+    let oldInactiveNotExpiredIds: string[] = [];
+    let recentActiveIds: string[] = [];
+    let oldActiveExpiredIds: string[] = [];
+
+    beforeEach(async () => {
+      const now = new Date();
+      const cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+
+      oldInactiveExpiredIds = [];
+      oldInactiveNotExpiredIds = [];
+      recentActiveIds = [];
+      oldActiveExpiredIds = [];
+
+      // Create old inactive AND expired sessions (should be deleted)
+      for (let i = 0; i < 3; i++) {
+        const sessionId = uuidv4();
+        oldInactiveExpiredIds.push(sessionId);
+
+        await db
+          .insertInto('sessions')
+          .values({
+            id: sessionId,
+            user_id: testUserId,
+            token_hash: `old-inactive-expired-${i}-${Date.now()}`,
+            device_type: 'web',
+            expires_at: new Date(cutoffDate.getTime() - 24 * 60 * 60 * 1000), // Expired before cutoff
+            last_activity_at: new Date(cutoffDate.getTime() - 48 * 60 * 60 * 1000), // Inactive before cutoff
+            created_at: new Date(cutoffDate.getTime() - 60 * 24 * 60 * 60 * 1000),
+          } as any)
+          .execute();
+      }
+
+      // Create old inactive but NOT expired sessions (should NOT be deleted)
+      for (let i = 0; i < 2; i++) {
+        const sessionId = uuidv4();
+        oldInactiveNotExpiredIds.push(sessionId);
+
+        await db
+          .insertInto('sessions')
+          .values({
+            id: sessionId,
+            user_id: testUserId,
+            token_hash: `old-inactive-not-expired-${i}-${Date.now()}`,
+            device_type: 'mobile',
+            expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000), // Still valid
+            last_activity_at: new Date(cutoffDate.getTime() - 48 * 60 * 60 * 1000), // Inactive before cutoff
+            created_at: new Date(cutoffDate.getTime() - 60 * 24 * 60 * 60 * 1000),
+          } as any)
+          .execute();
+      }
+
+      // Create recently active sessions (should NOT be deleted)
+      for (let i = 0; i < 2; i++) {
+        const sessionId = uuidv4();
+        recentActiveIds.push(sessionId);
+
+        await db
+          .insertInto('sessions')
+          .values({
+            id: sessionId,
+            user_id: testUserId,
+            token_hash: `recent-active-${i}-${Date.now()}`,
+            device_type: 'desktop',
+            expires_at: new Date(cutoffDate.getTime() - 24 * 60 * 60 * 1000), // Expired
+            last_activity_at: now, // Recently active
+            created_at: new Date(now.getTime() - 60 * 60 * 1000),
+          } as any)
+          .execute();
+      }
+
+      // Create old but recently active expired sessions (should NOT be deleted)
+      for (let i = 0; i < 2; i++) {
+        const sessionId = uuidv4();
+        oldActiveExpiredIds.push(sessionId);
+
+        await db
+          .insertInto('sessions')
+          .values({
+            id: sessionId,
+            user_id: testUserId,
+            token_hash: `old-active-expired-${i}-${Date.now()}`,
+            device_type: 'api',
+            expires_at: new Date(cutoffDate.getTime() - 24 * 60 * 60 * 1000), // Expired
+            last_activity_at: new Date(cutoffDate.getTime() + 24 * 60 * 60 * 1000), // Active after cutoff
+            created_at: new Date(cutoffDate.getTime() - 90 * 24 * 60 * 60 * 1000),
+          } as any)
+          .execute();
+      }
+    });
+
+    afterEach(async () => {
+      const allIds = [
+        ...oldInactiveExpiredIds,
+        ...oldInactiveNotExpiredIds,
+        ...recentActiveIds,
+        ...oldActiveExpiredIds,
+      ];
+      await db.deleteFrom('sessions').where('id', 'in', allIds).execute();
+    });
+
+    it('should delete only old inactive expired sessions', async () => {
+      const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+
+      const result = await authRepository.deleteInactiveSessions(cutoffDate);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(3); // Only the 3 old inactive expired sessions
+      }
+
+      // Verify correct sessions were deleted
+      const remainingSessions = await db
+        .selectFrom('sessions')
+        .select(['id'])
+        .where('id', 'in', [
+          ...oldInactiveExpiredIds,
+          ...oldInactiveNotExpiredIds,
+          ...recentActiveIds,
+          ...oldActiveExpiredIds,
+        ])
+        .execute();
+
+      const remainingIds = remainingSessions.map((s) => s.id);
+
+      // Old inactive expired should be gone
+      oldInactiveExpiredIds.forEach((id) => {
+        expect(remainingIds).not.toContain(id);
+      });
+
+      // All others should remain
+      [...oldInactiveNotExpiredIds, ...recentActiveIds, ...oldActiveExpiredIds].forEach((id) => {
+        expect(remainingIds).toContain(id);
+      });
+    });
+
+    it('should return 0 when no sessions match criteria', async () => {
+      const veryOldDate = new Date('2020-01-01');
+
+      const result = await authRepository.deleteInactiveSessions(veryOldDate);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(0);
+      }
+    });
+
+    it('should handle future dates correctly', async () => {
+      const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // Tomorrow
+
+      const result = await authRepository.deleteInactiveSessions(futureDate);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        // Should delete more sessions since the cutoff is in the future
+        expect(result.body().data).toBeGreaterThanOrEqual(3);
+      }
+    });
+
+    it('should handle database errors gracefully', async () => {
+      const mockDb = {
+        deleteFrom: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockRejectedValue(new Error('Database connection lost')),
+      };
+
+      const repoWithMockDb = new AuthRepository(mockDb as any);
+      const result = await repoWithMockDb.deleteInactiveSessions(new Date());
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.body().error.code).toBe('DATABASE_ERROR');
+        const details = result.body().error.details as { operation: string } | undefined;
+        expect(details?.operation).toBe('deleteInactiveSessions');
+      }
+    });
+  });
+
+  describe('deleteRevokedSessions', () => {
+    let oldRevokedIds: string[] = [];
+    let recentRevokedIds: string[] = [];
+    let activeIds: string[] = [];
+
+    beforeEach(async () => {
+      const now = new Date();
+      const cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+
+      oldRevokedIds = [];
+      recentRevokedIds = [];
+      activeIds = [];
+
+      // Create old revoked sessions (should be deleted)
+      for (let i = 0; i < 4; i++) {
+        const sessionId = uuidv4();
+        oldRevokedIds.push(sessionId);
+
+        await db
+          .insertInto('sessions')
+          .values({
+            id: sessionId,
+            user_id: testUserId,
+            token_hash: `old-revoked-${i}-${Date.now()}`,
+            device_type: 'web',
+            expires_at: new Date(now.getTime() + 3600000),
+            last_activity_at: new Date(cutoffDate.getTime() - 24 * 60 * 60 * 1000),
+            revoked_at: new Date(cutoffDate.getTime() - 24 * 60 * 60 * 1000), // Revoked before cutoff
+            revoked_by: 'system',
+            revoke_reason: 'Session expired',
+            created_at: new Date(cutoffDate.getTime() - 30 * 24 * 60 * 60 * 1000),
+          } as any)
+          .execute();
+      }
+
+      // Create recently revoked sessions (should NOT be deleted)
+      for (let i = 0; i < 3; i++) {
+        const sessionId = uuidv4();
+        recentRevokedIds.push(sessionId);
+
+        await db
+          .insertInto('sessions')
+          .values({
+            id: sessionId,
+            user_id: testUserId,
+            token_hash: `recent-revoked-${i}-${Date.now()}`,
+            device_type: 'mobile',
+            expires_at: new Date(now.getTime() + 3600000),
+            last_activity_at: now,
+            revoked_at: new Date(now.getTime() - 60 * 60 * 1000), // Revoked 1 hour ago
+            revoked_by: testUserId,
+            revoke_reason: 'User logged out',
+            created_at: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+          } as any)
+          .execute();
+      }
+
+      // Create active sessions (should NOT be deleted)
+      for (let i = 0; i < 2; i++) {
+        const sessionId = uuidv4();
+        activeIds.push(sessionId);
+
+        await db
+          .insertInto('sessions')
+          .values({
+            id: sessionId,
+            user_id: testUserId,
+            token_hash: `active-${i}-${Date.now()}`,
+            device_type: 'desktop',
+            expires_at: new Date(now.getTime() + 3600000),
+            last_activity_at: now,
+            revoked_at: null, // Not revoked
+            created_at: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+          } as any)
+          .execute();
+      }
+    });
+
+    afterEach(async () => {
+      const allIds = [...oldRevokedIds, ...recentRevokedIds, ...activeIds];
+      await db.deleteFrom('sessions').where('id', 'in', allIds).execute();
+    });
+
+    it('should delete only old revoked sessions', async () => {
+      const cutoffDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+
+      const result = await authRepository.deleteRevokedSessions(cutoffDate);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(4); // Only the 4 old revoked sessions
+      }
+
+      // Verify correct sessions were deleted
+      const remainingSessions = await db
+        .selectFrom('sessions')
+        .select(['id'])
+        .where('id', 'in', [...oldRevokedIds, ...recentRevokedIds, ...activeIds])
+        .execute();
+
+      const remainingIds = remainingSessions.map((s) => s.id);
+
+      // Old revoked should be gone
+      oldRevokedIds.forEach((id) => {
+        expect(remainingIds).not.toContain(id);
+      });
+
+      // Recent revoked and active should remain
+      [...recentRevokedIds, ...activeIds].forEach((id) => {
+        expect(remainingIds).toContain(id);
+      });
+    });
+
+    it('should return 0 when no revoked sessions exist before date', async () => {
+      const veryOldDate = new Date('2020-01-01');
+
+      const result = await authRepository.deleteRevokedSessions(veryOldDate);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(0);
+      }
+    });
+
+    it('should not delete active sessions regardless of date', async () => {
+      const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // Tomorrow
+
+      const result = await authRepository.deleteRevokedSessions(futureDate);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        // Should delete all revoked sessions (old + recent)
+        expect(result.body().data).toBe(7); // 4 old + 3 recent
+      }
+
+      // Verify active sessions remain
+      const activeSessions = await db
+        .selectFrom('sessions')
+        .select(['id'])
+        .where('id', 'in', activeIds)
+        .execute();
+
+      expect(activeSessions).toHaveLength(2);
+    });
+
+    it('should handle edge case with exact cutoff time', async () => {
+      const exactCutoffId = uuidv4();
+      const cutoffDate = new Date();
+
+      await db
+        .insertInto('sessions')
+        .values({
+          id: exactCutoffId,
+          user_id: testUserId,
+          token_hash: `exact-cutoff-${Date.now()}`,
+          device_type: 'web',
+          expires_at: new Date(cutoffDate.getTime() + 3600000),
+          last_activity_at: cutoffDate,
+          revoked_at: cutoffDate, // Revoked exactly at cutoff
+          revoked_by: 'system',
+          created_at: new Date(cutoffDate.getTime() - 3600000),
+        } as any)
+        .execute();
+
+      const result = await authRepository.deleteRevokedSessions(cutoffDate);
+
+      // Should not delete session revoked exactly at cutoff (using < not <=)
+      const session = await db
+        .selectFrom('sessions')
+        .select(['id'])
+        .where('id', '=', exactCutoffId)
+        .executeTakeFirst();
+
+      expect(session).toBeDefined();
+
+      // Cleanup
+      await db.deleteFrom('sessions').where('id', '=', exactCutoffId).execute();
+    });
+
+    it('should handle database errors gracefully', async () => {
+      const mockDb = {
+        deleteFrom: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockRejectedValue(new Error('Database connection lost')),
+      };
+
+      const repoWithMockDb = new AuthRepository(mockDb as any);
+      const result = await repoWithMockDb.deleteRevokedSessions(new Date());
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.body().error.code).toBe('DATABASE_ERROR');
+        const details = result.body().error.details as { operation: string } | undefined;
+        expect(details?.operation).toBe('deleteRevokedSessions');
+      }
     });
   });
 });

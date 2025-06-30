@@ -422,12 +422,41 @@ export class AuthRepository implements ISession, IToken, IAuth {
     }
   }
 
-  deleteInactiveSessions(beforeDate: Date): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+  async deleteInactiveSessions(beforeDate: Date): AsyncResult<number> {
+    try {
+      // Delete sessions that haven't been active since the specified date
+      // and are expired (to avoid deleting valid but unused sessions)
+      const result = await this.db
+        .deleteFrom('sessions')
+        .where('last_activity_at', '<', beforeDate)
+        .where('expires_at', '<', new Date()) // Also must be expired
+        .execute();
+
+      // Convert BigInt to number
+      const numDeleted = (result as any)[0]?.numDeletedRows ?? 0n;
+      return ResponseBuilder.ok(Number(numDeleted));
+    } catch (error) {
+      return new DatabaseError('deleteInactiveSessions', error);
+    }
   }
-  deleteRevokedSessions(beforeDate: Date): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+
+  async deleteRevokedSessions(beforeDate: Date): AsyncResult<number> {
+    try {
+      // Delete sessions that were revoked before the specified date
+      const result = await this.db
+        .deleteFrom('sessions')
+        .where('revoked_at', '<', beforeDate)
+        .where('revoked_at', 'is not', null) // Ensure they are actually revoked
+        .execute();
+
+      // Convert BigInt to number
+      const numDeleted = (result as any)[0]?.numDeletedRows ?? 0n;
+      return ResponseBuilder.ok(Number(numDeleted));
+    } catch (error) {
+      return new DatabaseError('deleteRevokedSessions', error);
+    }
   }
+
   createPasswordResetToken(
     userId: string,
     tokenHash: string,
