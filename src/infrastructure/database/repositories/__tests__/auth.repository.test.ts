@@ -1484,4 +1484,243 @@ describe('AuthRepository Integration Tests', () => {
       }
     });
   });
+
+  describe('revokeAllUserSessions', () => {
+    let userSessionIds: string[] = [];
+    let otherUserSessionId: string;
+    let otherUserId: string;
+
+    beforeEach(async () => {
+      const now = new Date();
+      userSessionIds = [];
+
+      // Create multiple active sessions for test user
+      for (let i = 0; i < 4; i++) {
+        const sessionId = uuidv4();
+        userSessionIds.push(sessionId);
+
+        await db
+          .insertInto('sessions')
+          .values({
+            id: sessionId,
+            user_id: testUserId,
+            token_hash: `user-token-${i}-${Date.now()}`,
+            refresh_token_hash: `user-refresh-${i}-${Date.now()}`,
+            device_type: i === 0 ? 'web' : i === 1 ? 'mobile' : i === 2 ? 'desktop' : 'api',
+            device_name: `Device ${i}`,
+            expires_at: new Date(now.getTime() + 3600000), // 1 hour from now
+            refresh_expires_at: new Date(now.getTime() + 86400000),
+            last_activity_at: now,
+          } as any)
+          .execute();
+      }
+
+      // Create one already revoked session for test user
+      const revokedSessionId = uuidv4();
+      await db
+        .insertInto('sessions')
+        .values({
+          id: revokedSessionId,
+          user_id: testUserId,
+          token_hash: `revoked-token-${Date.now()}`,
+          refresh_token_hash: `revoked-refresh-${Date.now()}`,
+          device_type: 'web',
+          expires_at: new Date(now.getTime() + 3600000),
+          refresh_expires_at: new Date(now.getTime() + 86400000),
+          last_activity_at: now,
+          revoked_at: new Date(now.getTime() - 600000), // Revoked 10 min ago
+          revoked_by: testUserId,
+          revoke_reason: 'User logged out',
+        } as any)
+        .execute();
+      userSessionIds.push(revokedSessionId);
+
+      // Create session for different user
+      otherUserId = uuidv4();
+      await db
+        .insertInto('users')
+        .values(createTestUser({ id: otherUserId }))
+        .execute();
+
+      otherUserSessionId = uuidv4();
+      await db
+        .insertInto('sessions')
+        .values({
+          id: otherUserSessionId,
+          user_id: otherUserId,
+          token_hash: `other-user-token-${Date.now()}`,
+          refresh_token_hash: `other-user-refresh-${Date.now()}`,
+          device_type: 'web',
+          expires_at: new Date(now.getTime() + 3600000),
+          refresh_expires_at: new Date(now.getTime() + 86400000),
+          last_activity_at: now,
+        } as any)
+        .execute();
+    });
+
+    afterEach(async () => {
+      await db
+        .deleteFrom('sessions')
+        .where('id', 'in', [...userSessionIds, otherUserSessionId])
+        .execute();
+      await db.deleteFrom('users').where('id', '=', otherUserId).execute();
+    });
+
+    it('should revoke all active sessions for a user', async () => {
+      const result = await authRepository.revokeAllUserSessions(testUserId);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        // Should have revoked 4 active sessions (not the already revoked one)
+        expect(result.body().data).toBe(4);
+      }
+
+      // Verify only the previously active sessions are now revoked with correct metadata
+      const sessions = await db
+        .selectFrom('sessions')
+        .select(['id', 'revoked_at', 'revoked_by', 'revoke_reason'])
+        .where('user_id', '=', testUserId)
+        .where('id', 'in', userSessionIds.slice(0, 4)) // Only check the first 4 (active) sessions
+        .execute();
+
+      sessions.forEach((session) => {
+        expect(session.revoked_at).not.toBeNull();
+        expect(session.revoked_by).toBe(testUserId);
+        expect(session.revoke_reason).toBe('Bulk revocation');
+      });
+
+      // Verify other user's session was not affected
+      const otherSession = await db
+        .selectFrom('sessions')
+        .select(['revoked_at'])
+        .where('id', '=', otherUserSessionId)
+        .executeTakeFirst();
+
+      expect(otherSession?.revoked_at).toBeNull();
+    });
+
+    it('should revoke all sessions except specified one', async () => {
+      const exceptSessionId = userSessionIds[1]; // Keep the mobile session
+
+      const result = await authRepository.revokeAllUserSessions(testUserId, exceptSessionId);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        // Should have revoked 3 active sessions (excluding one + already revoked)
+        expect(result.body().data).toBe(3);
+      }
+
+      // Verify the excepted session is still active
+      const exceptedSession = await db
+        .selectFrom('sessions')
+        .select(['revoked_at'])
+        .where('id', '=', exceptSessionId)
+        .executeTakeFirst();
+
+      expect(exceptedSession?.revoked_at).toBeNull();
+
+      // Verify other sessions are revoked
+      const revokedSessions = await db
+        .selectFrom('sessions')
+        .select(['id', 'revoked_at'])
+        .where('user_id', '=', testUserId)
+        .where('id', '!=', exceptSessionId)
+        .execute();
+
+      revokedSessions.forEach((session) => {
+        expect(session.revoked_at).not.toBeNull();
+      });
+    });
+
+    it('should return 0 when user has no active sessions', async () => {
+      // Revoke all sessions first
+      await db
+        .updateTable('sessions')
+        .set({ revoked_at: new Date() })
+        .where('user_id', '=', testUserId)
+        .execute();
+
+      const result = await authRepository.revokeAllUserSessions(testUserId);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(0);
+      }
+    });
+
+    it('should return 0 for non-existent user', async () => {
+      const nonExistentUserId = uuidv4();
+
+      const result = await authRepository.revokeAllUserSessions(nonExistentUserId);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result.body().data).toBe(0);
+      }
+    });
+
+    it('should handle database errors gracefully', async () => {
+      const mockDb = {
+        updateTable: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockRejectedValue(new Error('Database connection lost')),
+      };
+
+      const repoWithMockDb = new AuthRepository(mockDb as any);
+      const result = await repoWithMockDb.revokeAllUserSessions(testUserId);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.body().error.code).toBe('DATABASE_ERROR');
+        const details = result.body().error.details as { operation: string } | undefined;
+        expect(details?.operation).toBe('revokeAllUserSessions');
+      }
+    });
+
+    it('should set correct revocation metadata', async () => {
+      const beforeRevoke = new Date();
+
+      await authRepository.revokeAllUserSessions(testUserId);
+
+      const sessions = await db
+        .selectFrom('sessions')
+        .select(['revoked_at', 'revoked_by', 'revoke_reason', 'updated_at'])
+        .where('user_id', '=', testUserId)
+        .where('id', 'in', userSessionIds.slice(0, 4)) // Only check the originally active sessions
+        .execute();
+
+      sessions.forEach((session) => {
+        expect(session.revoked_at).toBeInstanceOf(Date);
+        // Allow for millisecond precision differences
+        const timeDiff = session.revoked_at!.getTime() - beforeRevoke.getTime();
+        expect(timeDiff).toBeGreaterThanOrEqual(-1000); // Allow 1 second tolerance
+        expect(timeDiff).toBeLessThanOrEqual(5000); // Should happen within 5 seconds
+        expect(session.revoked_by).toBe(testUserId);
+        expect(session.revoke_reason).toBe('Bulk revocation');
+        expect(session.updated_at).toBeInstanceOf(Date);
+      });
+    });
+
+    it('should handle exceptSessionId that does not belong to user', async () => {
+      // Try to except another user's session (should have no effect)
+      const result = await authRepository.revokeAllUserSessions(testUserId, otherUserSessionId);
+
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        // Should revoke all 4 active sessions since exceptSessionId doesn't belong to user
+        expect(result.body().data).toBe(4);
+      }
+
+      // Verify all user's sessions are revoked
+      const userSessions = await db
+        .selectFrom('sessions')
+        .select(['revoked_at'])
+        .where('user_id', '=', testUserId)
+        .where('revoked_at', 'is', null)
+        .execute();
+
+      expect(userSessions).toHaveLength(0);
+    });
+  });
 });

@@ -335,9 +335,37 @@ export class AuthRepository implements ISession, IToken, IAuth {
     }
   }
 
-  revokeAllUserSessions(userId: string, exceptSessionId?: string): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+  async revokeAllUserSessions(userId: string, exceptSessionId?: string): AsyncResult<number> {
+    try {
+      const now = new Date();
+
+      let query = this.db
+        .updateTable('sessions')
+        .set({
+          revoked_at: now,
+          revoked_by: userId, // User revoked their own sessions
+          revoke_reason: 'Bulk revocation',
+          updated_at: now,
+        })
+        .where('user_id', '=', userId)
+        .where('revoked_at', 'is', null); // Only revoke active sessions
+
+      // Exclude specific session if provided (e.g., current session)
+      if (exceptSessionId) {
+        query = query.where('id', '!=', exceptSessionId);
+      }
+
+      const result = await query.execute();
+
+      // Get the number of sessions that were revoked
+      // Convert BigInt to number
+      const numRevoked = (result as any)[0]?.numUpdatedRows ?? 0n;
+      return ResponseBuilder.ok(Number(numRevoked));
+    } catch (error) {
+      return new DatabaseError('revokeAllUserSessions', error);
+    }
   }
+
   revokeExpiredSessions(): AsyncResult<number> {
     throw new Error('Method not implemented.');
   }
