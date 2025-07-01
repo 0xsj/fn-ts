@@ -28,6 +28,7 @@ import {
   ok,
   ResponseBuilder,
   UnauthorizedError,
+  ValidationError,
 } from '../../../shared/response';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -799,11 +800,150 @@ export class AuthRepository implements ISession, IToken, IAuth {
   ): AsyncResult<LoginResponse> {
     throw new Error('Method not implemented.');
   }
-  logout(sessionId: string, logoutAll?: boolean): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+  async logout(sessionId: string, logoutAll?: boolean): AsyncResult<boolean> {
+    try {
+      if (logoutAll) {
+        // Get the user ID from the session first
+        const session = await this.db
+          .selectFrom('sessions')
+          .select(['user_id'])
+          .where('id', '=', sessionId)
+          .executeTakeFirst();
+
+        if (!session) {
+          return new NotFoundError('Session not found');
+        }
+
+        // Revoke all sessions for this user
+        await this.db
+          .updateTable('sessions')
+          .set({
+            revoked_at: new Date(),
+            revoked_by: session.user_id,
+            revoke_reason: 'User logged out from all devices',
+            updated_at: new Date(),
+          })
+          .where('user_id', '=', session.user_id)
+          .where('revoked_at', 'is', null) // Only active sessions
+          .execute();
+      } else {
+        // Revoke only the specific session
+        const result = await this.db
+          .updateTable('sessions')
+          .set({
+            revoked_at: new Date(),
+            revoked_by: 'self',
+            revoke_reason: 'User logged out',
+            updated_at: new Date(),
+          })
+          .where('id', '=', sessionId)
+          .where('revoked_at', 'is', null) // Only if active
+          .execute();
+
+        // Check if any rows were affected
+        const affectedRows = (result as any)[0]?.affectedRows || 0;
+        if (affectedRows === 0) {
+          return new NotFoundError('Session not found or already revoked');
+        }
+      }
+
+      return ResponseBuilder.ok(true);
+    } catch (error) {
+      return new DatabaseError('logout', error);
+    }
   }
-  refreshToken(request: RefreshTokenRequest): AsyncResult<AuthTokens> {
-    throw new Error('Method not implemented.');
+  async refreshToken(request: RefreshTokenRequest): AsyncResult<AuthTokens> {
+    try {
+      // Hash the provided refresh token
+      const crypto = await import('crypto');
+      const refreshTokenHash = crypto
+        .createHash('sha256')
+        .update(request.refreshToken)
+        .digest('hex');
+
+      // Find the session by refresh token hash
+      const session = await this.db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('refresh_token_hash', '=', refreshTokenHash)
+        .where('revoked_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!session) {
+        return new UnauthorizedError('Invalid refresh token');
+      }
+
+      // Check if refresh token has expired
+      if (session.refresh_expires_at && new Date(session.refresh_expires_at) < new Date()) {
+        // Revoke the session
+        await this.db
+          .updateTable('sessions')
+          .set({
+            revoked_at: new Date(),
+            revoke_reason: 'Refresh token expired',
+            updated_at: new Date(),
+          })
+          .where('id', '=', session.id)
+          .execute();
+
+        return new UnauthorizedError('Refresh token expired');
+      }
+
+      // Check if the session itself has expired (absolute timeout)
+      if (session.absolute_timeout_at && new Date(session.absolute_timeout_at) < new Date()) {
+        await this.db
+          .updateTable('sessions')
+          .set({
+            revoked_at: new Date(),
+            revoke_reason: 'Session absolute timeout',
+            updated_at: new Date(),
+          })
+          .where('id', '=', session.id)
+          .execute();
+
+        return new UnauthorizedError('Session expired');
+      }
+
+      // Generate new tokens
+      const newAccessToken = crypto.randomBytes(32).toString('hex');
+      const newRefreshToken = crypto.randomBytes(32).toString('hex');
+
+      // Hash tokens for storage
+      const newAccessTokenHash = crypto.createHash('sha256').update(newAccessToken).digest('hex');
+      const newRefreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+
+      // Calculate new expiration times
+      const now = new Date();
+      const accessTokenExpiry = new Date(now.getTime() + 3600 * 1000); // 1 hour
+      const refreshTokenExpiry = new Date(now.getTime() + 30 * 24 * 3600 * 1000); // 30 days
+
+      // Update session with new tokens
+      await this.db
+        .updateTable('sessions')
+        .set({
+          token_hash: newAccessTokenHash,
+          refresh_token_hash: newRefreshTokenHash,
+          expires_at: accessTokenExpiry,
+          refresh_expires_at: refreshTokenExpiry,
+          last_activity_at: now,
+          updated_at: now,
+        })
+        .where('id', '=', session.id)
+        .execute();
+
+      // Return new tokens
+      const response: AuthTokens = {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        tokenType: 'Bearer',
+        expiresIn: 3600, // 1 hour in seconds
+        refreshExpiresIn: 30 * 24 * 3600, // 30 days in seconds
+      };
+
+      return ResponseBuilder.ok(response);
+    } catch (error) {
+      return new DatabaseError('refreshToken', error);
+    }
   }
   validateAccessToken(token: string): AsyncResult<{ user: User; session: Session }> {
     throw new Error('Method not implemented.');
@@ -814,21 +954,275 @@ export class AuthRepository implements ISession, IToken, IAuth {
   ): AsyncResult<{ user: User; apiKey: ApiKey }> {
     throw new Error('Method not implemented.');
   }
-  changePassword(
+  async changePassword(
     userId: string,
     request: ChangePasswordRequest,
     sessionId?: string,
   ): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+    try {
+      // 1. Get current password hash
+      const currentPasswordResult = await this.db
+        .selectFrom('user_passwords')
+        .select(['password_hash'])
+        .where('user_id', '=', userId)
+        .orderBy('created_at', 'desc')
+        .executeTakeFirst();
+
+      if (!currentPasswordResult) {
+        return new NotFoundError('User password not found');
+      }
+
+      // 2. Verify current password
+      const bcrypt = await import('bcrypt');
+      const isValidPassword = await bcrypt.compare(
+        request.currentPassword,
+        currentPasswordResult.password_hash,
+      );
+
+      if (!isValidPassword) {
+        return new UnauthorizedError(undefined, { reason: 'Current password is incorrect' });
+      }
+
+      // 3. Check password history (optional - prevent reuse)
+      const securityResult = await this.db
+        .selectFrom('user_security')
+        .select(['password_history'])
+        .where('user_id', '=', userId)
+        .executeTakeFirst();
+
+      if (securityResult?.password_history) {
+        // Check if new password was used before
+        const passwordHistory = JSON.parse(securityResult.password_history as any) || [];
+        for (const oldHash of passwordHistory) {
+          const isReused = await bcrypt.compare(request.newPassword, oldHash);
+          if (isReused) {
+            return new ValidationError({
+              newPassword: ['Password has been used before. Please choose a different password.'],
+            });
+          }
+        }
+      }
+
+      // 4. Hash new password
+      const newPasswordHash = await bcrypt.hash(request.newPassword, 10);
+
+      // 5. Create new password record
+      const passwordId = uuidv4();
+      await this.db
+        .insertInto('user_passwords')
+        .values({
+          id: passwordId,
+          user_id: userId,
+          password_hash: newPasswordHash,
+          must_change: false,
+          expires_at: null, // Or set expiration if needed
+          created_at: new Date(),
+        })
+        .execute();
+
+      // 6. Update password history
+      await this.db
+        .updateTable('user_security')
+        .set({
+          last_password_change_at: new Date(),
+          password_history: sql`JSON_ARRAY_APPEND(
+          COALESCE(password_history, '[]'), 
+          '$', 
+          ${currentPasswordResult.password_hash}
+        )`,
+          updated_at: new Date(),
+        })
+        .where('user_id', '=', userId)
+        .execute();
+
+      // 7. Revoke other sessions if requested
+      if (request.logoutOtherSessions && sessionId) {
+        await this.db
+          .updateTable('sessions')
+          .set({
+            revoked_at: new Date(),
+            revoked_by: userId,
+            revoke_reason: 'Password changed',
+            updated_at: new Date(),
+          })
+          .where('user_id', '=', userId)
+          .where('id', '!=', sessionId) // Keep current session
+          .where('revoked_at', 'is', null)
+          .execute();
+      }
+
+      return ResponseBuilder.ok(true);
+    } catch (error) {
+      return new DatabaseError('changePassword', error);
+    }
   }
-  forgotPassword(
+
+  async forgotPassword(
     request: ForgotPasswordRequest,
     ipAddress?: string,
-  ): AsyncResult<{ success: boolean; email: string }> {
-    throw new Error('Method not implemented.');
+  ): AsyncResult<{ success: boolean; email: string; token?: string }> {
+    try {
+      // 1. Find user by email
+      const userResult = await this.db
+        .selectFrom('users')
+        .select(['id', 'email', 'status'])
+        .where('email', '=', request.email.toLowerCase())
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      // Always return success to prevent email enumeration
+      if (!userResult) {
+        return ResponseBuilder.ok({ success: true, email: request.email });
+      }
+
+      // Don't send reset for inactive accounts
+      if (userResult.status !== 'active') {
+        return ResponseBuilder.ok({ success: true, email: request.email });
+      }
+
+      // 2. Check for recent password reset requests (rate limiting)
+      const recentTokens = await this.db
+        .selectFrom('password_reset_tokens')
+        .select(['created_at'])
+        .where('user_id', '=', userResult.id)
+        .where('created_at', '>', new Date(Date.now() - 5 * 60 * 1000)) // Last 5 minutes
+        .execute();
+
+      if (recentTokens.length >= 3) {
+        // Too many requests, but still return success
+        return ResponseBuilder.ok({ success: true, email: request.email });
+      }
+
+      // 3. Generate reset token
+      const crypto = await import('crypto');
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+      // 4. Store reset token
+      const tokenId = uuidv4();
+      const now = new Date();
+
+      await this.db
+        .insertInto('password_reset_tokens')
+        .values({
+          id: tokenId,
+          user_id: userResult.id,
+          token_hash: tokenHash,
+          expires_at: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+          ip_address: ipAddress || null,
+          user_agent: null,
+          used_at: null,
+          created_at: now,
+          updated_at: now, // Added missing field
+        })
+        .execute();
+
+      // Return the token so the service layer can send the email
+      return ResponseBuilder.ok({
+        success: true,
+        email: request.email,
+        token: resetToken, // Service layer will use this to send email
+      });
+    } catch (error) {
+      return new DatabaseError('forgotPassword', error);
+    }
   }
-  resetPassword(request: ResetPasswordRequest, ipAddress?: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async resetPassword(request: ResetPasswordRequest, ipAddress?: string): AsyncResult<boolean> {
+    try {
+      // 1. Hash the provided token
+      const crypto = await import('crypto');
+      const tokenHash = crypto.createHash('sha256').update(request.token).digest('hex');
+
+      // 2. Find valid reset token
+      const tokenResult = await this.db
+        .selectFrom('password_reset_tokens')
+        .select(['id', 'user_id', 'expires_at', 'used_at'])
+        .where('token_hash', '=', tokenHash)
+        .executeTakeFirst();
+
+      if (!tokenResult) {
+        return new UnauthorizedError(undefined, { reason: 'Invalid reset token' });
+      }
+
+      // 3. Check if token is expired
+      if (new Date(tokenResult.expires_at) < new Date()) {
+        return new UnauthorizedError(undefined, { reason: 'Reset token has expired' });
+      }
+
+      // 4. Check if token was already used
+      if (tokenResult.used_at) {
+        return new UnauthorizedError(undefined, { reason: 'Reset token has already been used' });
+      }
+
+      // 5. Get user
+      const userResult = await this.db
+        .selectFrom('users')
+        .select(['id', 'status'])
+        .where('id', '=', tokenResult.user_id)
+        .executeTakeFirst();
+
+      if (!userResult || userResult.status !== 'active') {
+        return new UnauthorizedError(undefined, { reason: 'Invalid user' });
+      }
+
+      // 6. Hash new password
+      const bcrypt = await import('bcrypt');
+      const passwordHash = await bcrypt.hash(request.newPassword, 10);
+
+      // 7. Create new password record
+      const passwordId = uuidv4();
+      await this.db
+        .insertInto('user_passwords')
+        .values({
+          id: passwordId,
+          user_id: tokenResult.user_id,
+          password_hash: passwordHash,
+          must_change: false,
+          expires_at: null,
+          created_at: new Date(),
+        })
+        .execute();
+
+      // 8. Mark token as used
+      await this.db
+        .updateTable('password_reset_tokens')
+        .set({
+          used_at: new Date(),
+          ip_address: ipAddress || null,
+        })
+        .where('id', '=', tokenResult.id)
+        .execute();
+
+      // 9. Update security record
+      await this.db
+        .updateTable('user_security')
+        .set({
+          last_password_change_at: new Date(),
+          failed_login_attempts: 0, // Reset failed attempts
+          locked_until: null, // Unlock account if locked
+          updated_at: new Date(),
+        })
+        .where('user_id', '=', tokenResult.user_id)
+        .execute();
+
+      // 10. Revoke all sessions (force re-login)
+      await this.db
+        .updateTable('sessions')
+        .set({
+          revoked_at: new Date(),
+          revoked_by: 'system',
+          revoke_reason: 'Password reset',
+          updated_at: new Date(),
+        })
+        .where('user_id', '=', tokenResult.user_id)
+        .where('revoked_at', 'is', null)
+        .execute();
+
+      return ResponseBuilder.ok(true);
+    } catch (error) {
+      return new DatabaseError('resetPassword', error);
+    }
   }
   requirePasswordChange(userId: string): AsyncResult<boolean> {
     throw new Error('Method not implemented.');

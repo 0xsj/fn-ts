@@ -4,56 +4,57 @@ import { z } from 'zod';
 /**
  * Common validation utilities
  */
+// In src/shared/utils/validators.ts
+
 export const validators = {
-  /**
-   * UUID v4 validation
-   */
   isValidUUID: (value: string): boolean => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     return uuidRegex.test(value);
   },
 
-  /**
-   * Email validation (uses Zod for consistency)
-   */
   isValidEmail: (value: string): boolean => {
-    return z.string().email().safeParse(value).success;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(value);
   },
 
-  /**
-   * Phone number validation (basic)
-   */
   isValidPhone: (value: string): boolean => {
     const phoneRegex = /^\+?[\d\s-()]+$/;
     return phoneRegex.test(value) && value.replace(/\D/g, '').length >= 10;
   },
 
-  /**
-   * Password strength validation
-   */
   isValidPassword: (value: string): boolean => {
-    return z
-      .string()
-      .min(8)
-      .regex(/[A-Z]/, 'Must contain uppercase')
-      .regex(/[a-z]/, 'Must contain lowercase')
-      .regex(/[0-9]/, 'Must contain number')
-      .safeParse(value).success;
+    // Basic password validation - just length
+    return value.length >= 8;
   },
 
-  /**
-   * JWT token format validation (basic structure check)
-   */
+  isStrongPassword: (value: string): boolean => {
+    // Strong password validation
+    // At least 8 characters
+    if (value.length < 8) return false;
+
+    // Contains at least one uppercase letter
+    if (!/[A-Z]/.test(value)) return false;
+
+    // Contains at least one lowercase letter
+    if (!/[a-z]/.test(value)) return false;
+
+    // Contains at least one number
+    if (!/\d/.test(value)) return false;
+
+    // Contains at least one special character
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(value)) return false;
+
+    return true;
+  },
+
   isValidJWT: (value: string): boolean => {
-    const parts = value.split('.');
-    return parts.length === 3 && parts.every((part) => part.length > 0);
+    const jwtRegex = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/;
+    return jwtRegex.test(value);
   },
 
-  /**
-   * Session token validation (your custom format)
-   */
   isValidSessionToken: (value: string): boolean => {
-    // Adjust based on your token format
-    return value.length >= 32 && /^[A-Za-z0-9_-]+$/.test(value);
+    // Session tokens should be hex strings of at least 32 characters
+    const hexRegex = /^[a-f0-9]{32,}$/i;
+    return hexRegex.test(value);
   },
 };
