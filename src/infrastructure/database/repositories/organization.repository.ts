@@ -1,4 +1,4 @@
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { Database } from '../types';
 import { IOrganization } from '../../../domain/interface/organization.interface';
 import {
@@ -40,149 +40,150 @@ export class OrganizationRepository implements IOrganization {
         });
       }
 
-      // Create OrganizationDB object with all required fields and defaults
-      const organizationDB: OrganizationDB = {
-        // Base fields
-        id: uuidv4(),
-        created_at: now,
-        updated_at: now,
+      // Create organization ID
+      const organizationId = uuidv4();
 
-        // Basic info
-        name: input.name,
-        slug: input.slug,
-        display_name: input.name, // Default display name to name
-        description: input.description ?? null,
+      // Insert into database with JSON fields as objects
+      await this.db
+        .insertInto('organizations')
+        .values({
+          // Base fields
+          id: organizationId,
+          created_at: now,
+          updated_at: now,
 
-        // Type and status
-        type: input.type ?? 'free',
-        status: 'active',
+          // Basic info
+          name: input.name,
+          slug: input.slug,
+          display_name: input.name,
+          description: input.description ?? null,
 
-        // Contact IDs (will be set later)
-        primary_contact_id: null,
-        billing_contact_id: null,
-        technical_contact_id: null,
+          // Type and status
+          type: input.type ?? 'free',
+          status: 'active',
 
-        // Contact info
-        email: input.email,
-        phone: input.phone ?? null,
-        website: input.website ?? null,
+          // Contact IDs
+          primary_contact_id: null,
+          billing_contact_id: null,
+          technical_contact_id: null,
 
-        // Address - using defaults from schema
-        address: {
-          street_address: null,
-          street_address_2: null,
-          city: null,
-          state: null,
-          postal_code: null,
-          country: null,
-          country_code: null,
-        },
+          // Contact info
+          email: input.email,
+          phone: input.phone ?? null,
+          website: input.website ?? null,
 
-        // Billing - using defaults from schema
-        billing: {
-          plan: 'free',
-          billing_cycle: null,
-          billing_email: input.email, // Default to org email
-          payment_method_id: null,
-          customer_id: null,
-          subscription_id: null,
-          trial_ends_at: null,
-          current_period_start: null,
-          current_period_end: null,
-          cancelled_at: null,
-          limits: {
-            users: 5,
-            incidents_per_month: 100,
-            notifications_per_month: 1000,
-            storage_gb: 10,
-            api_calls_per_hour: 1000,
-            webhooks: 5,
-            custom_domains: 0,
-          },
-          usage: {
-            users: 0,
-            incidents_this_month: 0,
-            notifications_this_month: 0,
-            storage_used_gb: 0,
-            api_calls_this_hour: 0,
-          },
-        },
+          // JSON columns - use sql.raw to ensure proper JSON handling
+          address: sql`${JSON.stringify({
+            street_address: null,
+            street_address_2: null,
+            city: null,
+            state: null,
+            postal_code: null,
+            country: null,
+            country_code: null,
+          })}`,
 
-        // Settings - using defaults from schema
-        settings: {
-          timezone: 'UTC',
-          locale: 'en',
-          date_format: 'YYYY-MM-DD',
-          time_format: '24h',
-          notification_settings: {
-            default_from_email: input.email,
-            default_from_name: input.name,
-            reply_to_email: input.email,
-            logo_url: null,
-            primary_color: null,
-            email_footer: null,
-          },
-          security_settings: {
-            require_2fa: false,
-            allowed_domains: [],
-            ip_whitelist: [],
-            session_timeout_minutes: 1440,
-            password_policy: {
-              min_length: 8,
-              require_uppercase: true,
-              require_lowercase: true,
-              require_numbers: true,
-              require_symbols: false,
-              expiry_days: null,
+          billing: sql`${JSON.stringify({
+            plan: 'free',
+            billing_cycle: null,
+            billing_email: input.email,
+            payment_method_id: null,
+            customer_id: null,
+            subscription_id: null,
+            trial_ends_at: null,
+            current_period_start: null,
+            current_period_end: null,
+            cancelled_at: null,
+            limits: {
+              users: 5,
+              incidents_per_month: 100,
+              notifications_per_month: 1000,
+              storage_gb: 10,
+              api_calls_per_hour: 1000,
+              webhooks: 5,
+              custom_domains: 0,
             },
-          },
-          features: {
-            incidents_enabled: true,
-            chat_enabled: true,
-            file_uploads_enabled: true,
-            api_access_enabled: true,
-            webhooks_enabled: true,
-            custom_fields_enabled: false,
-            sso_enabled: false,
-            audit_log_enabled: true,
-          },
-          integrations: {
-            slack_workspace_id: null,
-            microsoft_teams_tenant_id: null,
-            google_workspace_domain: null,
-            saml_metadata_url: null,
-            oidc_discovery_url: null,
-          },
-        },
+            usage: {
+              users: 0,
+              incidents_this_month: 0,
+              notifications_this_month: 0,
+              storage_used_gb: 0,
+              api_calls_this_hour: 0,
+            },
+          })}`,
 
-        // Ownership
-        owner_id: input.ownerId,
-        created_by: input.createdBy,
+          settings: sql`${JSON.stringify({
+            timezone: 'UTC',
+            locale: 'en',
+            date_format: 'YYYY-MM-DD',
+            time_format: '24h',
+            notification_settings: {
+              default_from_email: input.email,
+              default_from_name: input.name,
+              reply_to_email: input.email,
+              logo_url: null,
+              primary_color: null,
+              email_footer: null,
+            },
+            security_settings: {
+              require_2fa: false,
+              allowed_domains: [],
+              ip_whitelist: [],
+              session_timeout_minutes: 1440,
+              password_policy: {
+                min_length: 8,
+                require_uppercase: true,
+                require_lowercase: true,
+                require_numbers: true,
+                require_symbols: false,
+                expiry_days: null,
+              },
+            },
+            features: {
+              incidents_enabled: true,
+              chat_enabled: true,
+              file_uploads_enabled: true,
+              api_access_enabled: true,
+              webhooks_enabled: true,
+              custom_fields_enabled: false,
+              sso_enabled: false,
+              audit_log_enabled: true,
+            },
+            integrations: {
+              slack_workspace_id: null,
+              microsoft_teams_tenant_id: null,
+              google_workspace_domain: null,
+              saml_metadata_url: null,
+              oidc_discovery_url: null,
+            },
+          })}`,
 
-        // Deletion
-        deleted_at: null,
-        deleted_by: null,
-        deletion_scheduled_at: null,
+          // Ownership
+          owner_id: input.ownerId,
+          created_by: input.createdBy,
 
-        // Stats
-        stats: {
-          total_users: 0,
-          active_users_30d: 0,
-          total_incidents: 0,
-          total_notifications_sent: 0,
-          storage_used_bytes: 0,
-        },
-      };
+          // Deletion
+          deleted_at: null,
+          deleted_by: null,
+          deletion_scheduled_at: null,
 
-      // Insert into database
-      await this.db.insertInto('organizations').values(organizationDB).execute();
+          // Stats
+          stats: sql`${JSON.stringify({
+            total_users: 0,
+            active_users_30d: 0,
+            total_incidents: 0,
+            total_notifications_sent: 0,
+            storage_used_bytes: 0,
+          })}`,
+        })
+        .execute();
 
       // Fetch the created organization
-      const result = await this.findOrganizationById(organizationDB.id, correlationId);
+      const result = await this.findOrganizationById(organizationId, correlationId);
 
       // Handle the result
       if (!result.success) {
-        return result; // Return the error
+        return result;
       }
 
       const organization = result.body().data;
