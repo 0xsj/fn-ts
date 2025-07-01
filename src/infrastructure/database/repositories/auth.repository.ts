@@ -32,6 +32,13 @@ import {
 } from '../../../shared/response';
 import { v4 as uuidv4 } from 'uuid';
 
+const logRevocation = (method: string, sessionId: string, reason: string) => {
+  console.log(
+    `[SESSION REVOKED] Method: ${method}, Session: ${sessionId}, Reason: ${reason}, Stack:`,
+    new Error().stack,
+  );
+};
+
 export class AuthRepository implements ISession, IToken, IAuth {
   constructor(private db: Kysely<Database>) {}
   async createSession(
@@ -313,22 +320,32 @@ export class AuthRepository implements ISession, IToken, IAuth {
 
   async revokeSession(id: string, revokedBy?: string, reason?: string): AsyncResult<boolean> {
     try {
+      console.log(
+        `[REVOKE SESSION CALLED] Session: ${id}, RevokedBy: ${revokedBy}, Reason: ${reason}`,
+      );
+      console.log(`[REVOKE SESSION] Stack trace:`, new Error().stack);
+
       const now = new Date();
 
       // First check if the session exists and is not already revoked
       const existingSession = await this.db
         .selectFrom('sessions')
-        .select(['id'])
+        .select(['id', 'revoked_at'])
         .where('id', '=', id)
         .where('revoked_at', 'is', null)
         .executeTakeFirst();
 
+      console.log(`[REVOKE SESSION] Existing session check:`, existingSession);
+
       if (!existingSession) {
+        console.log(`[REVOKE SESSION] Session not found or already revoked`);
         return ResponseBuilder.ok(false);
       }
 
       // Now perform the update
-      await this.db
+      console.log(`[REVOKE SESSION] Updating session to revoked state`);
+
+      const result = await this.db
         .updateTable('sessions')
         .set({
           revoked_at: now,
@@ -339,8 +356,12 @@ export class AuthRepository implements ISession, IToken, IAuth {
         .where('id', '=', id)
         .execute();
 
+      console.log(`[REVOKE SESSION] Update result:`, result);
+      console.log(`[REVOKE SESSION] Successfully revoked session: ${id}`);
+
       return ResponseBuilder.ok(true);
     } catch (error) {
+      console.error(`[REVOKE SESSION ERROR]`, error);
       return new DatabaseError('revokeSession', error);
     }
   }
@@ -402,22 +423,29 @@ export class AuthRepository implements ISession, IToken, IAuth {
   }
   async updateLastActivity(id: string): AsyncResult<boolean> {
     try {
+      console.log(`[UPDATE LAST ACTIVITY] Called for session: ${id}`);
+
       const now = new Date();
 
       // First check if session exists and is not revoked
       const session = await this.db
         .selectFrom('sessions')
-        .select(['id'])
+        .select(['id', 'revoked_at'])
         .where('id', '=', id)
         .where('revoked_at', 'is', null)
         .executeTakeFirst();
 
+      console.log(`[UPDATE LAST ACTIVITY] Session check:`, session);
+
       if (!session) {
+        console.log(`[UPDATE LAST ACTIVITY] Session not found or revoked`);
         return ResponseBuilder.ok(false);
       }
 
       // Now update the session
-      await this.db
+      console.log(`[UPDATE LAST ACTIVITY] Updating last_activity_at to:`, now);
+
+      const result = await this.db
         .updateTable('sessions')
         .set({
           last_activity_at: now,
@@ -426,8 +454,11 @@ export class AuthRepository implements ISession, IToken, IAuth {
         .where('id', '=', id)
         .execute();
 
+      console.log(`[UPDATE LAST ACTIVITY] Update result:`, result);
+
       return ResponseBuilder.ok(true);
     } catch (error) {
+      console.error(`[UPDATE LAST ACTIVITY ERROR]`, error);
       return new DatabaseError('updateLastActivity', error);
     }
   }
@@ -800,8 +831,11 @@ export class AuthRepository implements ISession, IToken, IAuth {
   ): AsyncResult<LoginResponse> {
     throw new Error('Method not implemented.');
   }
+
   async logout(sessionId: string, logoutAll?: boolean): AsyncResult<boolean> {
     try {
+      console.log(`[LOGOUT CALLED] SessionId: ${sessionId}, LogoutAll: ${logoutAll}`);
+
       if (logoutAll) {
         // Get the user ID from the session first
         const session = await this.db
@@ -813,6 +847,8 @@ export class AuthRepository implements ISession, IToken, IAuth {
         if (!session) {
           return new NotFoundError('Session not found');
         }
+
+        console.log(`[LOGOUT] Revoking all sessions for user: ${session.user_id}`);
 
         // Revoke all sessions for this user
         await this.db
@@ -827,6 +863,9 @@ export class AuthRepository implements ISession, IToken, IAuth {
           .where('revoked_at', 'is', null) // Only active sessions
           .execute();
       } else {
+        console.log(`[LOGOUT] Attempting to revoke single session: ${sessionId}`);
+        console.log(`[LOGOUT] Stack trace:`, new Error().stack);
+
         // Revoke only the specific session
         const result = await this.db
           .updateTable('sessions')
@@ -840,20 +879,31 @@ export class AuthRepository implements ISession, IToken, IAuth {
           .where('revoked_at', 'is', null) // Only if active
           .execute();
 
-        // Check if any rows were affected
-        const affectedRows = (result as any)[0]?.affectedRows || 0;
+        console.log(`[LOGOUT] Raw update result:`, result);
+
+        // Fix: Use numUpdatedRows instead of affectedRows
+        const affectedRows = Number((result as any)[0]?.numUpdatedRows || 0n);
+        console.log(`[LOGOUT] Affected rows: ${affectedRows}`);
+
         if (affectedRows === 0) {
           return new NotFoundError('Session not found or already revoked');
         }
+
+        console.log(`[LOGOUT] Successfully revoked session: ${sessionId}`);
       }
 
       return ResponseBuilder.ok(true);
     } catch (error) {
+      console.error(`[LOGOUT ERROR]`, error);
       return new DatabaseError('logout', error);
     }
   }
+
   async refreshToken(request: RefreshTokenRequest): AsyncResult<AuthTokens> {
     try {
+      console.log(`[REFRESH TOKEN CALLED] Token: ${request.refreshToken.substring(0, 8)}...`);
+      console.log(`[REFRESH TOKEN] Stack trace:`, new Error().stack);
+
       // Hash the provided refresh token
       const crypto = await import('crypto');
       const refreshTokenHash = crypto
@@ -870,11 +920,16 @@ export class AuthRepository implements ISession, IToken, IAuth {
         .executeTakeFirst();
 
       if (!session) {
+        console.log(`[REFRESH TOKEN] No session found for token hash`);
         return new UnauthorizedError('Invalid refresh token');
       }
 
+      console.log(`[REFRESH TOKEN] Found session: ${session.id}`);
+
       // Check if refresh token has expired
       if (session.refresh_expires_at && new Date(session.refresh_expires_at) < new Date()) {
+        console.log(`[REFRESH TOKEN] Refresh token expired, revoking session: ${session.id}`);
+
         // Revoke the session
         await this.db
           .updateTable('sessions')
@@ -891,6 +946,8 @@ export class AuthRepository implements ISession, IToken, IAuth {
 
       // Check if the session itself has expired (absolute timeout)
       if (session.absolute_timeout_at && new Date(session.absolute_timeout_at) < new Date()) {
+        console.log(`[REFRESH TOKEN] Session absolute timeout, revoking session: ${session.id}`);
+
         await this.db
           .updateTable('sessions')
           .set({
@@ -903,6 +960,8 @@ export class AuthRepository implements ISession, IToken, IAuth {
 
         return new UnauthorizedError('Session expired');
       }
+
+      console.log(`[REFRESH TOKEN] Generating new tokens for session: ${session.id}`);
 
       // Generate new tokens
       const newAccessToken = crypto.randomBytes(32).toString('hex');
@@ -931,6 +990,8 @@ export class AuthRepository implements ISession, IToken, IAuth {
         .where('id', '=', session.id)
         .execute();
 
+      console.log(`[REFRESH TOKEN] Successfully updated session with new tokens`);
+
       // Return new tokens
       const response: AuthTokens = {
         accessToken: newAccessToken,
@@ -942,12 +1003,174 @@ export class AuthRepository implements ISession, IToken, IAuth {
 
       return ResponseBuilder.ok(response);
     } catch (error) {
+      console.error(`[REFRESH TOKEN ERROR]`, error);
       return new DatabaseError('refreshToken', error);
     }
   }
-  validateAccessToken(token: string): AsyncResult<{ user: User; session: Session }> {
-    throw new Error('Method not implemented.');
+
+  // async validateAccessToken(token: string): AsyncResult<{ user: User; session: Session }> {
+  //   try {
+  //     // Hash the provided token
+  //     const crypto = await import('crypto');
+  //     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+  //     // Find session by token hash
+  //     const sessionResult = await this.db
+  //       .selectFrom('sessions')
+  //       .selectAll()
+  //       .where('token_hash', '=', tokenHash)
+  //       .where('revoked_at', 'is', null)
+  //       .executeTakeFirst();
+
+  //     if (!sessionResult) {
+  //       return new UnauthorizedError(undefined, { reason: 'Invalid token' });
+  //     }
+
+  //     // Check if session has expired
+  //     if (new Date(sessionResult.expires_at) < new Date()) {
+  //       // Optionally revoke the expired session
+  //       await this.db
+  //         .updateTable('sessions')
+  //         .set({
+  //           revoked_at: new Date(),
+  //           revoke_reason: 'Token expired',
+  //           updated_at: new Date(),
+  //         })
+  //         .where('id', '=', sessionResult.id)
+  //         .execute();
+
+  //       return new UnauthorizedError(undefined, { reason: 'Token expired' });
+  //     }
+
+  //     // Check idle timeout if set
+  //     if (sessionResult.idle_timeout_at && new Date(sessionResult.idle_timeout_at) < new Date()) {
+  //       await this.db
+  //         .updateTable('sessions')
+  //         .set({
+  //           revoked_at: new Date(),
+  //           revoke_reason: 'Session idle timeout',
+  //           updated_at: new Date(),
+  //         })
+  //         .where('id', '=', sessionResult.id)
+  //         .execute();
+
+  //       return new UnauthorizedError(undefined, { reason: 'Session timeout' });
+  //     }
+
+  //     // Get user data
+  //     const userResult = await this.db
+  //       .selectFrom('users')
+  //       .selectAll()
+  //       .where('id', '=', sessionResult.user_id)
+  //       .where('deleted_at', 'is', null)
+  //       .executeTakeFirst();
+
+  //     if (!userResult) {
+  //       return new UnauthorizedError(undefined, { reason: 'User not found' });
+  //     }
+
+  //     if (userResult.status !== 'active') {
+  //       return new UnauthorizedError(undefined, { reason: 'User account is not active' });
+  //     }
+
+  //     // Map database results to domain entities
+  //     const session = this.mapToSession(sessionResult);
+  //     const user = this.mapToUser(userResult);
+
+  //     return ResponseBuilder.ok({ user, session });
+  //   } catch (error) {
+  //     return new DatabaseError('validateAccessToken', error);
+  //   }
+  // }
+
+  async validateAccessToken(token: string): AsyncResult<{ user: User; session: Session }> {
+    try {
+      console.log(`[VALIDATE ACCESS TOKEN CALLED] Token: ${token.substring(0, 8)}...`);
+      console.log(`[VALIDATE ACCESS TOKEN] Stack trace:`, new Error().stack);
+
+      // Hash the provided token
+      const crypto = await import('crypto');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      console.log(`[VALIDATE ACCESS TOKEN] Token hash: ${tokenHash.substring(0, 16)}...`);
+
+      // Find session by token hash
+      const sessionResult = await this.db
+        .selectFrom('sessions')
+        .selectAll()
+        .where('token_hash', '=', tokenHash)
+        .where('revoked_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!sessionResult) {
+        console.log(`[VALIDATE ACCESS TOKEN] No active session found for token`);
+        return new UnauthorizedError(undefined, { reason: 'Invalid token' });
+      }
+
+      console.log(`[VALIDATE ACCESS TOKEN] Found session: ${sessionResult.id}`);
+      console.log(`[VALIDATE ACCESS TOKEN] Session expires at: ${sessionResult.expires_at}`);
+      console.log(`[VALIDATE ACCESS TOKEN] Session revoked at: ${sessionResult.revoked_at}`);
+
+      // Check if session has expired
+      const now = new Date();
+      const expiresAt = new Date(sessionResult.expires_at);
+
+      console.log(`[VALIDATE ACCESS TOKEN] Current time: ${now.toISOString()}`);
+      console.log(`[VALIDATE ACCESS TOKEN] Expires at: ${expiresAt.toISOString()}`);
+      console.log(`[VALIDATE ACCESS TOKEN] Is expired: ${expiresAt < now}`);
+
+      if (expiresAt < now) {
+        console.log(`[VALIDATE ACCESS TOKEN] Token expired, returning unauthorized`);
+        // Don't automatically revoke - just return unauthorized
+        // Let a cleanup job handle revocation later
+        return new UnauthorizedError(undefined, { reason: 'Token expired' });
+      }
+
+      // Check idle timeout if set
+      if (sessionResult.idle_timeout_at) {
+        const idleTimeout = new Date(sessionResult.idle_timeout_at);
+        console.log(`[VALIDATE ACCESS TOKEN] Idle timeout at: ${idleTimeout.toISOString()}`);
+        if (idleTimeout < now) {
+          console.log(`[VALIDATE ACCESS TOKEN] Session idle timeout reached`);
+          // Don't automatically revoke here either
+          return new UnauthorizedError(undefined, { reason: 'Session timeout' });
+        }
+      }
+
+      // Get user data
+      console.log(
+        `[VALIDATE ACCESS TOKEN] Fetching user data for user_id: ${sessionResult.user_id}`,
+      );
+
+      const userResult = await this.db
+        .selectFrom('users')
+        .selectAll()
+        .where('id', '=', sessionResult.user_id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!userResult) {
+        console.log(`[VALIDATE ACCESS TOKEN] User not found`);
+        return new UnauthorizedError(undefined, { reason: 'User not found' });
+      }
+
+      if (userResult.status !== 'active') {
+        console.log(`[VALIDATE ACCESS TOKEN] User status is not active: ${userResult.status}`);
+        return new UnauthorizedError(undefined, { reason: 'User account is not active' });
+      }
+
+      console.log(`[VALIDATE ACCESS TOKEN] Validation successful for user: ${userResult.email}`);
+
+      // Map database results to domain entities
+      const session = this.mapToSession(sessionResult);
+      const user = this.mapToUser(userResult);
+
+      return ResponseBuilder.ok({ user, session });
+    } catch (error) {
+      console.error(`[VALIDATE ACCESS TOKEN ERROR]`, error);
+      return new DatabaseError('validateAccessToken', error);
+    }
   }
+
   validateApiKey(
     key: string,
     requiredScopes?: string[],
@@ -1348,6 +1571,45 @@ export class AuthRepository implements ISession, IToken, IAuth {
       userAgent: row.user_agent,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+    };
+  }
+
+  private mapToUser(dbUser: any): User {
+    return {
+      id: dbUser.id,
+      firstName: dbUser.first_name,
+      lastName: dbUser.last_name,
+      displayName: dbUser.display_name,
+      username: dbUser.username,
+      email: dbUser.email,
+      emailVerified: dbUser.email_verified,
+      emailVerifiedAt: dbUser.email_verified_at,
+      phone: dbUser.phone,
+      phoneVerified: dbUser.phone_verified,
+      phoneVerifiedAt: dbUser.phone_verified_at,
+      status: dbUser.status,
+      type: dbUser.type,
+      organizationId: dbUser.organization_id,
+      avatarUrl: dbUser.avatar_url,
+      title: dbUser.title,
+      department: dbUser.department,
+      employeeId: dbUser.employee_id,
+      timezone: dbUser.timezone,
+      locale: dbUser.locale,
+      locationId: dbUser.location_id,
+      emergencyContact: dbUser.emergency_contact,
+      preferences: dbUser.preferences,
+      cachedPermissions: dbUser.cached_permissions,
+      permissionsUpdatedAt: dbUser.permissions_updated_at,
+      lastActivityAt: dbUser.last_activity_at,
+      totalLoginCount: dbUser.total_login_count,
+      customFields: dbUser.custom_fields,
+      tags: dbUser.tags,
+      deactivatedReason: dbUser.deactivated_reason,
+      createdAt: dbUser.created_at,
+      updatedAt: dbUser.updated_at,
+      deletedAt: dbUser.deleted_at,
+      deletedBy: dbUser.deleted_by,
     };
   }
 }

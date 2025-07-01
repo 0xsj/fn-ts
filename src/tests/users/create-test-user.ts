@@ -87,7 +87,6 @@ async function createTestUser() {
     console.log('Email:', email);
     console.log('Password:', password);
     console.log('User ID:', userId);
-
   } catch (error) {
     console.error('❌ Error creating test user:', error);
   } finally {

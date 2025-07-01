@@ -14,6 +14,7 @@ import {
   LoginRequest,
   LoginResponse,
   Session,
+  User,
 } from '../entities';
 import { validators } from '../../shared/utils';
 
@@ -153,6 +154,26 @@ export class AuthService {
     }
 
     return ResponseBuilder.ok(result.body().data);
+  }
+
+  async validateAccessToken(token: string): AsyncResult<{ user: User; session: Session }> {
+    if (!token || token.length < 32) {
+      return new ValidationError({ token: ['Invalid access token'] });
+    }
+
+    // Delegate to repository
+    const result = await this.authRepo.validateAccessToken(token);
+
+    if (!isSuccessResponse(result)) {
+      return result;
+    }
+
+    const { user, session } = result.body().data;
+
+    // Optional: Update last activity
+    await this.sessionRepo.updateLastActivity(session.id);
+
+    return ResponseBuilder.ok({ user, session });
   }
 
   async changePassword(

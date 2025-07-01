@@ -64,4 +64,34 @@ export class AuthController {
       next(error);
     }
   }
+
+  async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // Get session ID from authenticated user (set by auth middleware)
+      const sessionId = req.user?.sessionId;
+
+      if (!sessionId) {
+        sendError(req, res, new ValidationError({ session: ['No active session found'] }));
+        return;
+      }
+
+      // Check if user wants to logout from all devices
+      const logoutAll = req.body.logoutAll === true;
+
+      const result = await this.authService.logout(sessionId, logoutAll);
+
+      if (isSuccessResponse(result)) {
+        // Clear refresh token cookie
+        res.clearCookie('refreshToken');
+
+        sendOk(req, res, {
+          message: logoutAll ? 'Logged out from all devices' : 'Logged out successfully',
+        });
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
 }
