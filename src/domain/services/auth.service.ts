@@ -17,6 +17,8 @@ import {
   User,
 } from '../entities';
 import { validators } from '../../shared/utils';
+import { AuditWithContext } from '../../shared/decorators/audit.decorator';
+import { AuditContext } from './analytics.service';
 
 @injectable()
 export class AuthService {
@@ -53,22 +55,22 @@ export class AuthService {
     return ResponseBuilder.ok(session);
   }
 
-  async login(
-    request: LoginRequest,
-    ipAddress?: string,
-    userAgent?: string,
-  ): AsyncResult<LoginResponse> {
+  @AuditWithContext('login', 'auth', {
+    entityIdResolver: (args) => {
+      const request = args[0] as LoginRequest;
+      return request?.email || 'unknown';
+    },
+    contextResolver: (instance, args) => args[1] || {}, // context is 2nd argument
+  })
+  async login(request: LoginRequest, context?: AuditContext): AsyncResult<LoginResponse> {
     // Validate login request
     const validationErrors: Record<string, string[]> = {};
-
     if (!request.email || !validators.isValidEmail(request.email)) {
       validationErrors.email = ['Invalid email format'];
     }
-
     if (!request.password || request.password.length < 8) {
       validationErrors.password = ['Password must be at least 8 characters'];
     }
-
     if (request.deviceType && !['web', 'mobile', 'desktop'].includes(request.deviceType)) {
       validationErrors.deviceType = ['Invalid device type'];
     }
@@ -85,8 +87,12 @@ export class AuthService {
       deviceName: request.deviceName?.trim(),
     };
 
-    // Delegate to repository
-    const loginResult = await this.authRepo.login(sanitizedRequest, ipAddress, userAgent);
+    // Delegate to repository with IP and user agent from context
+    const loginResult = await this.authRepo.login(
+      sanitizedRequest,
+      context?.ipAddress,
+      context?.userAgent,
+    );
 
     if (!isSuccessResponse(loginResult)) {
       return loginResult;
@@ -99,8 +105,8 @@ export class AuthService {
     //   new UserLoggedInEvent({
     //     userId: loginResponse.user.id,
     //     sessionId: loginResponse.session.id,
-    //     ipAddress,
-    //     userAgent,
+    //     ipAddress: context?.ipAddress,
+    //     userAgent: context?.userAgent,
     //     timestamp: new Date(),
     //   })
     // );
@@ -108,7 +114,15 @@ export class AuthService {
     return ResponseBuilder.ok(loginResponse);
   }
 
-  async logout(sessionId: string, logoutAll: boolean = false): AsyncResult<boolean> {
+  @AuditWithContext('logout', 'auth', {
+    entityIdResolver: (args) => args[0], // sessionId
+    contextResolver: (instance, args) => args[2] || {}, // context is 3rd argument
+  })
+  async logout(
+    sessionId: string,
+    logoutAll: boolean = false,
+    context?: AuditContext,
+  ): AsyncResult<boolean> {
     if (!validators.isValidUUID(sessionId)) {
       return new ValidationError({ sessionId: ['Invalid session ID format'] });
     }
@@ -123,7 +137,6 @@ export class AuthService {
 
     // Delegate to repository
     const result = await this.authRepo.logout(session.id, logoutAll);
-
     if (!isSuccessResponse(result)) {
       return result;
     }
