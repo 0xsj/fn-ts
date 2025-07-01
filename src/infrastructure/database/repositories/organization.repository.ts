@@ -39,6 +39,7 @@ export class OrganizationRepository implements IOrganization {
           slug: input.slug,
         });
       }
+
       // Create OrganizationDB object with all required fields and defaults
       const organizationDB: OrganizationDB = {
         // Base fields
@@ -177,13 +178,15 @@ export class OrganizationRepository implements IOrganization {
       await this.db.insertInto('organizations').values(organizationDB).execute();
 
       // Fetch the created organization
-      const created = await this.db
-        .selectFrom('organizations')
-        .selectAll()
-        .where('id', '=', organizationDB.id)
-        .executeTakeFirst();
+      const result = await this.findOrganizationById(organizationDB.id, correlationId);
 
-      if (!created) {
+      // Handle the result
+      if (!result.success) {
+        return result; // Return the error
+      }
+
+      const organization = result.body().data;
+      if (!organization) {
         return new DatabaseError(
           'createOrganization',
           new Error('Failed to retrieve created organization'),
@@ -191,7 +194,7 @@ export class OrganizationRepository implements IOrganization {
         );
       }
 
-      return ResponseBuilder.ok(this.mapToEntity(created), correlationId);
+      return ResponseBuilder.ok(organization, correlationId);
     } catch (error) {
       return new DatabaseError('createOrganization', error, correlationId);
     }
