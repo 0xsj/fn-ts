@@ -6,6 +6,7 @@ import { TOKENS } from '../../../core/di/tokens';
 import { sendError, sendOk } from '../../../shared/utils/response-helper';
 import { isSuccessResponse, ValidationError } from '../../../shared/response';
 import { z } from 'zod';
+import { AuditContext } from '../../../domain/services/analytics.service';
 
 @injectable()
 export class AuthController {
@@ -36,7 +37,18 @@ export class AuthController {
       const ipAddress = req.ip || req.socket.remoteAddress;
       const userAgent = req.headers['user-agent'];
 
-      const result = await this.authService.login(req.body, ipAddress, userAgent);
+      // Build audit context from request
+      const context: AuditContext = {
+        userId: undefined, // Not known yet during login
+        userEmail: req.body.email, // From login request
+        userRole: undefined,
+        organizationId: undefined,
+        ipAddress,
+        userAgent,
+        correlationId: req.context.correlationId,
+      };
+
+      const result = await this.authService.login(req.body, context);
 
       if (isSuccessResponse(result)) {
         const loginResponse = result.body().data;
@@ -70,7 +82,7 @@ export class AuthController {
       // Get session ID from authenticated user (set by auth middleware)
       const sessionId = req.user?.sessionId;
 
-      if (!sessionId) {
+      if (!sessionId || !req.user) {
         sendError(req, res, new ValidationError({ session: ['No active session found'] }));
         return;
       }
@@ -78,7 +90,18 @@ export class AuthController {
       // Check if user wants to logout from all devices
       const logoutAll = req.body.logoutAll === true;
 
-      const result = await this.authService.logout(sessionId, logoutAll);
+      // Build audit context from request
+      const context: AuditContext = {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        userRole: undefined, // Not available in req.user
+        organizationId: undefined, // Not available in req.user
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.headers['user-agent'],
+        correlationId: req.context.correlationId,
+      };
+
+      const result = await this.authService.logout(sessionId, logoutAll, context);
 
       if (isSuccessResponse(result)) {
         // Clear refresh token cookie

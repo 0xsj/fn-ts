@@ -21,9 +21,10 @@ export function responseLoggerMiddleware(req: Request, res: Response, next: Next
       if (response) {
         if (isErrorResponse(response)) {
           const errorResponse = response as ErrorResponseType;
+
           // Use Pino's error logging properly
           requestLogger.error({
-            msg: `Error response: ${errorResponse.kind}`,
+            msg: `Error response: ${errorResponse.kind}`, // Keep as is - descriptive
             statusCode: errorResponse.statusCode,
             errorCode: errorResponse.code,
             errorKind: errorResponse.kind,
@@ -33,7 +34,7 @@ export function responseLoggerMiddleware(req: Request, res: Response, next: Next
           });
         } else {
           requestLogger.info({
-            msg: 'Request completed successfully',
+            msg: 'Response sent', // Changed from "Request completed successfully"
             statusCode: response.statusCode,
             duration,
           });
