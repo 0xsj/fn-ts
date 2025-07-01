@@ -214,8 +214,21 @@ export class OrganizationRepository implements IOrganization {
       return new DatabaseError('findOrganizationById', error, correlationId);
     }
   }
-  findOrganizationBySlug(slug: string): AsyncResult<Organization | null> {
-    throw new Error('Method not implemented.');
+  async findOrganizationBySlug(
+    slug: string,
+    correlationId?: string,
+  ): AsyncResult<Organization | null> {
+    try {
+      const row = await this.db
+        .selectFrom('organizations')
+        .selectAll()
+        .where('slug', '=', slug)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+      return ResponseBuilder.ok(row ? this.mapToEntity(row) : null, correlationId);
+    } catch (error) {
+      return new DatabaseError('findOrganizationBySlug', error, correlationId);
+    }
   }
   findOrganizationsByOwner(ownerId: string): AsyncResult<Organization[]> {
     throw new Error('Method not implemented.');

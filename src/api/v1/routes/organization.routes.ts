@@ -9,7 +9,9 @@ export function createOrganizationRoutes(): Router {
 
   router.post('/', authMiddleware, controller.createOrganization.bind(controller));
 
-  router.get('/:id', authMiddleware, controller.getOrganization.bind(controller));
+  router.get('/:id', authMiddleware, controller.getOrganizationById.bind(controller));
+
+  router.get('/by-slug/:slug', authMiddleware, controller.getOrganizationBySlug.bind(controller));
 
   return router;
 }

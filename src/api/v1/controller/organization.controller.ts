@@ -54,7 +54,7 @@ export class OrganizationController {
   /**
    * Get organization by ID
    */
-  async getOrganization(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getOrganizationById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
 
@@ -67,6 +67,23 @@ export class OrganizationController {
         req.context.correlationId,
       );
 
+      if (isSuccessResponse(result)) {
+        sendOk(req, res, result.body().data);
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getOrganizationBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { slug } = req.params;
+      const result = await this.organizationService.getOrganizationBySlug(
+        slug,
+        req.context.correlationId,
+      );
       if (isSuccessResponse(result)) {
         sendOk(req, res, result.body().data);
       } else {

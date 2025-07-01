@@ -82,4 +82,16 @@ export class OrganizationService {
 
     return result;
   }
+
+  async getOrganizationBySlug(slug: string, correlationId?: string): AsyncResult<Organization> {
+    const result = await this.orgRepo.findOrganizationBySlug(slug, correlationId);
+    if (isSuccessResponse(result)) {
+      const organization = result.body().data;
+      if (!organization) {
+        return new NotFoundError('Organization not found', correlationId);
+      }
+      return ResponseBuilder.ok(organization, correlationId);
+    }
+    return result;
+  }
 }

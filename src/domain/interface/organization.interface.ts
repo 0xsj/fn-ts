@@ -18,7 +18,7 @@ export interface IOrganization {
     correlationId?: string,
   ): AsyncResult<Organization>;
   findOrganizationById(id: string, correlationId?: string): AsyncResult<Organization | null>;
-  findOrganizationBySlug(slug: string): AsyncResult<Organization | null>;
+  findOrganizationBySlug(slug: string, correlationId?: string): AsyncResult<Organization | null>;
   findOrganizationsByOwner(ownerId: string): AsyncResult<Organization[]>;
   updateOrganization(
     id: string,
