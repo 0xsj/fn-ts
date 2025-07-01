@@ -1,4 +1,4 @@
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { IAuth, ISession, IToken } from '../../../domain/interface/auth.interface';
 import { Database } from '../types';
 import {
@@ -19,7 +19,16 @@ import {
   PasswordResetToken,
   TwoFactorSecretDB,
 } from '../../../domain/entities';
-import { AsyncResult, DatabaseError, ok, ResponseBuilder } from '../../../shared/response';
+import {
+  AsyncResult,
+  DatabaseError,
+  ForbiddenError,
+  InternalServerError,
+  NotFoundError,
+  ok,
+  ResponseBuilder,
+  UnauthorizedError,
+} from '../../../shared/response';
 import { v4 as uuidv4 } from 'uuid';
 
 export class AuthRepository implements ISession, IToken, IAuth {
@@ -573,8 +582,213 @@ export class AuthRepository implements ISession, IToken, IAuth {
   deleteTwoFactorSecret(userId: string): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  login(request: LoginRequest, ipAddress?: string, userAgent?: string): AsyncResult<LoginResponse> {
-    throw new Error('Method not implemented.');
+  async login(
+    request: LoginRequest,
+    ipAddress?: string,
+    userAgent?: string,
+  ): AsyncResult<LoginResponse> {
+    try {
+      // 1. Find user by email
+      const userResult = await this.db
+        .selectFrom('users')
+        .selectAll()
+        .where('email', '=', request.email.toLowerCase())
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!userResult) {
+        // Track failed login attempt
+        await this.trackFailedLogin(request.email, ipAddress, 'User not found');
+        return new NotFoundError('Invalid email or password');
+      }
+
+      // 2. Check if account is active
+      if (userResult.status !== 'active') {
+        await this.trackFailedLogin(request.email, ipAddress, `Account ${userResult.status}`);
+        return new ForbiddenError(undefined, { reason: `Account is ${userResult.status}` });
+      }
+
+      // 3. Check if account is locked
+      let securityResult = await this.db
+        .selectFrom('user_security')
+        .selectAll()
+        .where('user_id', '=', userResult.id)
+        .executeTakeFirst();
+
+      // Create security record if it doesn't exist
+      if (!securityResult) {
+        await this.db
+          .insertInto('user_security')
+          .values({
+            user_id: userResult.id,
+            failed_login_attempts: 0,
+            locked_until: null,
+            last_login_at: null,
+            last_login_ip: null,
+            two_factor_enabled: false,
+            two_factor_secret_id: null,
+            last_password_change_at: null,
+            password_history: sql`'[]'`,
+            security_questions: sql`'[]'`,
+            created_at: new Date(),
+            updated_at: new Date(),
+          })
+          .execute();
+
+        // Fetch the newly created record
+        securityResult = await this.db
+          .selectFrom('user_security')
+          .selectAll()
+          .where('user_id', '=', userResult.id)
+          .executeTakeFirst();
+      }
+
+      if (securityResult?.locked_until && new Date(securityResult.locked_until) > new Date()) {
+        return new ForbiddenError(undefined, {
+          reason: 'Account is temporarily locked',
+          lockedUntil: securityResult.locked_until,
+        });
+      }
+
+      // 4. Get password hash
+      const passwordResult = await this.db
+        .selectFrom('user_passwords')
+        .select(['password_hash', 'must_change', 'expires_at'])
+        .where('user_id', '=', userResult.id)
+        .orderBy('created_at', 'desc')
+        .executeTakeFirst();
+
+      if (!passwordResult) {
+        return new InternalServerError();
+      }
+
+      // 5. Verify password
+      const bcrypt = await import('bcrypt');
+      const isValidPassword = await bcrypt.compare(request.password, passwordResult.password_hash);
+
+      if (!isValidPassword) {
+        // Increment failed login attempts
+        const newFailedAttempts = (securityResult?.failed_login_attempts || 0) + 1;
+
+        await this.db
+          .updateTable('user_security')
+          .set({
+            failed_login_attempts: newFailedAttempts,
+            // Lock account after 5 failed attempts for 30 minutes
+            locked_until: newFailedAttempts >= 5 ? new Date(Date.now() + 30 * 60 * 1000) : null,
+            updated_at: new Date(),
+          })
+          .where('user_id', '=', userResult.id)
+          .execute();
+
+        await this.trackFailedLogin(request.email, ipAddress, 'Invalid password');
+        return new NotFoundError('Invalid email or password');
+      }
+
+      // 6. Check if password has expired
+      if (passwordResult.expires_at && new Date(passwordResult.expires_at) < new Date()) {
+        return new ForbiddenError(undefined, { reason: 'Password expired' });
+      }
+
+      // 7. Reset failed login attempts on successful login
+      await this.db
+        .updateTable('user_security')
+        .set({
+          failed_login_attempts: 0,
+          locked_until: null,
+          last_login_at: new Date(),
+          last_login_ip: ipAddress || null,
+          updated_at: new Date(),
+        })
+        .where('user_id', '=', userResult.id)
+        .execute();
+
+      // 8. Update user last activity
+      await this.db
+        .updateTable('users')
+        .set({
+          last_activity_at: new Date(),
+          total_login_count: sql`total_login_count + 1`,
+          updated_at: new Date(),
+        })
+        .where('id', '=', userResult.id)
+        .execute();
+
+      // 9. Generate tokens
+      const crypto = await import('crypto');
+      const accessToken = crypto.randomBytes(32).toString('hex');
+      const refreshToken = crypto.randomBytes(32).toString('hex');
+
+      // Hash tokens for storage
+      const accessTokenHash = crypto.createHash('sha256').update(accessToken).digest('hex');
+      const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+      // 10. Create session
+      const sessionResult = await this.createSession(
+        userResult.id,
+        accessTokenHash,
+        refreshTokenHash,
+        {
+          deviceId: request.deviceId,
+          deviceName: request.deviceName,
+          deviceType: request.deviceType || 'web',
+          userAgent,
+          ipAddress,
+        },
+        request.rememberMe ? 30 * 24 * 3600 : 3600, // 30 days if remember me, else 1 hour
+      );
+
+      if (!sessionResult.success) {
+        return sessionResult;
+      }
+
+      const session = sessionResult.body().data;
+
+      // 11. Get user's organization if any
+      const orgMemberResult = await this.db
+        .selectFrom('organization_members')
+        .innerJoin('organizations', 'organizations.id', 'organization_members.organization_id')
+        .select(['organizations.id', 'organizations.name', 'organization_members.role'])
+        .where('organization_members.user_id', '=', userResult.id)
+        .where('organization_members.status', '=', 'active')
+        .where('organizations.status', '=', 'active')
+        .executeTakeFirst();
+
+      // 12. Prepare response
+      const response: LoginResponse = {
+        user: {
+          id: userResult.id,
+          email: userResult.email,
+          firstName: userResult.first_name,
+          lastName: userResult.last_name,
+          displayName:
+            userResult.display_name || `${userResult.first_name} ${userResult.last_name}`,
+          avatarUrl: userResult.avatar_url,
+          organizationId: orgMemberResult?.id || null,
+        },
+        tokens: {
+          accessToken,
+          refreshToken,
+          tokenType: 'Bearer',
+          expiresIn: Math.floor((session.expiresAt.getTime() - Date.now()) / 1000),
+          refreshExpiresIn: Math.floor((session.refreshExpiresAt!.getTime() - Date.now()) / 1000),
+        },
+        session: {
+          id: session.id,
+          deviceId: session.deviceId || null,
+          deviceName: session.deviceName || null,
+          loginAt: session.createdAt,
+        },
+      };
+
+      return ResponseBuilder.ok(
+        response,
+        undefined,
+        passwordResult.must_change ? { warning: 'Password change required' } : undefined,
+      );
+    } catch (error) {
+      return new DatabaseError('login', error);
+    }
   }
   loginWithProvider(
     provider: AuthProvider,
