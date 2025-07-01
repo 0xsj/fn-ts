@@ -1,10 +1,31 @@
 import { Router } from 'express';
 import { AuthController } from '../controller/auth.controller';
 import { rateLimitMiddleware } from '../../../infrastructure/rate-limit/rate-limit.middleware';
+import { authMiddleware } from '../../../shared/middleware';
 
 export function createAuthRoutes(): Router {
   const router = Router();
   const authController = new AuthController();
+
+  router.post(
+    '/login',
+    rateLimitMiddleware({
+      max: 5,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      strategy: 'fixed-window',
+    }),
+    authController.login.bind(authController),
+  );
+  router.post(
+    '/logout',
+    authMiddleware, // Requires authentication
+    rateLimitMiddleware({
+      max: 10,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      strategy: 'fixed-window',
+    }),
+    authController.logout.bind(authController),
+  );
 
   router.get(
     '/sessions/:sessionId',
