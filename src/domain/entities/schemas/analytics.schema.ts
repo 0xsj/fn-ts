@@ -407,3 +407,42 @@ export type MetricQuery = z.infer<typeof MetricQuerySchema>;
 export type AuditQuery = z.infer<typeof AuditQuerySchema>;
 export type IncidentAnalytics = z.infer<typeof IncidentAnalyticsSchema>;
 export type NotificationAnalytics = z.infer<typeof NotificationAnalyticsSchema>;
+export const ActionSeverityMap: Record<AuditLog['action'], AuditLog['severity']> = {
+  // Low severity
+  read: 'low',
+  view: 'low',
+  search: 'low',
+  filter: 'low',
+  download: 'low',
+
+  // Medium severity
+  create: 'medium',
+  update: 'medium',
+  upload: 'medium',
+  login: 'medium',
+  logout: 'medium',
+
+  // High severity
+  delete: 'high',
+  password_change: 'high',
+  password_reset: 'high',
+  email_verify: 'high',
+  change_role: 'high',
+  export: 'high',
+  import: 'high',
+
+  // Critical severity
+  two_factor_enable: 'critical',
+  two_factor_disable: 'critical',
+  invite: 'critical',
+  accept_invite: 'critical',
+  remove_access: 'critical',
+  approve: 'critical',
+  reject: 'critical',
+  publish: 'critical',
+  archive: 'critical',
+  restore: 'critical',
+  activate: 'critical',
+  deactivate: 'critical',
+  suspend: 'critical',
+};
