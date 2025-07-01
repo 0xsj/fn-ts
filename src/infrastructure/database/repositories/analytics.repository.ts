@@ -72,23 +72,159 @@ export class AnalyticsRepository implements IAnalytics {
       return new DatabaseError('createAuditLog', error, correlationId);
     }
   }
-  findAuditLogs(
+  async findAuditLogs(
     query: AuditQuery,
+    correlationId?: string,
   ): AsyncResult<{ logs: AuditLog[]; total: number; hasMore: boolean }> {
-    throw new Error('Method not implemented.');
+    try {
+      // Build base query
+      let dbQuery = this.db.selectFrom('audit_logs').selectAll();
+
+      // Apply filters
+      if (query.entityType) {
+        dbQuery = dbQuery.where('entity_type', '=', query.entityType);
+      }
+
+      if (query.entityId) {
+        dbQuery = dbQuery.where('entity_id', '=', query.entityId);
+      }
+
+      if (query.userId) {
+        dbQuery = dbQuery.where('user_id', '=', query.userId);
+      }
+
+      if (query.action) {
+        dbQuery = dbQuery.where('action', '=', query.action);
+      }
+
+      if (query.status) {
+        dbQuery = dbQuery.where('status', '=', query.status);
+      }
+
+      // Date range filter
+      dbQuery = dbQuery
+        .where('created_at', '>=', query.startDate)
+        .where('created_at', '<=', query.endDate);
+
+      // Get total count for pagination
+      let countQuery = this.db
+        .selectFrom('audit_logs')
+        .select((eb) => eb.fn.count<number>('id').as('count'))
+        .where('created_at', '>=', query.startDate)
+        .where('created_at', '<=', query.endDate);
+
+      // Apply same filters to count query
+      if (query.entityType) {
+        countQuery = countQuery.where('entity_type', '=', query.entityType);
+      }
+      if (query.entityId) {
+        countQuery = countQuery.where('entity_id', '=', query.entityId);
+      }
+      if (query.userId) {
+        countQuery = countQuery.where('user_id', '=', query.userId);
+      }
+      if (query.action) {
+        countQuery = countQuery.where('action', '=', query.action);
+      }
+      if (query.status) {
+        countQuery = countQuery.where('status', '=', query.status);
+      }
+
+      const countResult = await countQuery.executeTakeFirst();
+      const total = Number(countResult?.count || 0);
+
+      // Apply pagination and ordering
+      const rows = await dbQuery
+        .orderBy('created_at', 'desc')
+        .limit(query.limit)
+        .offset(query.offset)
+        .execute();
+
+      // Map to entities
+      const logs = rows.map((row) => this.mapToEntity(row));
+
+      // Check if there are more results
+      const hasMore = query.offset + logs.length < total;
+
+      return ResponseBuilder.ok(
+        {
+          logs,
+          total,
+          hasMore,
+        },
+        correlationId,
+      );
+    } catch (error) {
+      return new DatabaseError('findAuditLogs', error, correlationId);
+    }
   }
-  findAuditLogById(id: string): AsyncResult<AuditLog | null> {
-    throw new Error('Method not implemented.');
+
+  async findAuditLogById(id: string, correlationId?: string): AsyncResult<AuditLog | null> {
+    try {
+      const row = await this.db
+        .selectFrom('audit_logs')
+        .selectAll()
+        .where('id', '=', id)
+        .executeTakeFirst();
+
+      return ResponseBuilder.ok(row ? this.mapToEntity(row) : null, correlationId);
+    } catch (error) {
+      return new DatabaseError('findAuditLogById', error, correlationId);
+    }
   }
-  findAuditLogsByEntity(
+  async findAuditLogsByEntity(
     entityType: string,
     entityId: string,
     limit?: number,
+    correlationId?: string,
   ): AsyncResult<AuditLog[]> {
-    throw new Error('Method not implemented.');
+    try {
+      let query = this.db
+        .selectFrom('audit_logs')
+        .selectAll()
+        .where('entity_type', '=', entityType)
+        .where('entity_id', '=', entityId)
+        .orderBy('created_at', 'desc');
+
+      // Apply limit if provided
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const rows = await query.execute();
+
+      const logs = rows.map((row) => this.mapToEntity(row));
+
+      return ResponseBuilder.ok(logs, correlationId);
+    } catch (error) {
+      return new DatabaseError('findAuditLogsByEntity', error, correlationId);
+    }
   }
-  findAuditLogsByUser(userId: string, limit?: number): AsyncResult<AuditLog[]> {
-    throw new Error('Method not implemented.');
+  async findAuditLogsByUser(
+    userId: string,
+    limit?: number,
+    correlationId?: string,
+  ): AsyncResult<AuditLog[]> {
+    try {
+      let query = this.db
+        .selectFrom('audit_logs')
+        .selectAll()
+        .where('user_id', '=', userId)
+        .orderBy('created_at', 'desc');
+
+      // Apply limit if provided
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const rows = await query.execute();
+
+      const logs = rows.map((row) => this.mapToEntity(row));
+
+      return ResponseBuilder.ok(logs, correlationId);
+    } catch (error) {
+      return new DatabaseError('findAuditLogsByUser', error, correlationId);
+    }
   }
   deleteOldAuditLogs(beforeDate: Date): AsyncResult<number> {
     throw new Error('Method not implemented.');
