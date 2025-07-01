@@ -1085,8 +1085,6 @@ export class AuthRepository implements ISession, IToken, IAuth {
 
   async validateAccessToken(token: string): AsyncResult<{ user: User; session: Session }> {
     try {
-      console.log(`[VALIDATE ACCESS TOKEN CALLED] Token: ${token.substring(0, 8)}...`);
-      console.log(`[VALIDATE ACCESS TOKEN] Stack trace:`, new Error().stack);
 
       // Hash the provided token
       const crypto = await import('crypto');
