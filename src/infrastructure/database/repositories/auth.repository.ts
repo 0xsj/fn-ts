@@ -1085,7 +1085,6 @@ export class AuthRepository implements ISession, IToken, IAuth {
 
   async validateAccessToken(token: string): AsyncResult<{ user: User; session: Session }> {
     try {
-
       // Hash the provided token
       const crypto = await import('crypto');
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
