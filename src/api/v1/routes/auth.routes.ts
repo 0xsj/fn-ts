@@ -6,6 +6,16 @@ export function createAuthRoutes(): Router {
   const router = Router();
   const authController = new AuthController();
 
+  router.post(
+    '/login',
+    rateLimitMiddleware({
+      max: 5,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      strategy: 'fixed-window',
+    }),
+    authController.login.bind(authController),
+  );
+
   router.get(
     '/sessions/:sessionId',
     rateLimitMiddleware({
