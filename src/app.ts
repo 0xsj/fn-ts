@@ -10,6 +10,7 @@ import { createHealthRoutes } from './infrastructure/monitoring/health/health.ro
 import { createV1Routes } from './api/v1/routes';
 import { DIContainer } from './core/di/container';
 import { requestLoggerMiddleware } from './shared/middleware';
+import { createSwaggerRoutes } from './docs/swagger.routes';
 
 const app: Application = express();
 
@@ -28,6 +29,7 @@ export async function initializeApp(): Promise<void> {
   try {
     await DIContainer.initialize();
     app.use('/', createHealthRoutes());
+    app.use('/api', createSwaggerRoutes());
     app.use('/api/v1', createV1Routes());
 
     app.use((_req: Request, res: Response) => {
