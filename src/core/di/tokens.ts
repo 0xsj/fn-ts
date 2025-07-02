@@ -42,4 +42,8 @@ export const TOKENS = {
   // monitoring
   PrometheusRegistry: Symbol.for('PrometheusRegistry'),
   MetricsService: Symbol.for('MetricsService'),
+  HealthCollector: Symbol.for('HealthCollector'),
+  HttpCollector: Symbol.for('HttpCollector'),
+  QueueCollector: Symbol.for('QueueCollector'),
+  BusinessCollector: Symbol.for('BusinessCollector'),
 } as const;

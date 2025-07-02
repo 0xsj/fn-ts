@@ -28,7 +28,10 @@ app.use(requestLoggerMiddleware);
 
 export async function initializeApp(): Promise<void> {
   try {
+    logger.info('Initializing DI Container...');
     await DIContainer.initialize();
+
+    logger.info('Setting up routes...');
     app.use('/', createHealthRoutes());
     app.use('/', createPrometheusRoutes());
     app.use('/api', createSwaggerRoutes());
@@ -45,7 +48,12 @@ export async function initializeApp(): Promise<void> {
 
     logger.info('App initialized successfully');
   } catch (error) {
-    logger.error('Failed to initialize app', error);
+    logger.error('Failed to initialize app', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      errorType: error?.constructor?.name,
+      errorDetails: error,
+    });
     throw error;
   }
 }
