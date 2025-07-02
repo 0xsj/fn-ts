@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { generateOpenAPIDocument } from './zod-openapi.config';
+import { dark } from './theme';
 
 export function createSwaggerRoutes(): Router {
   const router = Router();
@@ -20,15 +21,9 @@ export function createSwaggerRoutes(): Router {
     res.send(swaggerSpec);
   });
 
-  // You could also serve version-specific docs
-  router.get('/v1/swagger.json', (_req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.send(swaggerSpec); // In future, filter for v1 only
-  });
-
-  // Serve Swagger UI
+  // Serve Swagger UI with dark theme
   router.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-    customCss: '.swagger-ui .topbar { display: none }',
+    customCss: dark,
     customSiteTitle: 'FireNotifications API Docs',
     customfavIcon: '/favicon.ico',
     swaggerOptions: {
@@ -43,4 +38,25 @@ export function createSwaggerRoutes(): Router {
   }));
 
   return router;
+}
+
+function getSwaggerDarkTheme(): string {
+  return `
+    /* Dark theme for Swagger UI */
+    .swagger-ui {
+      filter: invert(88%) hue-rotate(180deg);
+    }
+    
+    .swagger-ui .highlight-code {
+      filter: invert(100%) hue-rotate(180deg);
+    }
+    
+    .swagger-ui img {
+      filter: invert(100%) hue-rotate(180deg);
+    }
+    
+    .swagger-ui .microlight {
+      filter: invert(100%) hue-rotate(180deg);
+    }
+  `;
 }

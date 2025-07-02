@@ -82,6 +82,7 @@
     "socket.io": "^4.8.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "swagger-ui-themes": "^3.0.1",
     "uuid": "^11.1.0",
     "zod": "^3.25.67"
   }
