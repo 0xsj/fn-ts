@@ -30,10 +30,12 @@ const SuccessResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
   z.object({
     success: z.literal(true),
     data: dataSchema,
-    meta: z.object({
-      correlationId: z.string().uuid().optional(),
-      timestamp: z.string().datetime(),
-    }).optional(),
+    meta: z
+      .object({
+        correlationId: z.string().uuid().optional(),
+        timestamp: z.string().datetime(),
+      })
+      .optional(),
   });
 
 const ErrorResponseSchema = z.object({
@@ -44,10 +46,12 @@ const ErrorResponseSchema = z.object({
     message: z.string(),
     details: z.any().optional(),
   }),
-  meta: z.object({
-    correlationId: z.string().uuid().optional(),
-    timestamp: z.string().datetime(),
-  }).optional(),
+  meta: z
+    .object({
+      correlationId: z.string().uuid().optional(),
+      timestamp: z.string().datetime(),
+    })
+    .optional(),
 });
 
 const ValidationErrorSchema = z.object({
@@ -58,10 +62,12 @@ const ValidationErrorSchema = z.object({
     message: z.literal('Validation failed'),
     details: z.record(z.array(z.string())),
   }),
-  meta: z.object({
-    correlationId: z.string().uuid().optional(),
-    timestamp: z.string().datetime(),
-  }).optional(),
+  meta: z
+    .object({
+      correlationId: z.string().uuid().optional(),
+      timestamp: z.string().datetime(),
+    })
+    .optional(),
 });
 
 // Register common schemas
@@ -84,16 +90,12 @@ registry.register('UpdateOrganization', UpdateOrganizationSchema);
 // ============================================
 // SECURITY SCHEMES
 // ============================================
-const bearerAuth = registry.registerComponent(
-  'securitySchemes',
-  'bearerAuth',
-  {
-    type: 'http',
-    scheme: 'bearer',
-    bearerFormat: 'JWT',
-    description: 'JWT Authorization header using the Bearer scheme',
-  }
-);
+const bearerAuth = registry.registerComponent('securitySchemes', 'bearerAuth', {
+  type: 'http',
+  scheme: 'bearer',
+  bearerFormat: 'JWT',
+  description: 'JWT Authorization header using the Bearer scheme',
+});
 
 // ============================================
 // USER ENDPOINTS
@@ -382,7 +384,7 @@ registry.registerPath({
                 expiresIn: z.number(),
               }),
               session: SessionSchema,
-            })
+            }),
           ),
         },
       },
@@ -436,7 +438,7 @@ registry.registerPath({
           schema: SuccessResponseSchema(
             z.object({
               message: z.string(),
-            })
+            }),
           ),
         },
       },
@@ -643,7 +645,7 @@ registry.registerPath({
                 status: z.enum(['healthy', 'degraded', 'unhealthy']),
                 responseTime: z.number(),
                 details: z.any().optional(),
-              })
+              }),
             ),
           }),
         },
@@ -657,7 +659,7 @@ registry.registerPath({
 // ============================================
 export function generateOpenAPIDocument() {
   const generator = new OpenApiGeneratorV3(registry.definitions);
-  
+
   return generator.generateDocument({
     openapi: '3.0.0',
     info: {

@@ -11,6 +11,8 @@ import { createV1Routes } from './api/v1/routes';
 import { DIContainer } from './core/di/container';
 import { requestLoggerMiddleware } from './shared/middleware';
 import { createSwaggerRoutes } from './docs/swagger.routes';
+import { createPrometheusRoutes } from './infrastructure/monitoring/metrics/prometheus.routes';
+import { prometheusMiddleware } from './infrastructure/monitoring/metrics/prometheus/prometheus-middleware';
 
 const app: Application = express();
 
@@ -24,11 +26,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use(contextMiddleware);
 app.use(responseLoggerMiddleware);
 app.use(requestLoggerMiddleware);
+app.use(prometheusMiddleware());
 
 export async function initializeApp(): Promise<void> {
   try {
+    logger.info('Initializing DI Container...');
     await DIContainer.initialize();
+
+    logger.info('Setting up routes...');
     app.use('/', createHealthRoutes());
+    app.use('/', createPrometheusRoutes());
     app.use('/api', createSwaggerRoutes());
     app.use('/api/v1', createV1Routes());
 
@@ -43,7 +50,12 @@ export async function initializeApp(): Promise<void> {
 
     logger.info('App initialized successfully');
   } catch (error) {
-    logger.error('Failed to initialize app', error);
+    logger.error('Failed to initialize app', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      errorType: error?.constructor?.name,
+      errorDetails: error,
+    });
     throw error;
   }
 }
