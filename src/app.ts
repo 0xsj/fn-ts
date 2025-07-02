@@ -12,6 +12,7 @@ import { DIContainer } from './core/di/container';
 import { requestLoggerMiddleware } from './shared/middleware';
 import { createSwaggerRoutes } from './docs/swagger.routes';
 import { createPrometheusRoutes } from './infrastructure/monitoring/metrics/prometheus.routes';
+import { prometheusMiddleware } from './infrastructure/monitoring/metrics/prometheus/prometheus-middleware';
 
 const app: Application = express();
 
@@ -25,6 +26,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(contextMiddleware);
 app.use(responseLoggerMiddleware);
 app.use(requestLoggerMiddleware);
+app.use(prometheusMiddleware());
 
 export async function initializeApp(): Promise<void> {
   try {
