@@ -38,4 +38,7 @@ export const TOKENS = {
   // SmsService: Symbol.for('SmsService'),
   // StorageService: Symbol.for('StorageService'),
   // SearchService: Symbol.for('SearchService'),
+
+  // monitoring 
+  PrometheusRegistry: Symbol.for('PrometheusRegistry')
 } as const;
