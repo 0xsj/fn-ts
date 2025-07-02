@@ -6,7 +6,7 @@ import { dark } from './theme';
 
 export function createSwaggerRoutes(): Router {
   const router = Router();
-  
+
   // Generate the OpenAPI spec
   const swaggerSpec = generateOpenAPIDocument();
 
@@ -22,20 +22,24 @@ export function createSwaggerRoutes(): Router {
   });
 
   // Serve Swagger UI with dark theme
-  router.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-    customCss: dark,
-    customSiteTitle: 'FireNotifications API Docs',
-    customfavIcon: '/favicon.ico',
-    swaggerOptions: {
-      persistAuthorization: true,
-      displayRequestDuration: true,
-      tryItOutEnabled: true,
-      filter: true,
-      docExpansion: 'none',
-      defaultModelsExpandDepth: 1,
-      defaultModelExpandDepth: 1,
-    },
-  }));
+  router.use(
+    '/docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      customCss: dark,
+      customSiteTitle: 'FireNotifications API Docs',
+      customfavIcon: '/favicon.ico',
+      swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        tryItOutEnabled: true,
+        filter: true,
+        docExpansion: 'none',
+        defaultModelsExpandDepth: 1,
+        defaultModelExpandDepth: 1,
+      },
+    }),
+  );
 
   return router;
 }

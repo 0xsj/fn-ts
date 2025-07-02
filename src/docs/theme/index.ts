@@ -1,2 +1,2 @@
-export * from './dracula-theme'
-export * from './universal-dark'
+export * from './dracula-theme';
+export * from './universal-dark';
