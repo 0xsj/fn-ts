@@ -39,6 +39,6 @@ export const TOKENS = {
   // StorageService: Symbol.for('StorageService'),
   // SearchService: Symbol.for('SearchService'),
 
-  // monitoring 
-  PrometheusRegistry: Symbol.for('PrometheusRegistry')
+  // monitoring
+  PrometheusRegistry: Symbol.for('PrometheusRegistry'),
 } as const;

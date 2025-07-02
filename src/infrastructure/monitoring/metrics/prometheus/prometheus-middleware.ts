@@ -6,16 +6,16 @@ import { TOKENS } from '../../../../core/di/tokens';
 
 export function prometheusMiddleware() {
   const registry = DIContainer.resolve<PrometheusRegistry>(TOKENS.PrometheusRegistry);
-  
+
   return (req: Request, res: Response, next: NextFunction) => {
     const start = Date.now();
-    
+
     // Get route pattern (e.g., /users/:id instead of /users/123)
     const route = req.route?.path || req.path;
-    
+
     res.on('finish', () => {
       const duration = (Date.now() - start) / 1000;
-      
+
       // Record metrics
       registry.httpRequestDuration.observe(
         {
@@ -23,15 +23,15 @@ export function prometheusMiddleware() {
           route: route,
           status_code: res.statusCode.toString(),
         },
-        duration
+        duration,
       );
-      
+
       registry.httpRequestTotal.inc({
         method: req.method,
         route: route,
         status_code: res.statusCode.toString(),
       });
-      
+
       // Record errors
       if (res.statusCode >= 400) {
         registry.httpRequestErrors.inc({
@@ -41,7 +41,7 @@ export function prometheusMiddleware() {
         });
       }
     });
-    
+
     next();
   };
 }
