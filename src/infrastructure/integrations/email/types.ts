@@ -20,8 +20,8 @@ export const SendEmailOptionsSchema = z.object({
   subject: z.string(),
   text: z.string().optional(),
   html: z.string().optional(),
-  cc: z.array(EmailAddressSchema).optional(),
-  bcc: z.array(EmailAddressSchema).optional(),
+  cc: z.array(EmailAddressSchema).or(EmailAddressSchema).optional(), // Fixed: allow single or array
+  bcc: z.array(EmailAddressSchema).or(EmailAddressSchema).optional(), // Fixed: allow single or array
   replyTo: EmailAddressSchema.optional(),
   attachments: z.array(EmailAttachmentSchema).optional(),
   headers: z.record(z.string()).optional(),

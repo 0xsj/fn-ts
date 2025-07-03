@@ -16,10 +16,11 @@ import {
   Session,
   User,
 } from '../entities';
-import { validators } from '../../shared/utils';
+import { logger, validators } from '../../shared/utils';
 import { AuditWithContext } from '../../shared/decorators/audit.decorator';
 import { AuditContext } from './analytics.service';
 import { EmailService } from '../../infrastructure/integrations/email/email.service';
+import { QueueManager } from '../../infrastructure/queue/queue.manager';
 
 @injectable()
 export class AuthService {
@@ -28,6 +29,7 @@ export class AuthService {
     @inject(TOKENS.AuthRepository) private sessionRepo: ISession,
     @inject(TOKENS.AuthRepository) private tokenRepo: IToken,
     @inject(TOKENS.EmailService) private emailService: EmailService,
+    @inject(TOKENS.QueueManager) private queueManager: QueueManager,
   ) {}
 
   async getSession(sessionId: string): AsyncResult<Session> {
@@ -139,19 +141,33 @@ export class AuthService {
 
     // Delegate to repository
     const result = await this.authRepo.logout(session.id, logoutAll);
+
     if (!isSuccessResponse(result)) {
       return result;
     }
 
-    // Optional: Emit logout event
-    // await this.eventBus.emit(
-    //   new UserLoggedOutEvent({
-    //     userId: session.userId,
-    //     sessionId: session.id,
-    //     logoutAll,
-    //     timestamp: new Date(),
-    //   })
-    // );
+    // Queue logout email using getEmailQueue() method
+    this.queueManager
+      .getEmailQueue()
+      .sendEmailJob({
+        to: { email: 'test@example.com' }, // TODO: Get actual user email
+        subject: '👋 You have been logged out',
+        template: 'logout-notification',
+        data: {
+          sessionId: session.id,
+          userId: session.userId,
+          logoutTime: new Date().toLocaleString(),
+          logoutAll,
+        },
+        correlationId: context?.correlationId,
+      })
+      .catch((error: Error) => {
+        // Fixed: Added explicit type
+        logger.error('Failed to queue logout email', {
+          sessionId,
+          error: error.message || 'Unknown error',
+        });
+      });
 
     return ResponseBuilder.ok(true);
   }
