@@ -64,6 +64,7 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.4",
+    "@bull-board/express": "^6.10.1",
     "@types/redis": "^4.0.10",
     "axios": "^1.10.0",
     "bcrypt": "^6.0.0",
