@@ -19,15 +19,16 @@ export interface IPAddressInfo {
  */
 export class IPAddress {
   private static readonly IPv4_REGEX = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-  private static readonly IPv6_REGEX = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
-  
+  private static readonly IPv6_REGEX =
+    /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
+
   private readonly value: string;
   private readonly version: IPVersion;
   private readonly normalized: string;
 
   constructor(value: string) {
     const trimmed = value.trim();
-    
+
     if (IPAddress.IPv4_REGEX.test(trimmed)) {
       this.version = 'IPv4';
       this.value = trimmed;
@@ -45,13 +46,13 @@ export class IPAddress {
    * Normalize IPv4 address (remove leading zeros)
    */
   private normalizeIPv4(ip: string): string {
-    const octets = ip.split('.').map(octet => parseInt(octet, 10));
-    
+    const octets = ip.split('.').map((octet) => parseInt(octet, 10));
+
     // Validate octets
-    if (octets.some(octet => octet > 255)) {
+    if (octets.some((octet) => octet > 255)) {
       throw new Error(`Invalid IP address: ${ip}`);
     }
-    
+
     return octets.join('.');
   }
 
@@ -66,21 +67,22 @@ export class IPAddress {
 
     // Expand :: to full form
     let expanded = ip.toLowerCase();
-    
+
     if (expanded.includes('::')) {
       const parts = expanded.split('::');
-      const left = parts[0].split(':').filter(p => p);
-      const right = parts[1]?.split(':').filter(p => p) || [];
+      const left = parts[0].split(':').filter((p) => p);
+      const right = parts[1]?.split(':').filter((p) => p) || [];
       const missing = 8 - left.length - right.length;
       const zeros = new Array(missing).fill('0');
-      
+
       expanded = [...left, ...zeros, ...right].join(':');
     }
-    
+
     // Pad segments with leading zeros
-    return expanded.split(':').map(segment => 
-      segment.padStart(4, '0')
-    ).join(':');
+    return expanded
+      .split(':')
+      .map((segment) => segment.padStart(4, '0'))
+      .join(':');
   }
 
   /**
@@ -105,7 +107,7 @@ export class IPAddress {
     if (octets.length !== 4) {
       throw new Error('IPv4 address must have 4 octets');
     }
-    if (octets.some(octet => octet < 0 || octet > 255)) {
+    if (octets.some((octet) => octet < 0 || octet > 255)) {
       throw new Error('IPv4 octets must be between 0 and 255');
     }
     return new IPAddress(octets.join('.'));
@@ -115,14 +117,14 @@ export class IPAddress {
     if (decimal < 0 || decimal > 4294967295) {
       throw new Error('Decimal value out of IPv4 range');
     }
-    
+
     const octets = [
       (decimal >>> 24) & 255,
       (decimal >>> 16) & 255,
       (decimal >>> 8) & 255,
-      decimal & 255
+      decimal & 255,
     ];
-    
+
     return IPAddress.fromOctets(octets);
   }
 
@@ -166,7 +168,7 @@ export class IPAddress {
    */
   getOctets(): number[] | null {
     if (!this.isIPv4()) return null;
-    return this.normalized.split('.').map(octet => parseInt(octet, 10));
+    return this.normalized.split('.').map((octet) => parseInt(octet, 10));
   }
 
   /**
@@ -193,7 +195,7 @@ export class IPAddress {
   toBinary(): string | null {
     if (!this.isIPv4()) return null;
     const octets = this.getOctets()!;
-    return octets.map(octet => octet.toString(2).padStart(8, '0')).join('.');
+    return octets.map((octet) => octet.toString(2).padStart(8, '0')).join('.');
   }
 
   /**
@@ -214,7 +216,7 @@ export class IPAddress {
       const normalized = this.normalized;
       return (
         // fc00::/7 (Unique Local Addresses)
-        normalized.startsWith('fc') || 
+        normalized.startsWith('fc') ||
         normalized.startsWith('fd') ||
         // fe80::/10 (Link-local)
         normalized.startsWith('fe80')
@@ -230,8 +232,7 @@ export class IPAddress {
       const octets = this.getOctets()!;
       return octets[0] === 127;
     } else {
-      return this.normalized === '0000:0000:0000:0000:0000:0000:0000:0001' ||
-             this.value === '::1';
+      return this.normalized === '0000:0000:0000:0000:0000:0000:0000:0001' || this.value === '::1';
     }
   }
 
@@ -265,7 +266,7 @@ export class IPAddress {
   isBroadcast(): boolean {
     if (!this.isIPv4()) return false;
     const octets = this.getOctets()!;
-    return octets.every(octet => octet === 255);
+    return octets.every((octet) => octet === 255);
   }
 
   /**
@@ -274,15 +275,15 @@ export class IPAddress {
   isInRange(cidr: string): boolean {
     const [rangeIp, prefixLength] = cidr.split('/');
     const prefix = parseInt(prefixLength, 10);
-    
+
     if (this.isIPv4()) {
       const rangeAddr = new IPAddress(rangeIp);
       if (!rangeAddr.isIPv4()) return false;
-      
+
       const ipDecimal = this.toDecimal()!;
       const rangeDecimal = rangeAddr.toDecimal()!;
       const mask = (0xffffffff << (32 - prefix)) >>> 0;
-      
+
       return (ipDecimal & mask) === (rangeDecimal & mask);
     } else {
       // Simplified IPv6 range check (full implementation would be more complex)
@@ -293,11 +294,11 @@ export class IPAddress {
       const segments = Math.floor(prefix / 16);
       const thisSegments = this.getSegments()!;
       const rangeSegments = new IPAddress(rangeIp).getSegments()!;
-      
+
       for (let i = 0; i < segments; i++) {
         if (thisSegments[i] !== rangeSegments[i]) return false;
       }
-      
+
       return true;
     }
   }
@@ -359,13 +360,13 @@ export class IPAddress {
     if (this.version !== other.version) {
       return this.version === 'IPv4' ? -1 : 1;
     }
-    
+
     if (this.isIPv4()) {
       const thisDecimal = this.toDecimal()!;
       const otherDecimal = other.toDecimal()!;
       return thisDecimal - otherDecimal;
     }
-    
+
     // For IPv6, string comparison of normalized form
     return this.normalized.localeCompare(other.normalized);
   }
@@ -403,8 +404,8 @@ export class IPAddress {
 
   static isValidIPv4(value: string): boolean {
     if (!IPAddress.IPv4_REGEX.test(value)) return false;
-    const octets = value.split('.').map(o => parseInt(o, 10));
-    return octets.every(octet => octet >= 0 && octet <= 255);
+    const octets = value.split('.').map((o) => parseInt(o, 10));
+    return octets.every((octet) => octet >= 0 && octet <= 255);
   }
 
   static isValidIPv6(value: string): boolean {
@@ -413,17 +414,17 @@ export class IPAddress {
 }
 
 // Zod schemas
-export const IPv4Schema = z.string().refine(
-  (val) => IPAddress.isValidIPv4(val),
-  { message: 'Invalid IPv4 address' }
-).transform(val => new IPAddress(val));
+export const IPv4Schema = z
+  .string()
+  .refine((val) => IPAddress.isValidIPv4(val), { message: 'Invalid IPv4 address' })
+  .transform((val) => new IPAddress(val));
 
-export const IPv6Schema = z.string().refine(
-  (val) => IPAddress.isValidIPv6(val),
-  { message: 'Invalid IPv6 address' }
-).transform(val => new IPAddress(val));
+export const IPv6Schema = z
+  .string()
+  .refine((val) => IPAddress.isValidIPv6(val), { message: 'Invalid IPv6 address' })
+  .transform((val) => new IPAddress(val));
 
-export const IPAddressSchema = z.string().refine(
-  (val) => IPAddress.isValid(val),
-  { message: 'Invalid IP address' }
-).transform(val => new IPAddress(val));
+export const IPAddressSchema = z
+  .string()
+  .refine((val) => IPAddress.isValid(val), { message: 'Invalid IP address' })
+  .transform((val) => new IPAddress(val));

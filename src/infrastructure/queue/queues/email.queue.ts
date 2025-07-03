@@ -3,10 +3,21 @@ import { Job } from 'bullmq';
 import { BaseQueue } from './base.queue';
 import { EmailJobData, QueueName } from '../types';
 import { logger } from '../../../shared/utils/logger';
+import { DIContainer } from '../../../core/di/container';
+import { TOKENS } from '../../../core/di/tokens';
+import { EmailService } from '../../integrations/email/email.service';
+import { SendEmailOptions } from '../../integrations/email/types';
+import { EmailProcessor } from '../processors/email.processor';
 
 export class EmailQueue extends BaseQueue {
+  private emailService: EmailService;
+  // private emailProcessor: EmailProcessor;
+
   constructor() {
     super(QueueName.EMAIL);
+    // Get EmailService from DI container
+    this.emailService = DIContainer.resolve<EmailService>(TOKENS.EmailService);
+    // this.emailProcessor = DIContainer.resolve<EmailProcessor>(TOKENS.EmailProcessor);
   }
 
   /**
@@ -25,22 +36,47 @@ export class EmailQueue extends BaseQueue {
         // Update job progress
         await job.updateProgress(10);
 
-        // TODO: Integrate with actual email service (SendGrid, SES, etc.)
-        // For now, simulate email sending
-        await this.sendEmail(job.data);
+        // Convert job data to SendEmailOptions
+        const emailOptions: SendEmailOptions = {
+          to: job.data.to,
+          cc: job.data.cc,
+          bcc: job.data.bcc,
+          subject: job.data.subject,
+          text: job.data.text,
+          html: job.data.html || (await this.renderTemplate(job.data)),
+          attachments: job.data.attachments,
+          headers: job.data.headers,
+          tags: job.data.tags,
+          metadata: {
+            jobId: job.id,
+            correlationId: job.data.correlationId,
+            template: job.data.template,
+          },
+        };
+
+        // Send email using EmailService
+        const result = await this.emailService.send(emailOptions);
+
+        if (!result.success) {
+          throw new Error(result.body().error.message);
+        }
+
+        const emailResult = result.body().data;
 
         // Update progress
         await job.updateProgress(100);
 
         logger.info('Email sent successfully', {
           jobId: job.id,
-          to: job.data.to,
+          messageId: emailResult.messageId,
+          provider: emailResult.provider,
         });
 
         return {
           success: true,
-          sentAt: new Date(),
-          messageId: `mock-${job.id}`,
+          sentAt: emailResult.timestamp,
+          messageId: emailResult.messageId,
+          provider: emailResult.provider,
         };
       } catch (error) {
         logger.error('Failed to send email', {
@@ -53,8 +89,49 @@ export class EmailQueue extends BaseQueue {
   }
 
   /**
-   * Add an email job to the queue
+   * Render email template (placeholder - implement your template engine)
    */
+  private async renderTemplate(data: EmailJobData): Promise<string> {
+    // Simple template rendering - replace with your template engine
+    const templates: Record<string, (data: any) => string> = {
+      welcome: (data) => `
+        <h2>Welcome ${data.firstName}!</h2>
+        <p>Thank you for joining FireNotifications.</p>
+        <p>Your account has been created successfully.</p>
+        ${data.activationLink ? `<p><a href="${data.activationLink}">Activate your account</a></p>` : ''}
+      `,
+      'password-reset': (data) => `
+        <h2>Password Reset Request</h2>
+        <p>You requested to reset your password.</p>
+        <p><a href="${data.resetLink}">Reset your password</a></p>
+        <p>This link will expire in ${data.expiresIn}.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+      `,
+      'login-notification': (data) => `
+        <h2>New Login Detected</h2>
+        <p>We detected a new login to your account.</p>
+        <p><strong>Time:</strong> ${data.loginTime}</p>
+        <p><strong>IP Address:</strong> ${data.ipAddress || 'Unknown'}</p>
+        <p><strong>Device:</strong> ${data.deviceName || 'Unknown'}</p>
+        <p>If this wasn't you, please secure your account immediately.</p>
+      `,
+      'logout-notification': (data) => `
+        <h2>You've been logged out</h2>
+        <p>You have been successfully logged out from FireNotifications.</p>
+        <p><strong>Time:</strong> ${data.logoutTime}</p>
+        <p>Thanks for using our service!</p>
+      `,
+    };
+
+    const template = templates[data.template || ''];
+    if (!template) {
+      return data.html || data.text || 'No content';
+    }
+
+    return template(data.data || {});
+  }
+
+  // Keep existing methods but update sendEmail to use EmailService
   async sendEmailJob(
     data: EmailJobData,
     options?: {
@@ -78,87 +155,5 @@ export class EmailQueue extends BaseQueue {
     });
 
     return job.id!;
-  }
-
-  /**
-   * Send a welcome email
-   */
-  async sendWelcomeEmail(
-    userId: string,
-    email: string,
-    firstName: string,
-    correlationId?: string,
-  ): Promise<string> {
-    return this.sendEmailJob({
-      to: email,
-      subject: 'Welcome to FireNotifications!',
-      template: 'welcome',
-      data: {
-        userId,
-        firstName,
-        activationLink: `https://app.firenotifications.com/activate/${userId}`,
-      },
-      correlationId,
-    });
-  }
-
-  /**
-   * Send a password reset email
-   */
-  async sendPasswordResetEmail(
-    email: string,
-    resetToken: string,
-    correlationId?: string,
-  ): Promise<string> {
-    return this.sendEmailJob(
-      {
-        to: email,
-        subject: 'Reset Your Password',
-        template: 'password-reset',
-        data: {
-          resetLink: `https://app.firenotifications.com/reset-password/${resetToken}`,
-          expiresIn: '1 hour',
-        },
-        correlationId,
-      },
-      {
-        priority: 1, // High priority
-      },
-    );
-  }
-
-  /**
-   * Mock email sending - replace with actual email service
-   */
-  private async sendEmail(data: EmailJobData): Promise<void> {
-    // Simulate email sending delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    logger.info('Email would be sent', {
-      to: data.to,
-      subject: data.subject,
-      template: data.template,
-    });
-
-    // In production, this would call SendGrid, AWS SES, etc.
-    // Example:
-    // await sendgrid.send({
-    //   to: data.to,
-    //   subject: data.subject,
-    //   html: await renderTemplate(data.template, data.data),
-    // });
-  }
-
-  // Override concurrency for email sending
-  protected getConcurrency(): number {
-    return 10; // Process 10 emails concurrently
-  }
-
-  protected getRateLimitMax(): number {
-    return 50; // Max 50 emails
-  }
-
-  protected getRateLimitDuration(): number {
-    return 60000; // per minute
   }
 }

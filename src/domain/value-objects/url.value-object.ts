@@ -1,7 +1,16 @@
 // src/shared/value-objects/url.value-object.ts
 import { z } from 'zod';
 
-export type URLProtocol = 'http' | 'https' | 'ftp' | 'ftps' | 'ws' | 'wss' | 'mailto' | 'tel' | 'file';
+export type URLProtocol =
+  | 'http'
+  | 'https'
+  | 'ftp'
+  | 'ftps'
+  | 'ws'
+  | 'wss'
+  | 'mailto'
+  | 'tel'
+  | 'file';
 
 export interface URLComponents {
   protocol: string;
@@ -20,7 +29,14 @@ export interface URLComponents {
 export class Url {
   private readonly url: URL;
   private static readonly SAFE_PROTOCOLS = new Set(['http', 'https']);
-  private static readonly HOSTNAME_PROTOCOLS = new Set(['http', 'https', 'ftp', 'ftps', 'ws', 'wss']);
+  private static readonly HOSTNAME_PROTOCOLS = new Set([
+    'http',
+    'https',
+    'ftp',
+    'ftps',
+    'ws',
+    'wss',
+  ]);
   private static readonly DEFAULT_PORTS: Record<string, number> = {
     'http:': 80,
     'https:': 443,
@@ -112,7 +128,11 @@ export class Url {
   }
 
   isSecure(): boolean {
-    return this.url.protocol === 'https:' || this.url.protocol === 'wss:' || this.url.protocol === 'ftps:';
+    return (
+      this.url.protocol === 'https:' ||
+      this.url.protocol === 'wss:' ||
+      this.url.protocol === 'ftps:'
+    );
   }
 
   isSafeProtocol(): boolean {
@@ -185,9 +205,7 @@ export class Url {
   }
 
   getPathSegments(): string[] {
-    return this.url.pathname
-      .split('/')
-      .filter(segment => segment.length > 0);
+    return this.url.pathname.split('/').filter((segment) => segment.length > 0);
   }
 
   withPathname(pathname: string): Url {
@@ -237,15 +255,15 @@ export class Url {
   withQueryParams(params: Record<string, string | string[]>): Url {
     const newUrl = new URL(this.url.href);
     newUrl.searchParams.forEach((_, key) => newUrl.searchParams.delete(key));
-    
+
     Object.entries(params).forEach(([key, value]) => {
       if (Array.isArray(value)) {
-        value.forEach(v => newUrl.searchParams.append(key, v));
+        value.forEach((v) => newUrl.searchParams.append(key, v));
       } else {
         newUrl.searchParams.set(key, value);
       }
     });
-    
+
     return new Url(newUrl);
   }
 
@@ -374,22 +392,22 @@ export class Url {
   getFilename(): string | null {
     const segments = this.getPathSegments();
     if (segments.length === 0) return null;
-    
+
     const lastSegment = segments[segments.length - 1];
     if (lastSegment.includes('.')) {
       return lastSegment;
     }
-    
+
     return null;
   }
 
   getFileExtension(): string | null {
     const filename = this.getFilename();
     if (!filename) return null;
-    
+
     const parts = filename.split('.');
     if (parts.length < 2) return null;
-    
+
     return parts[parts.length - 1].toLowerCase();
   }
 
@@ -398,15 +416,15 @@ export class Url {
    */
   toRelative(baseUrl: string | Url): string {
     const base = typeof baseUrl === 'string' ? new Url(baseUrl) : baseUrl;
-    
+
     if (!this.isSameOrigin(base)) {
       return this.url.href;
     }
-    
+
     let relative = this.url.pathname;
     if (this.url.search) relative += this.url.search;
     if (this.url.hash) relative += this.url.hash;
-    
+
     return relative;
   }
 
@@ -489,8 +507,14 @@ export class Url {
 }
 
 // Zod schema for validation
-export const UrlSchema = z.string().url().transform(val => new Url(val));
-export const HttpUrlSchema = z.string().url().refine(
-  (val) => val.startsWith('http://') || val.startsWith('https://'),
-  { message: 'Must be an HTTP or HTTPS URL' }
-).transform(val => new Url(val));
+export const UrlSchema = z
+  .string()
+  .url()
+  .transform((val) => new Url(val));
+export const HttpUrlSchema = z
+  .string()
+  .url()
+  .refine((val) => val.startsWith('http://') || val.startsWith('https://'), {
+    message: 'Must be an HTTP or HTTPS URL',
+  })
+  .transform((val) => new Url(val));

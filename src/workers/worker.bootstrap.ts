@@ -2,8 +2,6 @@
 import { logger } from '../shared/utils';
 import { HeartbeatWorker } from './scheduled/heart-beat.worker';
 
-
-
 // Simple version - no DI needed
 const worker = new HeartbeatWorker();
 

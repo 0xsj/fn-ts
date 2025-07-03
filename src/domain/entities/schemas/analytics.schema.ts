@@ -8,12 +8,51 @@ import { BaseEntitySchema, BaseEntityDBSchema } from './entity.schema';
 export const AuditLogDBSchema = BaseEntityDBSchema.extend({
   entity_type: z.string(), // "user", "incident", "notification"
   entity_id: z.string(),
-  action: z.enum(['create', 'read', 'update', 'delete', 'login', 'logout', 'export', 'import']),
+  action: z.enum([
+    // CRUD operations
+    'create',
+    'read',
+    'update',
+    'delete',
+    // Auth operations
+    'login',
+    'logout',
+    'password_change',
+    'password_reset',
+    'email_verify',
+    'two_factor_enable',
+    'two_factor_disable',
+    // Access operations
+    'invite',
+    'accept_invite',
+    'remove_access',
+    'change_role',
+    // Status operations
+    'approve',
+    'reject',
+    'publish',
+    'archive',
+    'restore',
+    'activate',
+    'deactivate',
+    'suspend',
+    // Data operations
+    'export',
+    'import',
+    'download',
+    'upload',
+    // Other
+    'view',
+    'search',
+    'filter',
+  ]),
 
   // Actor information
   user_id: z.string().uuid().nullable(), // Null for system actions
   user_email: z.string().email().nullable(),
   user_role: z.string().nullable(),
+
+  organization_id: z.string().uuid().nullable(),
 
   // Request context
   ip_address: z.string().nullable(),
@@ -33,17 +72,61 @@ export const AuditLogDBSchema = BaseEntityDBSchema.extend({
   status: z.enum(['success', 'failure']),
   error_message: z.string().nullable(),
   duration_ms: z.number().nullable(),
+
+  severity: z.enum(['low', 'medium', 'high', 'critical']).default('low'),
+
+  // Flexible metadata for additional context
+  metadata: z.record(z.unknown()).nullable(),
 });
 
 export const AuditLogSchema = BaseEntitySchema.extend({
   entityType: z.string(),
   entityId: z.string(),
-  action: z.enum(['create', 'read', 'update', 'delete', 'login', 'logout', 'export', 'import']),
+  action: z.enum([
+    // CRUD operations
+    'create',
+    'read',
+    'update',
+    'delete',
+    // Auth operations
+    'login',
+    'logout',
+    'password_change',
+    'password_reset',
+    'email_verify',
+    'two_factor_enable',
+    'two_factor_disable',
+    // Access operations
+    'invite',
+    'accept_invite',
+    'remove_access',
+    'change_role',
+    // Status operations
+    'approve',
+    'reject',
+    'publish',
+    'archive',
+    'restore',
+    'activate',
+    'deactivate',
+    'suspend',
+    // Data operations
+    'export',
+    'import',
+    'download',
+    'upload',
+    // Other
+    'view',
+    'search',
+    'filter',
+  ]),
 
   // Actor information
   userId: z.string().uuid().nullable(),
   userEmail: z.string().email().nullable(),
   userRole: z.string().nullable(),
+
+  organizationId: z.string().uuid().nullable(),
 
   // Request context
   ipAddress: z.string().nullable(),
@@ -63,6 +146,11 @@ export const AuditLogSchema = BaseEntitySchema.extend({
   status: z.enum(['success', 'failure']),
   errorMessage: z.string().nullable(),
   durationMs: z.number().nullable(),
+
+  severity: z.enum(['low', 'medium', 'high', 'critical']).default('low'),
+
+  // Flexible metadata
+  metadata: z.record(z.unknown()).nullable(),
 });
 
 // ============================================
@@ -219,7 +307,40 @@ export const AuditQuerySchema = z.object({
   entityType: z.string().optional(),
   entityId: z.string().optional(),
   userId: z.string().uuid().optional(),
-  action: z.string().optional(),
+  action: z
+    .enum([
+      'create',
+      'read',
+      'update',
+      'delete',
+      'login',
+      'logout',
+      'password_change',
+      'password_reset',
+      'email_verify',
+      'two_factor_enable',
+      'two_factor_disable',
+      'invite',
+      'accept_invite',
+      'remove_access',
+      'change_role',
+      'approve',
+      'reject',
+      'publish',
+      'archive',
+      'restore',
+      'activate',
+      'deactivate',
+      'suspend',
+      'export',
+      'import',
+      'download',
+      'upload',
+      'view',
+      'search',
+      'filter',
+    ])
+    .optional(),
   startDate: z.date(),
   endDate: z.date(),
   status: z.enum(['success', 'failure']).optional(),
@@ -319,3 +440,42 @@ export type MetricQuery = z.infer<typeof MetricQuerySchema>;
 export type AuditQuery = z.infer<typeof AuditQuerySchema>;
 export type IncidentAnalytics = z.infer<typeof IncidentAnalyticsSchema>;
 export type NotificationAnalytics = z.infer<typeof NotificationAnalyticsSchema>;
+export const ActionSeverityMap: Record<AuditLog['action'], AuditLog['severity']> = {
+  // Low severity
+  read: 'low',
+  view: 'low',
+  search: 'low',
+  filter: 'low',
+  download: 'low',
+
+  // Medium severity
+  create: 'medium',
+  update: 'medium',
+  upload: 'medium',
+  login: 'medium',
+  logout: 'medium',
+
+  // High severity
+  delete: 'high',
+  password_change: 'high',
+  password_reset: 'high',
+  email_verify: 'high',
+  change_role: 'high',
+  export: 'high',
+  import: 'high',
+
+  // Critical severity
+  two_factor_enable: 'critical',
+  two_factor_disable: 'critical',
+  invite: 'critical',
+  accept_invite: 'critical',
+  remove_access: 'critical',
+  approve: 'critical',
+  reject: 'critical',
+  publish: 'critical',
+  archive: 'critical',
+  restore: 'critical',
+  activate: 'critical',
+  deactivate: 'critical',
+  suspend: 'critical',
+};

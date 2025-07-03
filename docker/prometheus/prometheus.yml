@@ -1,0 +1,46 @@
+# docker/prometheus/prometheus.yml
+global:
+  scrape_interval: 15s # How often to scrape targets
+  evaluation_interval: 15s # How often to evaluate rules
+  scrape_timeout: 10s
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Scrape Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Scrape your Node.js application
+  - job_name: 'firenotifications'
+    static_configs:
+      - targets: ['host.docker.internal:3000'] # Use this for Mac/Windows
+      # - targets: ['172.17.0.1:3000'] # Alternative for Linux
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # Scrape Redis exporter (if you add one later)
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+
+  # Scrape MySQL exporter (if you add one later)
+  # - job_name: 'mysql'
+  #   static_configs:
+  #     - targets: ['mysql-exporter:9104']
+
+  # Scrape MongoDB exporter (if you add one later)
+  # - job_name: 'mongodb'
+  #   static_configs:
+  #     - targets: ['mongodb-exporter:9216']

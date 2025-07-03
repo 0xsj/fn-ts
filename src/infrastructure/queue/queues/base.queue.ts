@@ -248,4 +248,8 @@ export abstract class BaseQueue {
   protected getRateLimitDuration(): number {
     return 1000; // Default: per 1 second
   }
+
+  public getQueue(): Queue {
+    return this.queue;
+  }
 }

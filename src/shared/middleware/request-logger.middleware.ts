@@ -32,11 +32,11 @@ export function requestLoggerMiddleware(req: Request, res: Response, next: NextF
     const level = res.statusCode >= 400 ? 'error' : 'info';
 
     requestLogger[level]({
-      msg: 'Request completed',
+      msg: 'Request finished', // Changed from "Request completed"
       statusCode: res.statusCode,
       duration,
       method: req.method,
-      path: req.path,
+      path: req.originalUrl || req.path,
     });
   });
 

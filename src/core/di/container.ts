@@ -38,6 +38,16 @@ import {
 } from '../../domain/services';
 import { AnalyticsService } from '../../domain/services/analytics.service';
 
+// Add these imports for metrics
+import { PrometheusRegistry } from '../../infrastructure/monitoring/metrics/prometheus/prometheus-registry';
+import { MetricsService } from '../../infrastructure/monitoring/metrics/metrics.service';
+import { HealthCollector } from '../../infrastructure/monitoring/metrics/collectors/health.collector';
+import { HttpCollector } from '../../infrastructure/monitoring/metrics/collectors/http.collector';
+import { QueueCollector } from '../../infrastructure/monitoring/metrics/collectors/queue.collector';
+import { BusinessCollector } from '../../infrastructure/monitoring/metrics/collectors/business.collector';
+import { EmailService } from '../../infrastructure/integrations/email/email.service';
+import { EmailProcessor } from '../../infrastructure/queue/processors';
+
 export class DIContainer {
   private static initialized = false;
 
@@ -51,6 +61,7 @@ export class DIContainer {
     logger.info('Queue system initialized');
   }
 
+  // src/core/di/container.ts (update the initialize method)
   static async initialize(): Promise<void> {
     if (this.initialized) {
       logger.warn('DI Container already initialized');
@@ -58,20 +69,43 @@ export class DIContainer {
     }
 
     try {
+      logger.info('Starting DI Container initialization...');
+
+      logger.info('Registering database...');
       await this.registerDatabase();
+
+      logger.info('Registering cache...');
       await this.registerCache();
+
+      logger.info('Registering repositories...');
       this.registerRepositories();
+
+      logger.info('Registering services...');
       this.registerServices();
+
+      logger.info('Registering integrations');
+      this.registerIntegrationServices();
+
+      logger.info('Registering queues...');
       await this.registerQueues();
+
+      logger.info('Registering event bus...');
       this.registerEventBus();
 
+      logger.info('Registering health check...');
       this.registerHealthCheck();
+
+      logger.info('Registering metrics...');
+      this.registerMetrics();
+
       this.initialized = true;
       logger.info('DI Container initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize DI Container', {
         error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
+        errorType: error?.constructor?.name,
+        errorDetails: error,
       });
       throw error;
     }
@@ -180,6 +214,17 @@ export class DIContainer {
     container.registerSingleton(TOKENS.AnalyticsService, AnalyticsService);
   }
 
+  private static registerIntegrationServices(): void {
+    // Register Email Service
+    container.registerSingleton(TOKENS.EmailService, EmailService);
+
+    // Future services can be added here:
+    // container.registerSingleton(TOKENS.SmsService, SmsService);
+    // container.registerSingleton(TOKENS.StorageService, StorageService);
+
+    logger.info('Integration services registered');
+  }
+
   // Add this new method for EventBus
   private static registerEventBus(): void {
     // Register EventBus as singleton
@@ -192,8 +237,91 @@ export class DIContainer {
     logger.info('Event bus registered and handlers configured');
   }
 
+  private static registerProcessors(): void {
+    container.registerSingleton(TOKENS.EmailProcessor, EmailProcessor);
+    // ... other processors
+  }
+
   private static registerHealthCheck(): void {
     container.registerSingleton(TOKENS.HealthCheckService, HealthCheckService);
+  }
+
+  private static registerMetrics(): void {
+    try {
+      // Register Prometheus Registry
+      logger.debug('Registering PrometheusRegistry...');
+      container.registerSingleton(TOKENS.PrometheusRegistry, PrometheusRegistry);
+
+      // Register collectors with proper dependency injection
+      logger.debug('Registering HealthCollector...');
+      container.register(TOKENS.HealthCollector, {
+        useFactory: (c) => {
+          const registry = c.resolve<PrometheusRegistry>(TOKENS.PrometheusRegistry);
+          const healthService = c.resolve<HealthCheckService>(TOKENS.HealthCheckService);
+          return new HealthCollector(registry, healthService);
+        },
+      });
+
+      logger.debug('Registering HttpCollector...');
+      container.register(TOKENS.HttpCollector, {
+        useFactory: (c) => {
+          const registry = c.resolve<PrometheusRegistry>(TOKENS.PrometheusRegistry);
+          return new HttpCollector(registry);
+        },
+      });
+
+      logger.debug('Registering QueueCollector...');
+      container.register(TOKENS.QueueCollector, {
+        useFactory: (c) => {
+          const registry = c.resolve<PrometheusRegistry>(TOKENS.PrometheusRegistry);
+          const queueManager = c.resolve<QueueManager>(TOKENS.QueueManager);
+          return new QueueCollector(registry, queueManager);
+        },
+      });
+
+      logger.debug('Registering BusinessCollector...');
+      container.register(TOKENS.BusinessCollector, {
+        useFactory: (c) => {
+          const registry = c.resolve<PrometheusRegistry>(TOKENS.PrometheusRegistry);
+          const userService = c.resolve<UserService>(TOKENS.UserService);
+          const organizationService = c.resolve<OrganizationService>(TOKENS.OrganizationService);
+          return new BusinessCollector(registry, userService, organizationService);
+        },
+      });
+
+      // Register MetricsService with explicit dependencies
+      logger.debug('Registering MetricsService...');
+      container.register(TOKENS.MetricsService, {
+        useFactory: (c) => {
+          const prometheusRegistry = c.resolve<PrometheusRegistry>(TOKENS.PrometheusRegistry);
+          const healthCollector = c.resolve<HealthCollector>(TOKENS.HealthCollector);
+          const httpCollector = c.resolve<HttpCollector>(TOKENS.HttpCollector);
+          const queueCollector = c.resolve<QueueCollector>(TOKENS.QueueCollector);
+          const businessCollector = c.resolve<BusinessCollector>(TOKENS.BusinessCollector);
+
+          return new MetricsService(
+            prometheusRegistry,
+            healthCollector,
+            httpCollector,
+            queueCollector,
+            businessCollector,
+          );
+        },
+      });
+
+      // Initialize metrics collection
+      logger.debug('Starting metrics collection...');
+      const metricsService = container.resolve<MetricsService>(TOKENS.MetricsService);
+      metricsService.startCollection();
+
+      logger.info('Metrics system initialized');
+    } catch (error) {
+      logger.error('Failed to register metrics', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw error;
+    }
   }
 
   static resolve<T>(token: symbol): T {
@@ -201,6 +329,14 @@ export class DIContainer {
   }
 
   static async dispose(): Promise<void> {
+    // Stop metrics collection
+    try {
+      const metricsService = container.resolve<MetricsService>(TOKENS.MetricsService);
+      await metricsService.stopCollection();
+    } catch (error) {
+      logger.warn('Failed to stop metrics collection', error);
+    }
+
     // Get queue manager and shut it down
     const queueManager = container.resolve<QueueManager>(TOKENS.QueueManager);
     await queueManager.shutdown();

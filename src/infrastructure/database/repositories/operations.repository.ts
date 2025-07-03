@@ -245,9 +245,7 @@ export class OperationsRepository implements IOperations {
   }> {
     throw new Error('Method not implemented.');
   }
-  getWebhookMetrics(
-    webhookId?: string,
-  ): AsyncResult<{
+  getWebhookMetrics(webhookId?: string): AsyncResult<{
     deliveryRate: number;
     avgResponseTime: number;
     errorRate: number;
@@ -255,9 +253,7 @@ export class OperationsRepository implements IOperations {
   }> {
     throw new Error('Method not implemented.');
   }
-  getFeatureFlagUsage(
-    flagId: string,
-  ): AsyncResult<{
+  getFeatureFlagUsage(flagId: string): AsyncResult<{
     evaluationCount: number;
     enabledCount: number;
     byVariant?: Record<string, number>;

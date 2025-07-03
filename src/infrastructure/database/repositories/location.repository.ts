@@ -149,9 +149,7 @@ export class LocationRepository implements ILocation {
   ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  getLocationUsageStats(
-    locationId: string,
-  ): AsyncResult<{
+  getLocationUsageStats(locationId: string): AsyncResult<{
     usageCount: number;
     lastUsedAt: Date | null;
     topUsers: Array<{ userId: string; count: number }>;

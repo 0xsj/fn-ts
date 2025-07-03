@@ -11,7 +11,7 @@ describe('Currency Value Object', () => {
 
     it('should handle string amounts', () => {
       const currency = new Currency('100.50', 'USD');
-      expect(currency.getAmount()).toBe(100.50);
+      expect(currency.getAmount()).toBe(100.5);
     });
 
     it('should handle bigint amounts', () => {
@@ -21,15 +21,15 @@ describe('Currency Value Object', () => {
 
     it('should handle different currency codes', () => {
       const codes = ['USD', 'EUR', 'GBP', 'JPY', 'CHF'];
-      codes.forEach(code => {
+      codes.forEach((code) => {
         const currency = new Currency(100, code);
         expect(currency.getCurrencyCode()).toBe(code);
       });
     });
 
     it('should handle currencies with different decimal places', () => {
-      const usd = new Currency(100.50, 'USD');
-      expect(usd.getAmount()).toBe(100.50);
+      const usd = new Currency(100.5, 'USD');
+      expect(usd.getAmount()).toBe(100.5);
       expect(usd.getCents()).toBe(10050n);
 
       const jpy = new Currency(100, 'JPY');
@@ -78,10 +78,10 @@ describe('Currency Value Object', () => {
   describe('arithmetic operations', () => {
     describe('addition', () => {
       it('should add two currency values', () => {
-        const currency1 = new Currency(100.50, 'USD');
+        const currency1 = new Currency(100.5, 'USD');
         const currency2 = new Currency(50.25, 'USD');
         const result = currency1.add(currency2);
-        
+
         expect(result.getAmount()).toBe(150.75);
         expect(result.getCurrencyCode()).toBe('USD');
       });
@@ -89,24 +89,24 @@ describe('Currency Value Object', () => {
       it('should throw when adding different currencies', () => {
         const usd = new Currency(100, 'USD');
         const eur = new Currency(100, 'EUR');
-        
+
         expect(() => usd.add(eur)).toThrow('different currencies');
       });
     });
 
     describe('subtraction', () => {
       it('should subtract two currency values', () => {
-        const currency1 = new Currency(100.50, 'USD');
+        const currency1 = new Currency(100.5, 'USD');
         const currency2 = new Currency(50.25, 'USD');
         const result = currency1.subtract(currency2);
-        
+
         expect(result.getAmount()).toBe(50.25);
       });
 
       it('should throw when result would be negative', () => {
         const currency1 = new Currency(50, 'USD');
         const currency2 = new Currency(100, 'USD');
-        
+
         expect(() => currency1.subtract(currency2)).toThrow('negative amount');
       });
     });
@@ -115,14 +115,14 @@ describe('Currency Value Object', () => {
       it('should multiply currency by factor', () => {
         const currency = new Currency(100, 'USD');
         const result = currency.multiply(1.5);
-        
+
         expect(result.getAmount()).toBe(150);
       });
 
       it('should handle decimal multiplication', () => {
         const currency = new Currency(33.33, 'USD');
         const result = currency.multiply(3);
-        
+
         expect(result.getAmount()).toBe(99.99);
       });
 
@@ -136,14 +136,14 @@ describe('Currency Value Object', () => {
       it('should divide currency by divisor', () => {
         const currency = new Currency(100, 'USD');
         const result = currency.divide(4);
-        
+
         expect(result.getAmount()).toBe(25);
       });
 
       it('should handle division with rounding', () => {
         const currency = new Currency(100, 'USD');
         const result = currency.divide(3);
-        
+
         expect(result.getAmount()).toBe(33.33);
       });
 
@@ -162,14 +162,14 @@ describe('Currency Value Object', () => {
       it('should calculate percentage', () => {
         const currency = new Currency(100, 'USD');
         const result = currency.percentage(15);
-        
+
         expect(result.getAmount()).toBe(15);
       });
 
       it('should handle decimal percentages', () => {
         const currency = new Currency(100, 'USD');
         const result = currency.percentage(7.5);
-        
+
         expect(result.getAmount()).toBe(7.5);
       });
     });
@@ -212,7 +212,7 @@ describe('Currency Value Object', () => {
     it('should check if zero', () => {
       const zero = Currency.zero('USD');
       const nonZero = new Currency(0.01, 'USD');
-      
+
       expect(zero.isZero()).toBe(true);
       expect(nonZero.isZero()).toBe(false);
     });
@@ -220,7 +220,7 @@ describe('Currency Value Object', () => {
     it('should check if positive', () => {
       const positive = new Currency(100, 'USD');
       const zero = Currency.zero('USD');
-      
+
       expect(positive.isPositive()).toBe(true);
       expect(zero.isPositive()).toBe(false);
     });
@@ -259,10 +259,10 @@ describe('Currency Value Object', () => {
 
     it('should format using locale', () => {
       const currency = new Currency(1234.56, 'USD');
-      
+
       // US format
       expect(currency.toLocaleString('en-US')).toMatch(/\$1,234\.56/);
-      
+
       // European format
       expect(currency.toLocaleString('de-DE')).toMatch(/1\.234,56/);
     });
@@ -276,7 +276,7 @@ describe('Currency Value Object', () => {
     });
 
     it('should round up', () => {
-      const currency = new Currency(10.50, 'USD');
+      const currency = new Currency(10.5, 'USD');
       const rounded = currency.round(0);
       expect(rounded.getAmount()).toBe(11);
     });
@@ -292,12 +292,12 @@ describe('Currency Value Object', () => {
     it('should allocate proportionally', () => {
       const currency = new Currency(100, 'USD');
       const allocated = currency.allocate([1, 1, 1]);
-      
+
       expect(allocated).toHaveLength(3);
       expect(allocated[0].getAmount()).toBeCloseTo(33.33, 2);
       expect(allocated[1].getAmount()).toBeCloseTo(33.33, 2);
       expect(allocated[2].getAmount()).toBe(33.34); // Gets remainder
-      
+
       // Total should equal original
       const total = allocated.reduce((sum, m) => sum.add(m));
       expect(total.equals(currency)).toBe(true);
@@ -306,7 +306,7 @@ describe('Currency Value Object', () => {
     it('should handle uneven allocations', () => {
       const currency = new Currency(100, 'USD');
       const allocated = currency.allocate([70, 20, 10]);
-      
+
       expect(allocated[0].getAmount()).toBe(70);
       expect(allocated[1].getAmount()).toBe(20);
       expect(allocated[2].getAmount()).toBe(10);
@@ -335,7 +335,7 @@ describe('Currency Value Object', () => {
     it('should deserialize from JSON', () => {
       const json = { amount: '123.45', currency: 'EUR' };
       const deserialized = Currency.fromJSON(json);
-      
+
       expect(deserialized.getAmount()).toBe(123.45);
       expect(deserialized.getCurrencyCode()).toBe('EUR');
     });
@@ -355,7 +355,7 @@ describe('Currency Value Object', () => {
       expect(Currency.isValidAmount('100.50')).toBe(true);
       expect(Currency.isValidAmount(BigInt(100))).toBe(true);
       expect(Currency.isValidAmount(0)).toBe(true);
-      
+
       expect(Currency.isValidAmount(-100)).toBe(false);
       expect(Currency.isValidAmount(NaN)).toBe(false);
       expect(Currency.isValidAmount(Infinity)).toBe(false);
@@ -385,7 +385,7 @@ describe('Currency Value Object', () => {
       const currency1 = new Currency('0.1', 'USD');
       const currency2 = new Currency('0.2', 'USD');
       const result = currency1.add(currency2);
-      
+
       expect(result.getAmount()).toBe(0.3);
       expect(result.getCents()).toBe(30n);
     });
