@@ -45,6 +45,7 @@ import { HealthCollector } from '../../infrastructure/monitoring/metrics/collect
 import { HttpCollector } from '../../infrastructure/monitoring/metrics/collectors/http.collector';
 import { QueueCollector } from '../../infrastructure/monitoring/metrics/collectors/queue.collector';
 import { BusinessCollector } from '../../infrastructure/monitoring/metrics/collectors/business.collector';
+import { EmailService } from '../../infrastructure/integrations/email/email.service';
 
 export class DIContainer {
   private static initialized = false;
@@ -80,6 +81,9 @@ export class DIContainer {
 
       logger.info('Registering services...');
       this.registerServices();
+
+      logger.info('Registering integrations');
+      this.registerIntegrationServices();
 
       logger.info('Registering queues...');
       await this.registerQueues();
@@ -207,6 +211,17 @@ export class DIContainer {
     container.registerSingleton(TOKENS.FileService, FileService);
     container.registerSingleton(TOKENS.OperationsService, OperationsService);
     container.registerSingleton(TOKENS.AnalyticsService, AnalyticsService);
+  }
+
+  private static registerIntegrationServices(): void {
+    // Register Email Service
+    container.registerSingleton(TOKENS.EmailService, EmailService);
+
+    // Future services can be added here:
+    // container.registerSingleton(TOKENS.SmsService, SmsService);
+    // container.registerSingleton(TOKENS.StorageService, StorageService);
+
+    logger.info('Integration services registered');
   }
 
   // Add this new method for EventBus

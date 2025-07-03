@@ -19,6 +19,7 @@ import {
 import { validators } from '../../shared/utils';
 import { AuditWithContext } from '../../shared/decorators/audit.decorator';
 import { AuditContext } from './analytics.service';
+import { EmailService } from '../../infrastructure/integrations/email/email.service';
 
 @injectable()
 export class AuthService {
@@ -26,6 +27,7 @@ export class AuthService {
     @inject(TOKENS.AuthRepository) private authRepo: IAuth,
     @inject(TOKENS.AuthRepository) private sessionRepo: ISession,
     @inject(TOKENS.AuthRepository) private tokenRepo: IToken,
+    @inject(TOKENS.EmailService) private emailService: EmailService,
   ) {}
 
   async getSession(sessionId: string): AsyncResult<Session> {
