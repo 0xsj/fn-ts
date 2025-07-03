@@ -46,6 +46,7 @@ import { HttpCollector } from '../../infrastructure/monitoring/metrics/collector
 import { QueueCollector } from '../../infrastructure/monitoring/metrics/collectors/queue.collector';
 import { BusinessCollector } from '../../infrastructure/monitoring/metrics/collectors/business.collector';
 import { EmailService } from '../../infrastructure/integrations/email/email.service';
+import { EmailProcessor } from '../../infrastructure/queue/processors';
 
 export class DIContainer {
   private static initialized = false;
@@ -234,6 +235,11 @@ export class DIContainer {
     registerEventHandlers(eventBus);
 
     logger.info('Event bus registered and handlers configured');
+  }
+
+  private static registerProcessors(): void {
+    container.registerSingleton(TOKENS.EmailProcessor, EmailProcessor);
+    // ... other processors
   }
 
   private static registerHealthCheck(): void {

@@ -7,14 +7,17 @@ import { DIContainer } from '../../../core/di/container';
 import { TOKENS } from '../../../core/di/tokens';
 import { EmailService } from '../../integrations/email/email.service';
 import { SendEmailOptions } from '../../integrations/email/types';
+import { EmailProcessor } from '../processors/email.processor';
 
 export class EmailQueue extends BaseQueue {
   private emailService: EmailService;
+  // private emailProcessor: EmailProcessor;
 
   constructor() {
     super(QueueName.EMAIL);
     // Get EmailService from DI container
     this.emailService = DIContainer.resolve<EmailService>(TOKENS.EmailService);
+    // this.emailProcessor = DIContainer.resolve<EmailProcessor>(TOKENS.EmailProcessor);
   }
 
   /**

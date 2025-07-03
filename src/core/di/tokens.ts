@@ -46,4 +46,7 @@ export const TOKENS = {
   HttpCollector: Symbol.for('HttpCollector'),
   QueueCollector: Symbol.for('QueueCollector'),
   BusinessCollector: Symbol.for('BusinessCollector'),
+
+  // processors and jobs
+  EmailProcessor: Symbol.for('EmailProcessor'),
 } as const;
