@@ -13,6 +13,7 @@ import { requestLoggerMiddleware } from './shared/middleware';
 import { createSwaggerRoutes } from './docs/swagger.routes';
 import { createPrometheusRoutes } from './infrastructure/monitoring/metrics/prometheus.routes';
 import { prometheusMiddleware } from './infrastructure/monitoring/metrics/prometheus/prometheus-middleware';
+import { setupBullBoard } from './infrastructure/queue/bull-board'; // Add this import
 
 const app: Application = express();
 
@@ -34,11 +35,28 @@ export async function initializeApp(): Promise<void> {
     await DIContainer.initialize();
 
     logger.info('Setting up routes...');
+    
+    // Health and monitoring routes
     app.use('/', createHealthRoutes());
     app.use('/', createPrometheusRoutes());
+    
+    // API documentation
     app.use('/api', createSwaggerRoutes());
+    
+    // Bull Board - Add this after DI container is initialized
+    try {
+      const bullBoardAdapter = setupBullBoard();
+      app.use('/admin/queues', bullBoardAdapter.getRouter());
+      logger.info('Bull Board available at /admin/queues');
+    } catch (error) {
+      logger.error('Failed to setup Bull Board', { error });
+      // Don't fail app startup if Bull Board fails
+    }
+    
+    // API routes
     app.use('/api/v1', createV1Routes());
 
+    // 404 handler
     app.use((_req: Request, res: Response) => {
       res.status(404).json({
         error: 'Not Found',
@@ -46,6 +64,7 @@ export async function initializeApp(): Promise<void> {
       });
     });
 
+    // Error handler (should be last)
     app.use(errorHandlerMiddleware);
 
     logger.info('App initialized successfully');
@@ -59,7 +78,5 @@ export async function initializeApp(): Promise<void> {
     throw error;
   }
 }
-
-app.use(errorHandlerMiddleware);
 
 export default app;
