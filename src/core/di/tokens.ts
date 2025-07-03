@@ -34,7 +34,7 @@ export const TOKENS = {
   // Supporting Services
   HealthCheckService: Symbol.for('HealthCheckService'),
   // JwtService: Symbol.for('JwtService'),
-  // EmailService: Symbol.for('EmailService'),
+  EmailService: Symbol.for('EmailService'),
   // SmsService: Symbol.for('SmsService'),
   // StorageService: Symbol.for('StorageService'),
   // SearchService: Symbol.for('SearchService'),
@@ -46,4 +46,7 @@ export const TOKENS = {
   HttpCollector: Symbol.for('HttpCollector'),
   QueueCollector: Symbol.for('QueueCollector'),
   BusinessCollector: Symbol.for('BusinessCollector'),
+
+  // processors and jobs
+  EmailProcessor: Symbol.for('EmailProcessor'),
 } as const;

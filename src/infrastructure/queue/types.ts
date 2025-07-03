@@ -1,5 +1,6 @@
 // src/infrastructure/queue/types.ts
 import { Job, JobsOptions, WorkerOptions, QueueEvents } from 'bullmq';
+import { EmailAddress, EmailAttachment } from '../integrations/email/types';
 
 export interface QueueJob<T = any> {
   id?: string;
@@ -26,12 +27,21 @@ export interface QueueConfig {
   workerOptions?: WorkerOptions;
 }
 
-// Job payloads for different queue types
 export interface EmailJobData {
-  to: string;
+  to: EmailAddress | EmailAddress[];
+  from?: EmailAddress;
   subject: string;
-  template: string;
-  data: Record<string, any>;
+  text?: string;
+  html?: string;
+  cc?: EmailAddress | EmailAddress[]; // Fixed: allow single or array
+  bcc?: EmailAddress | EmailAddress[]; // Fixed: allow single or array
+  replyTo?: EmailAddress;
+  attachments?: EmailAttachment[];
+  headers?: Record<string, string>;
+  tags?: string[];
+  template?: string; // Template name for rendering
+  data?: Record<string, any>; // Template data
+  metadata?: Record<string, unknown>;
   correlationId?: string;
 }
 
