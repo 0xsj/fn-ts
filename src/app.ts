@@ -35,14 +35,14 @@ export async function initializeApp(): Promise<void> {
     await DIContainer.initialize();
 
     logger.info('Setting up routes...');
-    
+
     // Health and monitoring routes
     app.use('/', createHealthRoutes());
     app.use('/', createPrometheusRoutes());
-    
+
     // API documentation
     app.use('/api', createSwaggerRoutes());
-    
+
     // Bull Board - Add this after DI container is initialized
     try {
       const bullBoardAdapter = setupBullBoard();
@@ -52,7 +52,7 @@ export async function initializeApp(): Promise<void> {
       logger.error('Failed to setup Bull Board', { error });
       // Don't fail app startup if Bull Board fails
     }
-    
+
     // API routes
     app.use('/api/v1', createV1Routes());
 
