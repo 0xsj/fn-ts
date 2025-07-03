@@ -131,10 +131,7 @@ describe('SmtpProvider', () => {
       // Assert
       expect(mockSendMail).toHaveBeenCalledWith(
         expect.objectContaining({
-          to: [
-            '"User One" <user1@example.com>',
-            '"User Two" <user2@example.com>',
-          ],
+          to: ['"User One" <user1@example.com>', '"User Two" <user2@example.com>'],
         }),
       );
     });

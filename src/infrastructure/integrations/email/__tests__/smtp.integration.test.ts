@@ -79,7 +79,7 @@ describeIntegration('SmtpProvider Integration Tests', () => {
       expect(result.messageId).toBeTruthy();
 
       // Wait a bit for Mailhog to process
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Verify email was received by Mailhog
       const response = await axios.get<MailhogResponse>(`${MAILHOG_API_URL}/messages`);
@@ -118,7 +118,7 @@ describeIntegration('SmtpProvider Integration Tests', () => {
       expect(result.success).toBe(true);
 
       // Wait for Mailhog
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Check Mailhog received it
       const response = await axios.get<MailhogResponse>(`${MAILHOG_API_URL}/messages`);
@@ -150,7 +150,10 @@ describeIntegration('SmtpProvider Integration Tests', () => {
           {
             filename: 'pixel.png',
             // 1x1 red pixel PNG
-            content: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'),
+            content: Buffer.from(
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+              'base64',
+            ),
             type: 'image/png',
             disposition: 'inline',
             contentId: 'testimage',
@@ -165,12 +168,12 @@ describeIntegration('SmtpProvider Integration Tests', () => {
       expect(result.success).toBe(true);
 
       // Give Mailhog time to process
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Verify in Mailhog
       const response = await axios.get<MailhogResponse>(`${MAILHOG_API_URL}/messages`);
       const message = response.data.items[0];
-      
+
       // Check that the message has attachments
       expect(message.MIME.Parts).toBeTruthy();
       expect(message.MIME.Parts!.length).toBeGreaterThan(1);
