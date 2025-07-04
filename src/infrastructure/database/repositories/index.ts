@@ -7,3 +7,4 @@ export * from './location.repository';
 export * from './notification.repository';
 export * from './operations.repository';
 export * from './organization.repository';
+export * from './analytics.repository';
