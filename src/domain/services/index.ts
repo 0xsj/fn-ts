@@ -7,3 +7,4 @@ export * from './notification.service';
 export * from './operations.service';
 export * from './organization.service';
 export * from './user.service';
+export * from './analytics.service';
