@@ -34,7 +34,7 @@ export class DIContainer {
     new IntegrationModule(), // Email, Push services
     new QueueModule(), // Depends on Redis from Cache
     new MonitoringModule(), // Depends on Services, Queue
-    new ControllerModule()
+    new ControllerModule(),
   ];
 
   static async initialize(): Promise<void> {

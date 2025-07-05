@@ -1,15 +1,12 @@
 // src/api/v1/controllers/user.controller.ts
-import { injectable } from 'tsyringe';
 import type { Request, Response, NextFunction } from 'express';
 import { UserService } from '../../../domain/services/user.service';
-import { DIContainer } from '../../../core/di/container';
-import { TOKENS } from '../../../core/di/tokens';
 import { CreateUserSchema, UpdateUserSchema, User, UserPublic } from '../../../domain/entities';
 import { ValidationError } from '../../../shared/response';
 import { sendError, sendOk, sendCreated } from '../../../shared/utils/response-helper';
 import { isSuccessResponse } from '../../../shared/response';
 import { Injectable } from '../../../core/di/decorators/injectable.decorator';
-import { Inject, InjectLogger, InjectUserService } from '../../../core/di/decorators/inject.decorator';
+import { Inject, InjectLogger } from '../../../core/di/decorators/inject.decorator';
 import { ILogger } from '../../../shared/utils';
 
 @Injectable()

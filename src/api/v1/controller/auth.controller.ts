@@ -1,18 +1,10 @@
-import { injectable } from 'tsyringe';
 import type { Response, Request, NextFunction } from 'express';
 import { AuthService } from '../../../domain/services';
-import { DIContainer } from '../../../core/di/container';
-import { TOKENS } from '../../../core/di/tokens';
 import { sendError, sendOk } from '../../../shared/utils/response-helper';
 import { isSuccessResponse, ValidationError } from '../../../shared/response';
-import { z } from 'zod';
 import { AuditContext } from '../../../domain/services/analytics.service';
 import { Injectable } from '../../../core/di/decorators/injectable.decorator';
-import {
-  Inject,
-  InjectAuthService,
-  InjectLogger,
-} from '../../../core/di/decorators/inject.decorator';
+import { Inject, InjectLogger } from '../../../core/di/decorators';
 import { ILogger } from '../../../shared/utils';
 
 @Injectable()

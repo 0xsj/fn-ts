@@ -6,7 +6,7 @@ import { UnauthorizedError, ValidationError } from '../../../shared/response';
 import { sendError, sendOk, sendCreated } from '../../../shared/utils/response-helper';
 import { isSuccessResponse } from '../../../shared/response';
 import { Injectable } from '../../../core/di/decorators/injectable.decorator';
-import { Inject, InjectOrganizationService } from '../../../core/di/decorators/inject.decorator';
+import { Inject } from '../../../core/di/decorators/inject.decorator';
 
 @Injectable()
 export class OrganizationController {
@@ -91,7 +91,10 @@ export class OrganizationController {
     }
   }
 }
-function Inejct(): (target: typeof OrganizationController, propertyKey: undefined, parameterIndex: 0) => void {
+function Inejct(): (
+  target: typeof OrganizationController,
+  propertyKey: undefined,
+  parameterIndex: 0,
+) => void {
   throw new Error('Function not implemented.');
 }
-

@@ -21,16 +21,8 @@ import { AuditWithContext } from '../../shared/decorators/audit.decorator';
 import { AuditContext } from './analytics.service';
 import { EmailService } from '../../infrastructure/integrations/email/email.service';
 import { QueueManager } from '../../infrastructure/queue/queue.manager';
-import {
-  Inject,
-  InjectAuthRepository,
-  InjectEmailService,
-  InjectEventBus,
-  InjectLogger,
-  InjectQueueManager,
-} from '../../core/di/decorators/inject.decorator';
+import { Inject, Injectable } from '../../core/di/decorators';
 import { EventBus } from '../../infrastructure/events/event-bus';
-import { Injectable } from '../../core/di/decorators/injectable.decorator';
 
 @Injectable()
 export class AuthService {

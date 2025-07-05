@@ -466,15 +466,51 @@ export class AuthRepository implements ISession, IToken, IAuth {
     }
   }
 
-  createPasswordResetToken(
+  async createPasswordResetToken(
     userId: string,
     tokenHash: string,
     expiresIn?: number,
     ipAddress?: string,
     userAgent?: string,
   ): AsyncResult<PasswordResetToken> {
-    throw new Error('Method not implemented.');
+    try {
+      const tokenId = uuidv4();
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + (expiresIn || 60 * 60) * 1000); // Default 1 hour
+
+      await this.db
+        .insertInto('password_reset_tokens')
+        .values({
+          id: tokenId,
+          user_id: userId,
+          token_hash: tokenHash,
+          expires_at: expiresAt,
+          used_at: null,
+          ip_address: ipAddress || null,
+          user_agent: userAgent || null,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      const token: PasswordResetToken = {
+        id: tokenId,
+        userId,
+        tokenHash,
+        expiresAt,
+        usedAt: null,
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      return ResponseBuilder.ok(token);
+    } catch (error) {
+      return new DatabaseError('createPasswordResetToken', error);
+    }
   }
+
   async findPasswordResetToken(tokenHash: string): AsyncResult<PasswordResetToken | null> {
     try {
       const row = await this.db
@@ -489,51 +525,318 @@ export class AuthRepository implements ISession, IToken, IAuth {
     }
   }
 
-  findActivePasswordResetTokensByUserId(userId: string): AsyncResult<PasswordResetToken[]> {
-    throw new Error('Method not implemented.');
+  async findActivePasswordResetTokensByUserId(userId: string): AsyncResult<PasswordResetToken[]> {
+    try {
+      const now = new Date();
+
+      const rows = await this.db
+        .selectFrom('password_reset_tokens')
+        .selectAll()
+        .where('user_id', '=', userId)
+        .where('expires_at', '>', now) // Not expired
+        .where('used_at', 'is', null) // Not used
+        .orderBy('created_at', 'desc')
+        .execute();
+
+      const tokens = rows.map((row) => this.mapToPasswordResetToken(row));
+
+      return ResponseBuilder.ok(tokens);
+    } catch (error) {
+      return new DatabaseError('findActivePasswordResetTokensByUserId', error);
+    }
   }
-  markPasswordResetTokenAsUsed(tokenHash: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async markPasswordResetTokenAsUsed(tokenHash: string): AsyncResult<boolean> {
+    try {
+      const now = new Date();
+
+      const result = await this.db
+        .updateTable('password_reset_tokens')
+        .set({
+          used_at: now,
+          updated_at: now,
+        })
+        .where('token_hash', '=', tokenHash)
+        .where('used_at', 'is', null) // Only mark if not already used
+        .where('expires_at', '>', now) // Only mark if not expired
+        .execute();
+
+      // Check if any rows were updated
+      const success = result.length > 0;
+
+      return ResponseBuilder.ok(success);
+    } catch (error) {
+      return new DatabaseError('markPasswordResetTokenAsUsed', error);
+    }
   }
-  revokePasswordResetToken(tokenHash: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+  async revokePasswordResetToken(tokenHash: string): AsyncResult<boolean> {
+    try {
+      const now = new Date();
+
+      // Mark the token as used (revoked) even if not actually used for password reset
+      const result = await this.db
+        .updateTable('password_reset_tokens')
+        .set({
+          used_at: now, // Mark as "used" to revoke it
+          updated_at: now,
+        })
+        .where('token_hash', '=', tokenHash)
+        .where('used_at', 'is', null) // Only revoke if not already used
+        .execute();
+
+      // Check if any rows were updated
+      const success = result.length > 0;
+
+      return ResponseBuilder.ok(success);
+    } catch (error) {
+      return new DatabaseError('revokePasswordResetToken', error);
+    }
   }
-  revokeAllUserPasswordResetTokens(userId: string): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+  async revokeAllUserPasswordResetTokens(userId: string): AsyncResult<number> {
+    try {
+      const now = new Date();
+
+      // Mark all unused tokens for this user as used (revoked)
+      const result = await this.db
+        .updateTable('password_reset_tokens')
+        .set({
+          used_at: now, // Mark as "used" to revoke them
+          updated_at: now,
+        })
+        .where('user_id', '=', userId)
+        .where('used_at', 'is', null) // Only revoke unused tokens
+        .execute();
+
+      // Return the number of tokens that were revoked
+      const revokedCount = result.length;
+
+      return ResponseBuilder.ok(revokedCount);
+    } catch (error) {
+      return new DatabaseError('revokeAllUserPasswordResetTokens', error);
+    }
   }
-  deleteExpiredPasswordResetTokens(): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+  async deleteExpiredPasswordResetTokens(): AsyncResult<number> {
+    try {
+      const now = new Date();
+
+      // Delete tokens that are expired AND have been used, or are very old
+      // Keep recent expired tokens for audit trail
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const result = await this.db
+        .deleteFrom('password_reset_tokens')
+        .where((eb) =>
+          eb.or([
+            // Delete used tokens older than 30 days
+            eb.and([eb('used_at', 'is not', null), eb('used_at', '<', thirtyDaysAgo)]),
+            // Delete expired unused tokens older than 30 days
+            eb.and([eb('expires_at', '<', thirtyDaysAgo), eb('used_at', 'is', null)]),
+          ]),
+        )
+        .execute();
+
+      // Return the number of tokens deleted
+      const deletedCount = result.length;
+
+      return ResponseBuilder.ok(deletedCount);
+    } catch (error) {
+      return new DatabaseError('deleteExpiredPasswordResetTokens', error);
+    }
   }
-  createEmailVerificationToken(
+
+  async createEmailVerificationToken(
     userId: string,
     email: string,
     tokenHash: string,
     expiresIn?: number,
   ): AsyncResult<EmailVerificationToken> {
-    throw new Error('Method not implemented.');
+    try {
+      const tokenId = uuidv4();
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + (expiresIn || 24 * 60 * 60) * 1000); // Default 24 hours
+
+      await this.db
+        .insertInto('email_verification_tokens')
+        .values({
+          id: tokenId,
+          user_id: userId,
+          email: email.toLowerCase(),
+          token_hash: tokenHash,
+          expires_at: expiresAt,
+          verified_at: null,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      const token: EmailVerificationToken = {
+        id: tokenId,
+        userId,
+        email,
+        tokenHash,
+        expiresAt,
+        verifiedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      return ResponseBuilder.ok(token);
+    } catch (error) {
+      return new DatabaseError('createEmailVerificationToken', error);
+    }
   }
-  findEmailVerificationToken(tokenHash: string): AsyncResult<EmailVerificationToken | null> {
-    throw new Error('Method not implemented.');
+
+  async findEmailVerificationToken(tokenHash: string): AsyncResult<EmailVerificationToken | null> {
+    try {
+      const row = await this.db
+        .selectFrom('email_verification_tokens')
+        .selectAll()
+        .where('token_hash', '=', tokenHash)
+        .executeTakeFirst();
+
+      if (!row) {
+        return ResponseBuilder.ok(null);
+      }
+
+      const token = this.mapToEmailVerificationToken(row);
+
+      return ResponseBuilder.ok(token);
+    } catch (error) {
+      return new DatabaseError('findEmailVerificationToken', error);
+    }
   }
-  findActiveEmailVerificationToken(
+
+  async findActiveEmailVerificationToken(
     userId: string,
     email: string,
   ): AsyncResult<EmailVerificationToken | null> {
-    throw new Error('Method not implemented.');
+    try {
+      const now = new Date();
+
+      const row = await this.db
+        .selectFrom('email_verification_tokens')
+        .selectAll()
+        .where('user_id', '=', userId)
+        .where('email', '=', email.toLowerCase())
+        .where('expires_at', '>', now) // Not expired
+        .where('verified_at', 'is', null) // Not used
+        .orderBy('created_at', 'desc') // Get most recent
+        .executeTakeFirst();
+
+      if (!row) {
+        return ResponseBuilder.ok(null);
+      }
+
+      const token = this.mapToEmailVerificationToken(row);
+
+      return ResponseBuilder.ok(token);
+    } catch (error) {
+      return new DatabaseError('findActiveEmailVerificationToken', error);
+    }
   }
-  markEmailVerificationTokenAsUsed(tokenHash: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async markEmailVerificationTokenAsUsed(tokenHash: string): AsyncResult<boolean> {
+    try {
+      const now = new Date();
+
+      const result = await this.db
+        .updateTable('email_verification_tokens')
+        .set({
+          verified_at: now,
+          updated_at: now,
+        })
+        .where('token_hash', '=', tokenHash)
+        .where('verified_at', 'is', null) // Only mark if not already verified
+        .where('expires_at', '>', now) // Only mark if not expired
+        .execute();
+
+      // Check if any rows were updated
+      const success = result.length > 0;
+
+      return ResponseBuilder.ok(success);
+    } catch (error) {
+      return new DatabaseError('markEmailVerificationTokenAsUsed', error);
+    }
   }
-  revokeEmailVerificationToken(tokenHash: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async revokeEmailVerificationToken(tokenHash: string): AsyncResult<boolean> {
+    try {
+      const now = new Date();
+
+      // Mark the token as verified (revoked) even if not actually used for verification
+      const result = await this.db
+        .updateTable('email_verification_tokens')
+        .set({
+          verified_at: now, // Mark as "verified" to revoke it
+          updated_at: now,
+        })
+        .where('token_hash', '=', tokenHash)
+        .where('verified_at', 'is', null) // Only revoke if not already used
+        .execute();
+
+      // Check if any rows were updated
+      const success = result.length > 0;
+
+      return ResponseBuilder.ok(success);
+    } catch (error) {
+      return new DatabaseError('revokeEmailVerificationToken', error);
+    }
   }
-  revokeAllUserEmailVerificationTokens(userId: string): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+
+  async revokeAllUserEmailVerificationTokens(userId: string): AsyncResult<number> {
+    try {
+      const now = new Date();
+
+      // Mark all unused email verification tokens for this user as used (revoked)
+      const result = await this.db
+        .updateTable('email_verification_tokens')
+        .set({
+          verified_at: now, // Mark as "verified" to revoke them
+          updated_at: now,
+        })
+        .where('user_id', '=', userId)
+        .where('verified_at', 'is', null) // Only revoke unused tokens
+        .execute();
+
+      // Return the number of tokens that were revoked
+      const revokedCount = result.length;
+
+      return ResponseBuilder.ok(revokedCount);
+    } catch (error) {
+      return new DatabaseError('revokeAllUserEmailVerificationTokens', error);
+    }
   }
-  deleteExpiredEmailVerificationTokens(): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+
+  async deleteExpiredEmailVerificationTokens(): AsyncResult<number> {
+    try {
+      const now = new Date();
+
+      // Delete tokens that are expired AND have been verified, or are very old
+      // Keep recent expired tokens for audit trail
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const result = await this.db
+        .deleteFrom('email_verification_tokens')
+        .where((eb) =>
+          eb.or([
+            // Delete verified tokens older than 30 days
+            eb.and([eb('verified_at', 'is not', null), eb('verified_at', '<', thirtyDaysAgo)]),
+            // Delete expired unverified tokens older than 30 days
+            eb.and([eb('expires_at', '<', thirtyDaysAgo), eb('verified_at', 'is', null)]),
+          ]),
+        )
+        .execute();
+
+      // Return the number of tokens deleted
+      const deletedCount = result.length;
+
+      return ResponseBuilder.ok(deletedCount);
+    } catch (error) {
+      return new DatabaseError('deleteExpiredEmailVerificationTokens', error);
+    }
   }
-  createApiKey(input: {
+
+  async createApiKey(input: {
     userId: string;
     name: string;
     keyHash: string;
@@ -543,23 +846,196 @@ export class AuthRepository implements ISession, IToken, IAuth {
     allowedOrigins?: string[];
     expiresAt?: Date;
   }): AsyncResult<ApiKey> {
-    throw new Error('Method not implemented.');
+    try {
+      const apiKeyId = uuidv4();
+      const now = new Date();
+
+      await this.db
+        .insertInto('api_keys')
+        .values({
+          id: apiKeyId,
+          user_id: input.userId,
+          name: input.name,
+          key_hash: input.keyHash,
+          key_prefix: input.keyHint,
+          scopes: input.scopes, // Pass array directly - Kysely handles JSON serialization
+          allowed_ips: input.allowedIps || null, // Pass array or null
+          allowed_origins: input.allowedOrigins || null, // Pass array or null
+          expires_at: input.expiresAt || null,
+
+          // Additional fields from migration
+          organization_id: null,
+          rate_limit_per_hour: null,
+          is_active: true,
+
+          // Initial state
+          last_used_at: null,
+          last_used_ip: null,
+          usage_count: 0,
+          revoked_at: null,
+
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      const apiKey: ApiKey = {
+        id: apiKeyId,
+        userId: input.userId,
+        name: input.name,
+        keyHash: input.keyHash,
+        keyPrefix: input.keyHint,
+        scopes: input.scopes,
+        allowedIps: input.allowedIps || null,
+        allowedOrigins: input.allowedOrigins || null,
+
+        // Additional fields
+        organizationId: null,
+        rateLimitPerHour: null,
+
+        lastUsedAt: null,
+        lastUsedIp: null,
+        usageCount: 0,
+        expiresAt: input.expiresAt || null,
+
+        isActive: true,
+        revokedAt: null,
+        revokedReason: null,
+
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      return ResponseBuilder.ok(apiKey);
+    } catch (error) {
+      return new DatabaseError('createApiKey', error);
+    }
   }
-  findApiKeyByHash(keyHash: string): AsyncResult<ApiKey | null> {
-    throw new Error('Method not implemented.');
+
+  async findApiKeyByHash(keyHash: string): AsyncResult<ApiKey | null> {
+    try {
+      const row = await this.db
+        .selectFrom('api_keys')
+        .selectAll()
+        .where('key_hash', '=', keyHash)
+        .executeTakeFirst();
+
+      if (!row) {
+        return ResponseBuilder.ok(null);
+      }
+
+      const apiKey = this.mapToApiKey(row);
+
+      return ResponseBuilder.ok(apiKey);
+    } catch (error) {
+      return new DatabaseError('findApiKeyByHash', error);
+    }
   }
-  findApiKeysByUserId(userId: string, includeRevoked?: boolean): AsyncResult<ApiKey[]> {
-    throw new Error('Method not implemented.');
+
+  async findApiKeysByUserId(userId: string, includeRevoked?: boolean): AsyncResult<ApiKey[]> {
+    try {
+      let query = this.db.selectFrom('api_keys').selectAll().where('user_id', '=', userId);
+
+      // By default, only return active (non-revoked) keys
+      if (!includeRevoked) {
+        query = query.where('revoked_at', 'is', null);
+      }
+
+      const rows = await query
+        .orderBy('created_at', 'desc') // Most recent first
+        .execute();
+
+      const apiKeys = rows.map((row) => this.mapToApiKey(row));
+
+      return ResponseBuilder.ok(apiKeys);
+    } catch (error) {
+      return new DatabaseError('findApiKeysByUserId', error);
+    }
   }
-  updateApiKeyLastUsed(keyHash: string, ipAddress?: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async updateApiKeyLastUsed(keyHash: string, ipAddress?: string): AsyncResult<boolean> {
+    try {
+      const now = new Date();
+
+      const result = await this.db
+        .updateTable('api_keys')
+        .set({
+          last_used_at: now,
+          last_used_ip: ipAddress || null,
+          usage_count: sql`usage_count + 1`, // Increment usage count
+          updated_at: now,
+        })
+        .where('key_hash', '=', keyHash)
+        .where('is_active', '=', true) // Only update if active
+        .where('revoked_at', 'is', null) // Only update if not revoked
+        .where((eb) =>
+          eb.or([
+            eb('expires_at', 'is', null), // No expiration
+            eb('expires_at', '>', now), // Or not expired
+          ]),
+        )
+        .execute();
+
+      const success = result.length > 0;
+
+      return ResponseBuilder.ok(success);
+    } catch (error) {
+      return new DatabaseError('updateApiKeyLastUsed', error);
+    }
   }
-  revokeApiKey(id: string, revokedBy: string, reason?: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async revokeApiKey(id: string, revokedBy: string, reason?: string): AsyncResult<boolean> {
+    try {
+      const now = new Date();
+
+      const result = await this.db
+        .updateTable('api_keys')
+        .set({
+          revoked_at: now,
+          is_active: false, // Also mark as inactive
+          updated_at: now,
+        })
+        .where('id', '=', id)
+        .where('revoked_at', 'is', null) // Only revoke if not already revoked
+        .execute();
+
+      const success = result.length > 0;
+
+      return ResponseBuilder.ok(success);
+    } catch (error) {
+      return new DatabaseError('revokeApiKey', error);
+    }
   }
-  deleteExpiredApiKeys(): AsyncResult<number> {
-    throw new Error('Method not implemented.');
+
+  async deleteExpiredApiKeys(): AsyncResult<number> {
+    try {
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      // Delete API keys that are:
+      // 1. Expired AND revoked (older than 30 days)
+      // 2. Expired AND inactive (older than 30 days)
+      const result = await this.db
+        .deleteFrom('api_keys')
+        .where((eb) =>
+          eb.and([
+            eb('expires_at', '<', thirtyDaysAgo), // Expired more than 30 days ago
+            eb.or([
+              eb('revoked_at', 'is not', null), // Is revoked
+              eb('is_active', '=', false), // Or is inactive
+            ]),
+          ]),
+        )
+        .execute();
+
+      const deletedCount = result.length;
+
+      return ResponseBuilder.ok(deletedCount);
+    } catch (error) {
+      return new DatabaseError('deleteExpiredApiKeys', error);
+    }
   }
+
   storeTwoFactorSecret(
     userId: string,
     encryptedSecret: string,
@@ -1364,8 +1840,58 @@ export class AuthRepository implements ISession, IToken, IAuth {
   sendVerificationEmail(userId: string, email?: string): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  verifyEmail(request: VerifyEmailRequest): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+  async verifyEmail(request: VerifyEmailRequest): AsyncResult<boolean> {
+    try {
+      const crypto = await import('crypto');
+      const tokenHash = crypto.createHash('sha256').update(request.token).digest('hex');
+
+      const tokenResult = await this.db
+        .selectFrom('email_verification_tokens')
+        .selectAll()
+        .where('token_hash', '=', tokenHash)
+        .executeTakeFirst();
+
+      if (!tokenResult) {
+        return new NotFoundError('Invalid verification token');
+      }
+
+      if (new Date(tokenResult.expires_at) < new Date()) {
+        return new ValidationError({ token: ['Verification token has expired'] });
+      }
+
+      if (tokenResult.verified_at) {
+        return new ValidationError({ token: ['Verification token already used'] });
+      }
+
+      const trx = await this.db.transaction().execute(async (tx) => {
+        await tx
+          .updateTable('email_verification_tokens')
+          .set({
+            verified_at: new Date(),
+            updated_at: new Date(), // Now we can update this!
+          })
+          .where('id', '=', tokenResult.id)
+          .execute();
+
+        await tx
+          .updateTable('users')
+          .set({
+            email_verified: true,
+            email_verified_at: new Date(),
+            status: 'active',
+            updated_at: new Date(),
+          })
+          .where('id', '=', tokenResult.user_id)
+          .where('email', '=', tokenResult.email)
+          .execute();
+
+        return true;
+      });
+
+      return ResponseBuilder.ok(true);
+    } catch (error) {
+      return new DatabaseError('verifyEmail', error);
+    }
   }
   resendVerificationEmail(email: string): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
@@ -1521,6 +2047,50 @@ export class AuthRepository implements ISession, IToken, IAuth {
       updatedAt: dbUser.updated_at,
       deletedAt: dbUser.deleted_at,
       deletedBy: dbUser.deleted_by,
+    };
+  }
+
+  private mapToEmailVerificationToken(row: any): EmailVerificationToken {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      email: row.email,
+      tokenHash: row.token_hash,
+      expiresAt: row.expires_at,
+      verifiedAt: row.verified_at, // Changed from usedAt
+      createdAt: row.created_at,
+      updatedAt: row.created_at, // Use created_at since updated_at doesn't exist in DB
+    };
+  }
+
+  private mapToApiKey(row: any): ApiKey {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      keyHash: row.key_hash,
+      keyPrefix: row.key_prefix, // This is a string, not JSON
+
+      organizationId: row.organization_id,
+
+      scopes: row.scopes || [], // JSON array
+      allowedIps: row.allowed_ips || null, // JSON array or null
+      allowedOrigins: row.allowed_origins || null, // JSON array or null
+
+      rateLimitPerHour: row.rate_limit_per_hour,
+
+      expiresAt: row.expires_at ? new Date(row.expires_at) : null,
+      lastUsedAt: row.last_used_at ? new Date(row.last_used_at) : null,
+      lastUsedIp: row.last_used_ip,
+      usageCount: Number(row.usage_count) || 0, // Convert to number
+
+      isActive: Boolean(row.is_active), // Convert tinyint to boolean
+      revokedAt: row.revoked_at ? new Date(row.revoked_at) : null,
+      revokedReason: row.revoke_reason,
+      // Note: revokedBy exists in DB but not in ApiKey entity
+
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at),
     };
   }
 }
