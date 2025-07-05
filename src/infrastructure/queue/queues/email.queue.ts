@@ -10,14 +10,21 @@ import { SendEmailOptions } from '../../integrations/email/types';
 import { EmailProcessor } from '../processors/email.processor';
 
 export class EmailQueue extends BaseQueue {
-  private emailService: EmailService;
-  // private emailProcessor: EmailProcessor;
+  private emailService?: EmailService;
 
   constructor() {
     super(QueueName.EMAIL);
-    // Get EmailService from DI container
-    this.emailService = DIContainer.resolve<EmailService>(TOKENS.EmailService);
-    // this.emailProcessor = DIContainer.resolve<EmailProcessor>(TOKENS.EmailProcessor);
+    // Don't resolve services here - wait until needed
+  }
+
+  /**
+   * Get EmailService lazily (only when needed)
+   */
+  private getEmailService(): EmailService {
+    if (!this.emailService) {
+      this.emailService = DIContainer.resolve<EmailService>(TOKENS.EmailService);
+    }
+    return this.emailService;
   }
 
   /**
@@ -54,8 +61,9 @@ export class EmailQueue extends BaseQueue {
           },
         };
 
-        // Send email using EmailService
-        const result = await this.emailService.send(emailOptions);
+        // Get EmailService lazily and send email
+        const emailService = this.getEmailService();
+        const result = await emailService.send(emailOptions);
 
         if (!result.success) {
           throw new Error(result.body().error.message);

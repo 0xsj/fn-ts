@@ -9,21 +9,31 @@ import { logger } from '../../../../shared/utils';
 type UserChangeEvent = UserUpdatedEvent | UserDeletedEvent;
 
 export class InvalidateUserCacheHandler extends BaseEventHandler<UserChangeEvent> {
-  private cacheService: CacheService;
+  private cacheService?: CacheService;
 
   constructor() {
     super('InvalidateUserCache');
-    this.cacheService = DIContainer.resolve<CacheService>(TOKENS.CacheService);
+    // Don't resolve here - wait until needed
+  }
+
+  private getCacheService(): CacheService {
+    if (!this.cacheService) {
+      this.cacheService = DIContainer.resolve<CacheService>(TOKENS.CacheService);
+    }
+    return this.cacheService;
   }
 
   protected async execute(event: UserChangeEvent): Promise<void> {
     const userId = event.payload.userId;
 
+    // Get cache service lazily
+    const cacheService = this.getCacheService();
+
     // Invalidate specific user cache - use invalidate instead of delete
-    await this.cacheService.invalidate(`UserService:findUserById:${userId}`);
+    await cacheService.invalidate(`UserService:findUserById:${userId}`);
 
     // Invalidate user list cache (since it might include this user)
-    await this.cacheService.invalidateByTags(['user-list']);
+    await cacheService.invalidateByTags(['user-list']);
 
     logger.info('User cache invalidated', {
       userId,
