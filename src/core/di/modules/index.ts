@@ -7,3 +7,4 @@ export * from './queue.module';
 export * from './repository.module';
 export * from './search.module';
 export * from './service.module';
+export * from './core.module';

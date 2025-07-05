@@ -14,6 +14,7 @@ import {
   IntegrationModule,
   QueueModule,
   MonitoringModule,
+  CoreModule,
 } from './modules';
 import { BaseModule } from './modules/base.module';
 import { RedisClient } from '../../infrastructure/cache/redis.client';
@@ -23,6 +24,7 @@ import { MetricsService } from '../../infrastructure/monitoring/metrics/metrics.
 export class DIContainer {
   private static initialized = false;
   private static modules: BaseModule[] = [
+    new CoreModule(),
     new DatabaseModule(),
     new CacheModule(),
     new SearchModule(), // Optional, won't fail if ES is down

@@ -10,7 +10,6 @@ async function main() {
     // Register any custom shutdown handlers
     app.onShutdown(async () => {
       logger.info('Running custom cleanup...');
-      // Add any custom cleanup here
     });
 
     // Start the application
@@ -19,6 +18,8 @@ async function main() {
     logger.error('Failed to start application', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
+      errorType: error?.constructor?.name,
+      errorDetails: error,
     });
     process.exit(1);
   }

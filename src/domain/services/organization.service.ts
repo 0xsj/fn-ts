@@ -1,6 +1,5 @@
 // src/domain/services/organization.service.ts
-import { inject, injectable } from 'tsyringe';
-import { TOKENS } from '../../core/di/tokens';
+import { Injectable } from '../../core/di/decorators/injectable.decorator';
 import type { IOrganization } from '../interface/organization.interface';
 import type { CreateOrganizationInput, UpdateOrganizationInput, Organization } from '../entities';
 import type { AsyncResult } from '../../shared/response';
@@ -11,13 +10,22 @@ import {
   isSuccessResponse,
 } from '../../shared/response';
 import { EventBus } from '../../infrastructure/events/event-bus';
+import {
+  InjectEventBus,
+  InjectLogger,
+  InjectOrganizationRepository,
+} from '../../core/di/decorators/inject.decorator';
+import { ILogger } from '../../shared/utils';
 
-@injectable()
+@Injectable()
 export class OrganizationService {
   constructor(
-    @inject(TOKENS.OrganizationRepository) private orgRepo: IOrganization,
-    @inject(TOKENS.EventBus) private eventBus: EventBus,
-  ) {}
+    @InjectOrganizationRepository() private orgRepo: IOrganization,
+    @InjectEventBus() private eventBus: EventBus,
+    @InjectLogger() private logger: ILogger,
+  ) {
+    this.logger.info('OrganizationService Intialized');
+  }
 
   /**
    * Create a new organization
@@ -85,6 +93,7 @@ export class OrganizationService {
 
   async getOrganizationBySlug(slug: string, correlationId?: string): AsyncResult<Organization> {
     const result = await this.orgRepo.findOrganizationBySlug(slug, correlationId);
+
     if (isSuccessResponse(result)) {
       const organization = result.body().data;
       if (!organization) {
@@ -92,6 +101,7 @@ export class OrganizationService {
       }
       return ResponseBuilder.ok(organization, correlationId);
     }
+
     return result;
   }
 }

@@ -54,5 +54,6 @@ export const InjectOrganizationRepository = () => InjectToken(TOKENS.Organizatio
 // Service injectors
 export const InjectUserService = () => InjectToken(TOKENS.UserService);
 export const InjectAuthService = () => InjectToken(TOKENS.AuthService);
+export const InjectOrganizationService = () => InjectToken(TOKENS.OrganizationService);
 export const InjectEmailService = () => InjectToken(TOKENS.EmailService);
 export const InjectQueueManager = () => InjectToken(TOKENS.QueueManager);

@@ -8,13 +8,17 @@ import { CreateUserSchema, UpdateUserSchema, User, UserPublic } from '../../../d
 import { ValidationError } from '../../../shared/response';
 import { sendError, sendOk, sendCreated } from '../../../shared/utils/response-helper';
 import { isSuccessResponse } from '../../../shared/response';
+import { Injectable } from '../../../core/di/decorators/injectable.decorator';
+import { InjectLogger, InjectUserService } from '../../../core/di/decorators/inject.decorator';
+import { ILogger } from '../../../shared/utils';
 
-@injectable()
+@Injectable()
 export class UserController {
-  private userService: UserService;
-
-  constructor() {
-    this.userService = DIContainer.resolve<UserService>(TOKENS.UserService);
+  constructor(
+    @InjectUserService() private userService: UserService,
+    @InjectLogger() private logger: ILogger,
+  ) {
+    this.logger.info('UserController Intialized');
   }
 
   /**

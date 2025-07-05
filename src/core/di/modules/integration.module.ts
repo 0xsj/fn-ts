@@ -15,14 +15,14 @@ export class IntegrationModule extends BaseModule {
   register(container: DependencyContainer): void {
     this.log('Registering integration services...');
 
-    // Register Logger
-    container.register(TOKENS.Logger, {
-      useFactory: () => {
-        const factory = LoggerFactory.getInstance();
-        return factory.getLogger('app');
-      },
-    });
-    this.log('Registered Logger');
+    // // Register Logger
+    // container.register(TOKENS.Logger, {
+    //   useFactory: () => {
+    //     const factory = LoggerFactory.getInstance();
+    //     return factory.getLogger('app');
+    //   },
+    // });
+    // this.log('Registered Logger');
 
     // Register Config
     container.registerInstance(TOKENS.Config, config);

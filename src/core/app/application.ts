@@ -19,6 +19,7 @@ export class Application {
   /**
    * Initialize the application
    */
+  // src/core/app/application.ts
   async initialize(): Promise<void> {
     if (this.initialized) {
       logger.warn('Application already initialized');
@@ -41,6 +42,8 @@ export class Application {
       logger.error('Failed to initialize application', {
         error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
+        errorType: error?.constructor?.name,
+        errorDetails: JSON.stringify(error),
       });
       throw error;
     }

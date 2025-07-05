@@ -7,13 +7,17 @@ import { sendError, sendOk } from '../../../shared/utils/response-helper';
 import { isSuccessResponse, ValidationError } from '../../../shared/response';
 import { z } from 'zod';
 import { AuditContext } from '../../../domain/services/analytics.service';
+import { Injectable } from '../../../core/di/decorators/injectable.decorator';
+import { InjectAuthService, InjectLogger } from '../../../core/di/decorators/inject.decorator';
+import { ILogger } from '../../../shared/utils';
 
-@injectable()
+@Injectable()
 export class AuthController {
-  private authService: AuthService;
-
-  constructor() {
-    this.authService = DIContainer.resolve<AuthService>(TOKENS.AuthService);
+  constructor(
+    @InjectAuthService() private authService: AuthService,
+    @InjectLogger() private logger: ILogger,
+  ) {
+    this.logger.info('AuthController Initialized');
   }
 
   async getSession(req: Request, res: Response, next: NextFunction): Promise<void> {

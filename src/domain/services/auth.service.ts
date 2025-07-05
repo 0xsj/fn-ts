@@ -16,21 +16,34 @@ import {
   Session,
   User,
 } from '../entities';
-import { logger, validators } from '../../shared/utils';
+import { ILogger, logger, validators } from '../../shared/utils';
 import { AuditWithContext } from '../../shared/decorators/audit.decorator';
 import { AuditContext } from './analytics.service';
 import { EmailService } from '../../infrastructure/integrations/email/email.service';
 import { QueueManager } from '../../infrastructure/queue/queue.manager';
+import {
+  InjectAuthRepository,
+  InjectEmailService,
+  InjectEventBus,
+  InjectLogger,
+  InjectQueueManager,
+} from '../../core/di/decorators/inject.decorator';
+import { EventBus } from '../../infrastructure/events/event-bus';
+import { Injectable } from '../../core/di/decorators/injectable.decorator';
 
-@injectable()
+@Injectable()
 export class AuthService {
   constructor(
-    @inject(TOKENS.AuthRepository) private authRepo: IAuth,
-    @inject(TOKENS.AuthRepository) private sessionRepo: ISession,
-    @inject(TOKENS.AuthRepository) private tokenRepo: IToken,
-    @inject(TOKENS.EmailService) private emailService: EmailService,
-    @inject(TOKENS.QueueManager) private queueManager: QueueManager,
-  ) {}
+    @InjectAuthRepository() private authRepo: IAuth,
+    @InjectAuthRepository() private sessionRepo: ISession,
+    @InjectAuthRepository() private tokenRepo: IToken,
+    @InjectEmailService() private emailService: EmailService,
+    @InjectQueueManager() private queueManager: QueueManager,
+    @InjectEventBus() private eventBus: EventBus,
+    @InjectLogger() private logger: ILogger,
+  ) {
+    this.logger.info('AuthService initialized');
+  }
 
   async getSession(sessionId: string): AsyncResult<Session> {
     if (!validators.isValidUUID(sessionId)) {

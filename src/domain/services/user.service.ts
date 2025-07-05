@@ -1,6 +1,4 @@
 // src/domain/services/user.service.ts
-import { injectable, inject } from 'tsyringe';
-import { TOKENS } from '../../core/di/tokens';
 import type { IUser } from '../interface/user.interface';
 import type { CreateUserInput, UpdateUserInput, User } from '../entities';
 import type { AsyncResult } from '../../shared/response';

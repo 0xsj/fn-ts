@@ -29,10 +29,10 @@ app.use(responseLoggerMiddleware);
 app.use(requestLoggerMiddleware);
 app.use(prometheusMiddleware());
 
+// src/app.ts
 export async function initializeApp(): Promise<void> {
   try {
     logger.info('Initializing DI Container...');
-    await DIContainer.initialize();
 
     logger.info('Setting up routes...');
 
@@ -43,37 +43,39 @@ export async function initializeApp(): Promise<void> {
     // API documentation
     app.use('/api', createSwaggerRoutes());
 
-    // Bull Board - Add this after DI container is initialized
+    // Bull Board
     try {
       const bullBoardAdapter = setupBullBoard();
       app.use('/admin/queues', bullBoardAdapter.getRouter());
       logger.info('Bull Board available at /admin/queues');
     } catch (error) {
-      logger.error('Failed to setup Bull Board', { error });
-      // Don't fail app startup if Bull Board fails
+      logger.error('Failed to setup Bull Board', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
     }
 
-    // API routes
-    app.use('/api/v1', createV1Routes());
-
-    // 404 handler
-    app.use((_req: Request, res: Response) => {
-      res.status(404).json({
-        error: 'Not Found',
-        message: 'The requested resource was not found',
+    // API routes - Add detailed error logging here
+    try {
+      const v1Routes = createV1Routes();
+      app.use('/api/v1', v1Routes);
+      logger.info('V1 routes created successfully');
+    } catch (error) {
+      logger.error('Failed to create V1 routes', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        errorType: error?.constructor?.name,
       });
-    });
+      throw error;
+    }
 
-    // Error handler (should be last)
-    app.use(errorHandlerMiddleware);
-
-    logger.info('App initialized successfully');
+    // ... rest of the code
   } catch (error) {
     logger.error('Failed to initialize app', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
       errorType: error?.constructor?.name,
-      errorDetails: error,
+      errorDetails: JSON.stringify(error),
     });
     throw error;
   }
