@@ -11,18 +11,20 @@ import {
 } from '../../shared/response';
 import { EventBus } from '../../infrastructure/events/event-bus';
 import {
+  Inject,
   InjectEventBus,
   InjectLogger,
   InjectOrganizationRepository,
 } from '../../core/di/decorators/inject.decorator';
 import { ILogger } from '../../shared/utils';
+import { TOKENS } from '../../core/di/tokens';
 
 @Injectable()
 export class OrganizationService {
   constructor(
-    @InjectOrganizationRepository() private orgRepo: IOrganization,
-    @InjectEventBus() private eventBus: EventBus,
-    @InjectLogger() private logger: ILogger,
+    @Inject(TOKENS.OrganizationRepository) private orgRepo: IOrganization,
+    @Inject() private eventBus: EventBus,
+    @Inject(TOKENS.Logger) private logger: ILogger,
   ) {
     this.logger.info('OrganizationService Intialized');
   }

@@ -2,8 +2,9 @@
 import { injectable } from 'tsyringe';
 import { PrometheusRegistry } from '../prometheus/prometheus-registry';
 import { HealthCheckService } from '../../health/health-check.service';
+import { Injectable, Inject } from '../../../../core/di/decorators/';
 
-@injectable()
+@Injectable()
 export class HealthCollector {
   private collectionInterval?: NodeJS.Timeout;
 

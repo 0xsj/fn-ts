@@ -1,8 +1,9 @@
 // src/infrastructure/monitoring/metrics/collectors/http.collector.ts
 import { injectable } from 'tsyringe';
 import { PrometheusRegistry } from '../prometheus/prometheus-registry';
+import { Injectable, Inject } from '../../../../core/di/decorators';
 
-@injectable()
+@Injectable()
 export class HttpCollector {
   constructor(private registry: PrometheusRegistry) {}
 

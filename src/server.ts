@@ -1,4 +1,5 @@
 // src/server.ts
+import 'reflect-metadata';
 import { Application } from './core/app/application';
 import { config } from './core/config';
 import { logger } from './shared/utils/logger';

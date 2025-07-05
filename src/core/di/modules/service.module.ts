@@ -37,10 +37,15 @@ export class ServiceModule extends BaseModule {
       { token: TOKENS.OperationsService, class: OperationsService },
     ];
 
-    // Register each service as singleton
+    // Register each service both ways: with token AND with class constructor
     services.forEach(({ token, class: ServiceClass }) => {
+      // Register with token (existing behavior)
       container.registerSingleton(token, ServiceClass);
-      this.log(`Registered ${ServiceClass.name}`);
+
+      // ALSO register with the class constructor for @Inject() without params
+      container.registerSingleton(ServiceClass as any, ServiceClass);
+
+      this.log(`Registered ${ServiceClass.name} with token and class constructor`);
     });
 
     this.log('All domain services registered');

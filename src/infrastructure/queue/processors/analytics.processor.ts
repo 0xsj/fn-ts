@@ -1,4 +1,4 @@
-import { injectable } from 'tsyringe';
+import { Injectable, Inject } from '../../../core/di/decorators';
 
-@injectable()
+@Injectable()
 export class AnalyticsProcessor {}

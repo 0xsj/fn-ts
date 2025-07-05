@@ -22,6 +22,7 @@ import { AuditContext } from './analytics.service';
 import { EmailService } from '../../infrastructure/integrations/email/email.service';
 import { QueueManager } from '../../infrastructure/queue/queue.manager';
 import {
+  Inject,
   InjectAuthRepository,
   InjectEmailService,
   InjectEventBus,
@@ -34,13 +35,13 @@ import { Injectable } from '../../core/di/decorators/injectable.decorator';
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectAuthRepository() private authRepo: IAuth,
-    @InjectAuthRepository() private sessionRepo: ISession,
-    @InjectAuthRepository() private tokenRepo: IToken,
-    @InjectEmailService() private emailService: EmailService,
-    @InjectQueueManager() private queueManager: QueueManager,
-    @InjectEventBus() private eventBus: EventBus,
-    @InjectLogger() private logger: ILogger,
+    @Inject(TOKENS.AuthRepository) private authRepo: IAuth,
+    @Inject(TOKENS.AuthRepository) private sessionRepo: ISession,
+    @Inject(TOKENS.AuthRepository) private tokenRepo: IToken,
+    @Inject(TOKENS.EmailService) private emailService: EmailService,
+    @Inject(TOKENS.QueueManager) private queueManager: QueueManager,
+    @Inject(TOKENS.EventBus) private eventBus: EventBus,
+    @Inject(TOKENS.Logger) private logger: ILogger,
   ) {
     this.logger.info('AuthService initialized');
   }

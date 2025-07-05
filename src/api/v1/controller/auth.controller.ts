@@ -8,13 +8,17 @@ import { isSuccessResponse, ValidationError } from '../../../shared/response';
 import { z } from 'zod';
 import { AuditContext } from '../../../domain/services/analytics.service';
 import { Injectable } from '../../../core/di/decorators/injectable.decorator';
-import { InjectAuthService, InjectLogger } from '../../../core/di/decorators/inject.decorator';
+import {
+  Inject,
+  InjectAuthService,
+  InjectLogger,
+} from '../../../core/di/decorators/inject.decorator';
 import { ILogger } from '../../../shared/utils';
 
 @Injectable()
 export class AuthController {
   constructor(
-    @InjectAuthService() private authService: AuthService,
+    @Inject() private authService: AuthService,
     @InjectLogger() private logger: ILogger,
   ) {
     this.logger.info('AuthController Initialized');

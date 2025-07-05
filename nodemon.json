@@ -1,0 +1,11 @@
+{
+  "watch": ["src"],
+  "ext": "ts,json",
+  "ignore": ["src/**/*.test.ts"],
+  "exec": "node --require ts-node/register --require tsconfig-paths/register",
+  "args": ["src/server.ts"],
+  "env": {
+    "NODE_ENV": "development",
+    "TS_NODE_TRANSPILE_ONLY": "true"
+  }
+}

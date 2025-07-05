@@ -15,6 +15,7 @@ import {
   QueueModule,
   MonitoringModule,
   CoreModule,
+  ControllerModule,
 } from './modules';
 import { BaseModule } from './modules/base.module';
 import { RedisClient } from '../../infrastructure/cache/redis.client';
@@ -33,6 +34,7 @@ export class DIContainer {
     new IntegrationModule(), // Email, Push services
     new QueueModule(), // Depends on Redis from Cache
     new MonitoringModule(), // Depends on Services, Queue
+    new ControllerModule()
   ];
 
   static async initialize(): Promise<void> {

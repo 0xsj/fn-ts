@@ -6,6 +6,8 @@ import type { AuditLog, AuditQuery } from '../entities';
 import type { AsyncResult } from '../../shared/response';
 import { ResponseBuilder, isSuccessResponse } from '../../shared/response';
 import { ActionSeverityMap } from '../entities/schemas/analytics.schema';
+import { Inject } from '../../core/di/decorators/inject.decorator';
+import { Injectable } from '../../core/di/decorators/injectable.decorator';
 
 export interface AuditContext {
   userId?: string;
@@ -17,9 +19,9 @@ export interface AuditContext {
   correlationId?: string;
 }
 
-@injectable()
+Injectable()
 export class AnalyticsService {
-  constructor(@inject(TOKENS.AnalyticsRepository) private analyticsRepo: IAnalytics) {}
+  constructor(@Inject(TOKENS.AnalyticsRepository) private analyticsRepo: IAnalytics) {}
 
   /**
    * Create an audit log entry
