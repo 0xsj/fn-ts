@@ -1,8 +1,9 @@
 // src/infrastructure/monitoring/metrics/prometheus/prometheus-registry.ts
 import { Registry, collectDefaultMetrics, Counter, Gauge, Histogram, Summary } from 'prom-client';
 import { injectable } from 'tsyringe';
+import { Injectable } from '../../../../core/di/decorators/injectable.decorator';
 
-@injectable()
+@Injectable()
 export class PrometheusRegistry {
   private registry: Registry;
 

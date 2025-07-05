@@ -5,8 +5,9 @@ import { HealthCheckService } from './health-check.service';
 import { HealthCheckOptions } from './types';
 import { DIContainer } from '../../../core/di/container';
 import { TOKENS } from '../../../core/di/tokens';
+import { Injectable, Inject } from '../../../core/di/decorators';
 
-@injectable()
+@Injectable()
 export class HealthController {
   private healthCheckService: HealthCheckService;
 

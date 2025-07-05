@@ -21,6 +21,9 @@ import {
   OrganizationSchema,
   CreateOrganizationSchema,
   UpdateOrganizationSchema,
+  ResetPasswordRequestSchema,
+  ForgotPasswordRequestSchema,
+  ChangePasswordRequestSchema,
 } from '../domain/entities';
 
 // ============================================
@@ -485,6 +488,430 @@ registry.registerPath({
     },
     404: {
       description: 'Session not found',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// ============================================
+// AUTH ENDPOINTS (COMPLETE)
+// ============================================
+
+// POST /auth/refresh-token
+registry.registerPath({
+  method: 'post',
+  path: '/auth/refresh-token',
+  description: 'Refresh access token using refresh token',
+  summary: 'Refresh token',
+  tags: ['Authentication'],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            refreshToken: z.string().optional().openapi({
+              description: 'Refresh token (can also be sent via cookie)',
+            }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Token refreshed successfully',
+      headers: z.object({
+        'Set-Cookie': z.string().openapi({
+          description: 'HttpOnly cookie containing new refresh token',
+        }),
+      }),
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(
+            z.object({
+              accessToken: z.string(),
+              tokenType: z.literal('Bearer'),
+              expiresIn: z.number(),
+            }),
+          ),
+        },
+      },
+    },
+    401: {
+      description: 'Invalid or expired refresh token',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// POST /auth/change-password
+registry.registerPath({
+  method: 'post',
+  path: '/auth/change-password',
+  description: 'Change user password',
+  summary: 'Change password',
+  tags: ['Authentication'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: ChangePasswordRequestSchema,
+        },
+      },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: 'Password changed successfully',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(
+            z.object({
+              message: z.string(),
+            }),
+          ),
+        },
+      },
+    },
+    400: {
+      description: 'Validation error',
+      content: {
+        'application/json': {
+          schema: ValidationErrorSchema,
+        },
+      },
+    },
+    401: {
+      description: 'Unauthorized or incorrect current password',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// POST /auth/forgot-password
+registry.registerPath({
+  method: 'post',
+  path: '/auth/forgot-password',
+  description: 'Request password reset email',
+  summary: 'Forgot password',
+  tags: ['Authentication'],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: ForgotPasswordRequestSchema,
+        },
+      },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: 'Password reset email sent (if account exists)',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(
+            z.object({
+              message: z.string(),
+            }),
+          ),
+        },
+      },
+    },
+    429: {
+      description: 'Too many password reset requests',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// POST /auth/reset-password
+registry.registerPath({
+  method: 'post',
+  path: '/auth/reset-password',
+  description: 'Reset password using token',
+  summary: 'Reset password',
+  tags: ['Authentication'],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: ResetPasswordRequestSchema,
+        },
+      },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: 'Password reset successfully',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(
+            z.object({
+              message: z.string(),
+            }),
+          ),
+        },
+      },
+    },
+    400: {
+      description: 'Invalid or expired token',
+      content: {
+        'application/json': {
+          schema: ValidationErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// GET /auth/verify-email
+registry.registerPath({
+  method: 'get',
+  path: '/auth/verify-email',
+  description: 'Verify email address using token',
+  summary: 'Verify email',
+  tags: ['Authentication'],
+  request: {
+    query: z.object({
+      token: z.string().openapi({
+        description: 'Email verification token',
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'Email verified successfully',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(
+            z.object({
+              message: z.string(),
+            }),
+          ),
+        },
+      },
+    },
+    400: {
+      description: 'Invalid or expired token',
+      content: {
+        'application/json': {
+          schema: ValidationErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// POST /auth/resend-verification
+registry.registerPath({
+  method: 'post',
+  path: '/auth/resend-verification',
+  description: 'Resend email verification link',
+  summary: 'Resend verification email',
+  tags: ['Authentication'],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            email: z.string().email(),
+          }),
+        },
+      },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: 'Verification email sent (if account exists)',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(
+            z.object({
+              message: z.string(),
+              nextAllowedAt: z.string().datetime().optional(),
+            }),
+          ),
+        },
+      },
+    },
+    429: {
+      description: 'Too many verification requests',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// GET /auth/sessions
+registry.registerPath({
+  method: 'get',
+  path: '/auth/sessions',
+  description: 'Get all active sessions for current user',
+  summary: 'List active sessions',
+  tags: ['Authentication'],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: 'List of active sessions',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(z.array(SessionSchema)),
+        },
+      },
+    },
+    401: {
+      description: 'Unauthorized',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// DELETE /auth/sessions/:sessionId
+registry.registerPath({
+  method: 'delete',
+  path: '/auth/sessions/{sessionId}',
+  description: 'Revoke a specific session',
+  summary: 'Revoke session',
+  tags: ['Authentication'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      sessionId: z.string().uuid(),
+    }),
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            reason: z.string().optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Session revoked successfully',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(
+            z.object({
+              message: z.string(),
+            }),
+          ),
+        },
+      },
+    },
+    404: {
+      description: 'Session not found',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// POST /auth/logout-all
+registry.registerPath({
+  method: 'post',
+  path: '/auth/logout-all',
+  description: 'Logout from all devices except current',
+  summary: 'Logout all devices',
+  tags: ['Authentication'],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: 'Logged out from all devices',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(
+            z.object({
+              message: z.string(),
+              revokedCount: z.number(),
+            }),
+          ),
+        },
+      },
+    },
+    401: {
+      description: 'Unauthorized',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// GET /auth/security-status
+registry.registerPath({
+  method: 'get',
+  path: '/auth/security-status',
+  description: 'Get account security status and recommendations',
+  summary: 'Security status',
+  tags: ['Authentication'],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: 'Security status retrieved',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(
+            z.object({
+              data: z.object({
+                twoFactorEnabled: z.boolean(),
+                passwordLastChanged: z.string().datetime().nullable(),
+                accountLocked: z.boolean(),
+                lockedUntil: z.string().datetime().nullable(),
+                failedLoginAttempts: z.number(),
+                activeSessions: z.number(),
+                activeApiKeys: z.number(),
+                linkedProviders: z.array(z.string()),
+              }),
+              metadata: z
+                .object({
+                  securityScore: z.number().min(0).max(100),
+                  recommendations: z.array(z.string()),
+                  lastChecked: z.string().datetime(),
+                })
+                .optional(),
+            }),
+          ),
+        },
+      },
+    },
+    401: {
+      description: 'Unauthorized',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,

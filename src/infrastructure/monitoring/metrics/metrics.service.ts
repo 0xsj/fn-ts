@@ -1,12 +1,12 @@
 // src/infrastructure/monitoring/metrics/metrics.service.ts
-import { injectable } from 'tsyringe';
 import { PrometheusRegistry } from './prometheus/prometheus-registry';
 import { HealthCollector } from './collectors/health.collector';
 import { HttpCollector } from './collectors/http.collector';
 import { QueueCollector } from './collectors/queue.collector';
 import { BusinessCollector } from './collectors/business.collector';
+import { Injectable, Inject } from '../../../core/di/decorators';
 
-@injectable()
+@Injectable()
 export class MetricsService {
   private collectors: Map<string, any> = new Map();
 

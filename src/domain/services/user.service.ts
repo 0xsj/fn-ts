@@ -15,23 +15,18 @@ import { Cacheable, CacheInvalidate, CacheUpdate } from '../../infrastructure/ca
 import { getCacheService } from '../../infrastructure/cache/decorators/cache-helper';
 import { EventBus } from '../../infrastructure/events/event-bus';
 import { UserCreatedEvent, UserUpdatedEvent, UserDeletedEvent } from '../events/user';
-import { Injectable } from '../../core/di/decorators/injectable.decorator';
-import {
-  InjectCache,
-  InjectEventBus,
-  InjectLogger,
-  InjectUserRepository,
-} from '../../core/di/decorators/inject.decorator';
+import { Inject, Injectable } from '../../core/di/decorators';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { ILogger } from '../../shared/utils';
+import { TOKENS } from '../../core/di/tokens';
 
 @Injectable()
 export class UserService {
   constructor(
-    @InjectUserRepository() private userRepo: IUser,
-    @InjectCache() private cacheService: CacheService,
-    @InjectEventBus() private eventBus: EventBus,
-    @InjectLogger() private logger: ILogger,
+    @Inject(TOKENS.UserRepository) private userRepo: IUser,
+    @Inject() private cacheService: CacheService,
+    @Inject() private eventBus: EventBus,
+    @Inject(TOKENS.Logger) private logger: ILogger,
   ) {
     this.logger.info('UserService initialized');
   }

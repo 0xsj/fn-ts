@@ -3,26 +3,18 @@ import { Injectable } from '../../core/di/decorators/injectable.decorator';
 import type { IOrganization } from '../interface/organization.interface';
 import type { CreateOrganizationInput, UpdateOrganizationInput, Organization } from '../entities';
 import type { AsyncResult } from '../../shared/response';
-import {
-  ConflictError,
-  NotFoundError,
-  ResponseBuilder,
-  isSuccessResponse,
-} from '../../shared/response';
+import { NotFoundError, ResponseBuilder, isSuccessResponse } from '../../shared/response';
 import { EventBus } from '../../infrastructure/events/event-bus';
-import {
-  InjectEventBus,
-  InjectLogger,
-  InjectOrganizationRepository,
-} from '../../core/di/decorators/inject.decorator';
+import { Inject } from '../../core/di/decorators';
 import { ILogger } from '../../shared/utils';
+import { TOKENS } from '../../core/di/tokens';
 
 @Injectable()
 export class OrganizationService {
   constructor(
-    @InjectOrganizationRepository() private orgRepo: IOrganization,
-    @InjectEventBus() private eventBus: EventBus,
-    @InjectLogger() private logger: ILogger,
+    @Inject(TOKENS.OrganizationRepository) private orgRepo: IOrganization,
+    @Inject() private eventBus: EventBus,
+    @Inject(TOKENS.Logger) private logger: ILogger,
   ) {
     this.logger.info('OrganizationService Intialized');
   }

@@ -2,8 +2,9 @@
 import { injectable } from 'tsyringe';
 import { PrometheusRegistry } from '../prometheus/prometheus-registry';
 import { QueueManager } from '../../../queue/queue.manager';
+import { Injectable, Inject } from '../../../../core/di/decorators';
 
-@injectable()
+@Injectable()
 export class QueueCollector {
   private collectionInterval?: NodeJS.Timeout;
 

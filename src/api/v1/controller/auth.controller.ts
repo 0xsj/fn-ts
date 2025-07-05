@@ -1,20 +1,16 @@
-import { injectable } from 'tsyringe';
 import type { Response, Request, NextFunction } from 'express';
 import { AuthService } from '../../../domain/services';
-import { DIContainer } from '../../../core/di/container';
-import { TOKENS } from '../../../core/di/tokens';
 import { sendError, sendOk } from '../../../shared/utils/response-helper';
-import { isSuccessResponse, ValidationError } from '../../../shared/response';
-import { z } from 'zod';
+import { isSuccessResponse, UnauthorizedError, ValidationError } from '../../../shared/response';
 import { AuditContext } from '../../../domain/services/analytics.service';
 import { Injectable } from '../../../core/di/decorators/injectable.decorator';
-import { InjectAuthService, InjectLogger } from '../../../core/di/decorators/inject.decorator';
+import { Inject, InjectLogger } from '../../../core/di/decorators';
 import { ILogger } from '../../../shared/utils';
 
 @Injectable()
 export class AuthController {
   constructor(
-    @InjectAuthService() private authService: AuthService,
+    @Inject() private authService: AuthService,
     @InjectLogger() private logger: ILogger,
   ) {
     this.logger.info('AuthController Initialized');
@@ -114,6 +110,254 @@ export class AuthController {
         sendOk(req, res, {
           message: logoutAll ? 'Logged out from all devices' : 'Logged out successfully',
         });
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async refreshToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // Get refresh token from cookie or body
+      const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
+      if (!refreshToken) {
+        sendError(
+          req,
+          res,
+          new ValidationError({
+            refreshToken: ['Refresh token is required'],
+          }),
+        );
+        return;
+      }
+
+      const result = await this.authService.refreshToken(refreshToken);
+
+      if (isSuccessResponse(result)) {
+        const tokens = result.body().data;
+
+        // Set new refresh token as httpOnly cookie
+        res.cookie('refreshToken', tokens.refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: tokens.refreshExpiresIn * 1000,
+        });
+
+        // Return only access token in body
+        sendOk(req, res, {
+          accessToken: tokens.accessToken,
+          tokenType: tokens.tokenType,
+          expiresIn: tokens.expiresIn,
+        });
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        sendError(req, res, new UnauthorizedError('Authentication required'));
+        return;
+      }
+
+      const result = await this.authService.changePassword(
+        req.user.id,
+        req.body,
+        req.user.sessionId,
+      );
+
+      if (isSuccessResponse(result)) {
+        sendOk(req, res, {
+          message: 'Password changed successfully',
+        });
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email } = req.body;
+      const ipAddress = req.ip || req.socket.remoteAddress;
+
+      const result = await this.authService.forgotPassword(email, ipAddress);
+
+      // Always return success to prevent email enumeration
+      sendOk(req, res, {
+        message: 'If an account exists with this email, a password reset link has been sent.',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { token, newPassword, confirmPassword } = req.body;
+      const ipAddress = req.ip || req.socket.remoteAddress;
+
+      const result = await this.authService.resetPassword(
+        token,
+        newPassword,
+        confirmPassword,
+        ipAddress,
+      );
+
+      if (isSuccessResponse(result)) {
+        sendOk(req, res, {
+          message: 'Password reset successfully. Please login with your new password.',
+        });
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { token } = req.query as { token: string };
+
+      if (!token) {
+        sendError(
+          req,
+          res,
+          new ValidationError({
+            token: ['Verification token is required'],
+          }),
+        );
+        return;
+      }
+
+      const result = await this.authService.verifyEmail(token);
+
+      if (isSuccessResponse(result)) {
+        sendOk(req, res, {
+          message: 'Email verified successfully',
+        });
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resendVerificationEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email } = req.body;
+      const ipAddress = req.ip || req.socket.remoteAddress;
+
+      const result = await this.authService.resendVerificationEmail(email, ipAddress);
+
+      if (isSuccessResponse(result)) {
+        const data = result.body().data;
+        sendOk(req, res, {
+          message: 'If an account exists with this email, a verification link has been sent.',
+          nextAllowedAt: data.nextAllowedAt,
+        });
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getActiveSessions(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        sendError(req, res, new UnauthorizedError('Authentication required'));
+        return;
+      }
+
+      const result = await this.authService.getActiveSessions(req.user.id);
+
+      if (isSuccessResponse(result)) {
+        const sessions = result.body().data;
+        sendOk(req, res, sessions);
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async revokeSession(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        sendError(req, res, new UnauthorizedError('Authentication required'));
+        return;
+      }
+
+      const { sessionId } = req.params;
+      const { reason } = req.body;
+
+      const result = await this.authService.revokeSession(sessionId, reason);
+
+      if (isSuccessResponse(result)) {
+        sendOk(req, res, {
+          message: 'Session revoked successfully',
+        });
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async logoutAllDevices(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        sendError(req, res, new UnauthorizedError('Authentication required'));
+        return;
+      }
+
+      const result = await this.authService.revokeAllUserSessions(req.user.id, {
+        exceptSessionId: req.user.sessionId,
+        reason: 'User initiated logout from all devices',
+        notifyUser: true,
+      });
+
+      if (isSuccessResponse(result)) {
+        const { revokedCount } = result.body().data;
+        sendOk(req, res, {
+          message: `Logged out from ${revokedCount} other device(s)`,
+          revokedCount,
+        });
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getSecurityStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        sendError(req, res, new UnauthorizedError('Authentication required'));
+        return;
+      }
+
+      const result = await this.authService.getSecurityStatus(req.user.id);
+
+      if (isSuccessResponse(result)) {
+        sendOk(req, res, result.body());
       } else {
         sendError(req, res, result);
       }
