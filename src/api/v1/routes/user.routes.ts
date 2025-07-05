@@ -1,5 +1,6 @@
 // src/api/v1/routes/user.routes.ts
 import { Router, Request, Response } from 'express';
+import { container } from 'tsyringe';
 import { UserController } from '../controller/user.controller';
 import { DIContainer } from '../../../core/di/container';
 import { CacheService } from '../../../infrastructure/cache/cache.service';
@@ -9,7 +10,9 @@ import { rateLimitMiddleware } from '../../../infrastructure/rate-limit/rate-lim
 
 export function createUserRoutes(): Router {
   const router = Router();
-  const userController = new UserController();
+
+  // Resolve controller from DI container
+  const userController = container.resolve(UserController);
 
   // Health check
   router.get('/health', (_req: Request, res: Response) => {

@@ -1,11 +1,15 @@
+// src/api/v1/routes/auth.routes.ts
 import { Router } from 'express';
+import { container } from 'tsyringe';
 import { AuthController } from '../controller/auth.controller';
 import { rateLimitMiddleware } from '../../../infrastructure/rate-limit/rate-limit.middleware';
 import { authMiddleware } from '../../../shared/middleware';
 
 export function createAuthRoutes(): Router {
   const router = Router();
-  const authController = new AuthController();
+
+  // Resolve using tsyringe's container directly
+  const authController = container.resolve(AuthController);
 
   router.post(
     '/login',
@@ -16,6 +20,7 @@ export function createAuthRoutes(): Router {
     }),
     authController.login.bind(authController),
   );
+
   router.post(
     '/logout',
     authMiddleware, // Requires authentication

@@ -7,25 +7,43 @@ import { TOKENS } from '../../../../core/di/tokens';
 import { logger } from '../../../../shared/utils/logger';
 
 export class SendWelcomeEmailHandler extends BaseEventHandler<UserCreatedEvent> {
-  private queueManager: QueueManager;
+  private queueManager?: QueueManager;
 
   constructor() {
     super('SendWelcomeEmail');
-    this.queueManager = DIContainer.resolve<QueueManager>(TOKENS.QueueManager);
+    // Don't resolve here - wait until needed
+  }
+
+  private getQueueManager(): QueueManager {
+    if (!this.queueManager) {
+      this.queueManager = DIContainer.resolve<QueueManager>(TOKENS.QueueManager);
+    }
+    return this.queueManager;
   }
 
   protected async execute(event: UserCreatedEvent): Promise<void> {
     const { userId, email, firstName } = event.payload;
 
     try {
-      // Queue the email instead of sending directly
-      const emailQueue = this.queueManager.getEmailQueue();
-      const jobId = await emailQueue.sendWelcomeEmail(
-        userId,
-        email,
-        firstName,
-        event.metadata.correlationId,
-      );
+      // Get queue manager lazily
+      const queueManager = this.getQueueManager();
+      const emailQueue = queueManager.getEmailQueue();
+
+      // Use sendEmailJob with the welcome email data
+      const jobId = await emailQueue.sendEmailJob({
+        to: {
+          email: email,
+          name: firstName,
+        },
+        subject: 'Welcome to FireNotifications!',
+        template: 'welcome',
+        data: {
+          firstName: firstName,
+          userId: userId,
+          activationLink: `${process.env.APP_URL}/activate/${userId}`, // Adjust as needed
+        },
+        correlationId: event.metadata.correlationId,
+      });
 
       logger.info('Welcome email queued', {
         userId,
