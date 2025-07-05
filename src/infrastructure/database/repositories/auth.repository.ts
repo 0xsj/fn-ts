@@ -904,6 +904,7 @@ export class AuthRepository implements ISession, IToken, IAuth {
 
         createdAt: now,
         updatedAt: now,
+        revokedBy: null,
       };
 
       return ResponseBuilder.ok(apiKey);
@@ -1423,81 +1424,6 @@ export class AuthRepository implements ISession, IToken, IAuth {
     }
   }
 
-  // async validateAccessToken(token: string): AsyncResult<{ user: User; session: Session }> {
-  //   try {
-  //     // Hash the provided token
-  //     const crypto = await import('crypto');
-  //     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-
-  //     // Find session by token hash
-  //     const sessionResult = await this.db
-  //       .selectFrom('sessions')
-  //       .selectAll()
-  //       .where('token_hash', '=', tokenHash)
-  //       .where('revoked_at', 'is', null)
-  //       .executeTakeFirst();
-
-  //     if (!sessionResult) {
-  //       return new UnauthorizedError(undefined, { reason: 'Invalid token' });
-  //     }
-
-  //     // Check if session has expired
-  //     if (new Date(sessionResult.expires_at) < new Date()) {
-  //       // Optionally revoke the expired session
-  //       await this.db
-  //         .updateTable('sessions')
-  //         .set({
-  //           revoked_at: new Date(),
-  //           revoke_reason: 'Token expired',
-  //           updated_at: new Date(),
-  //         })
-  //         .where('id', '=', sessionResult.id)
-  //         .execute();
-
-  //       return new UnauthorizedError(undefined, { reason: 'Token expired' });
-  //     }
-
-  //     // Check idle timeout if set
-  //     if (sessionResult.idle_timeout_at && new Date(sessionResult.idle_timeout_at) < new Date()) {
-  //       await this.db
-  //         .updateTable('sessions')
-  //         .set({
-  //           revoked_at: new Date(),
-  //           revoke_reason: 'Session idle timeout',
-  //           updated_at: new Date(),
-  //         })
-  //         .where('id', '=', sessionResult.id)
-  //         .execute();
-
-  //       return new UnauthorizedError(undefined, { reason: 'Session timeout' });
-  //     }
-
-  //     // Get user data
-  //     const userResult = await this.db
-  //       .selectFrom('users')
-  //       .selectAll()
-  //       .where('id', '=', sessionResult.user_id)
-  //       .where('deleted_at', 'is', null)
-  //       .executeTakeFirst();
-
-  //     if (!userResult) {
-  //       return new UnauthorizedError(undefined, { reason: 'User not found' });
-  //     }
-
-  //     if (userResult.status !== 'active') {
-  //       return new UnauthorizedError(undefined, { reason: 'User account is not active' });
-  //     }
-
-  //     // Map database results to domain entities
-  //     const session = this.mapToSession(sessionResult);
-  //     const user = this.mapToUser(userResult);
-
-  //     return ResponseBuilder.ok({ user, session });
-  //   } catch (error) {
-  //     return new DatabaseError('validateAccessToken', error);
-  //   }
-  // }
-
   async validateAccessToken(token: string): AsyncResult<{ user: User; session: Session }> {
     try {
       // Hash the provided token
@@ -1558,11 +1484,93 @@ export class AuthRepository implements ISession, IToken, IAuth {
     }
   }
 
-  validateApiKey(
+  async validateApiKey(
     key: string,
     requiredScopes?: string[],
   ): AsyncResult<{ user: User; apiKey: ApiKey }> {
-    throw new Error('Method not implemented.');
+    try {
+      // Hash the provided API key
+      const crypto = await import('crypto');
+      const keyHash = crypto.createHash('sha256').update(key).digest('hex');
+
+      // Find the API key by hash
+      const apiKeyResult = await this.db
+        .selectFrom('api_keys')
+        .selectAll()
+        .where('key_hash', '=', keyHash)
+        .executeTakeFirst();
+
+      if (!apiKeyResult) {
+        return new UnauthorizedError('Invalid API key');
+      }
+
+      // Check if API key is active
+      if (!apiKeyResult.is_active) {
+        return new UnauthorizedError('API key is inactive');
+      }
+
+      // Check if API key is revoked
+      if (apiKeyResult.revoked_at) {
+        return new UnauthorizedError('API key has been revoked');
+      }
+
+      // Check if API key has expired
+      if (apiKeyResult.expires_at && new Date(apiKeyResult.expires_at) < new Date()) {
+        return new UnauthorizedError('API key has expired');
+      }
+
+      // Check rate limiting if configured
+      if (apiKeyResult.rate_limit_per_hour) {
+        // This is a simplified check - in production you'd want to use Redis or similar
+        // to track actual usage over the past hour
+        if (apiKeyResult.usage_count >= apiKeyResult.rate_limit_per_hour) {
+          return new ForbiddenError('API key rate limit exceeded');
+        }
+      }
+
+      // Check required scopes if provided
+      if (requiredScopes && requiredScopes.length > 0) {
+        const apiKeyScopes = apiKeyResult.scopes as string[];
+        const hasAllScopes = requiredScopes.every((scope) => apiKeyScopes.includes(scope));
+
+        if (!hasAllScopes) {
+          return new ForbiddenError('Insufficient API key permissions', {
+            required: requiredScopes,
+            available: apiKeyScopes,
+          });
+        }
+      }
+
+      // Get the user associated with this API key
+      const userResult = await this.db
+        .selectFrom('users')
+        .selectAll()
+        .where('id', '=', apiKeyResult.user_id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!userResult) {
+        return new UnauthorizedError('User not found for API key');
+      }
+
+      // Check if user account is active
+      if (userResult.status !== 'active') {
+        return new UnauthorizedError('User account is not active');
+      }
+
+      // Update last used information (don't await to avoid blocking the request)
+      this.updateApiKeyLastUsed(keyHash).catch((error) => {
+        console.error('Failed to update API key last used:', error);
+      });
+
+      // Map to domain entities
+      const apiKey = this.mapToApiKey(apiKeyResult);
+      const user = this.mapToUser(userResult);
+
+      return ResponseBuilder.ok({ user, apiKey });
+    } catch (error) {
+      return new DatabaseError('validateApiKey', error);
+    }
   }
   async changePassword(
     userId: string,
@@ -1834,12 +1842,117 @@ export class AuthRepository implements ISession, IToken, IAuth {
       return new DatabaseError('resetPassword', error);
     }
   }
-  requirePasswordChange(userId: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+  async requirePasswordChange(userId: string): AsyncResult<boolean> {
+    try {
+      // Get the current password record
+      const currentPassword = await this.db
+        .selectFrom('user_passwords')
+        .select(['id'])
+        .where('user_id', '=', userId)
+        .orderBy('created_at', 'desc')
+        .executeTakeFirst();
+
+      if (!currentPassword) {
+        return new NotFoundError('No password record found for user');
+      }
+
+      // Update the password record to require change
+      const result = await this.db
+        .updateTable('user_passwords')
+        .set({
+          must_change: true,
+        })
+        .where('id', '=', currentPassword.id)
+        .execute();
+
+      const success = result.length > 0;
+
+      // Optionally, you might want to expire all active sessions
+      // to force the user to login again and see the password change requirement
+      if (success) {
+        await this.db
+          .updateTable('sessions')
+          .set({
+            revoked_at: new Date(),
+            revoked_by: 'system',
+            revoke_reason: 'Password change required',
+            updated_at: new Date(),
+          })
+          .where('user_id', '=', userId)
+          .where('revoked_at', 'is', null)
+          .execute();
+      }
+
+      return ResponseBuilder.ok(success);
+    } catch (error) {
+      return new DatabaseError('requirePasswordChange', error);
+    }
   }
-  sendVerificationEmail(userId: string, email?: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async sendVerificationEmail(userId: string, email?: string): AsyncResult<boolean> {
+    try {
+      // Get user details
+      const user = await this.db
+        .selectFrom('users')
+        .select(['id', 'email', 'email_verified', 'status'])
+        .where('id', '=', userId)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!user) {
+        return new NotFoundError('User not found');
+      }
+
+      // Use provided email or user's current email
+      const targetEmail = email ? email.toLowerCase() : user.email;
+
+      // If email is different, update user's email (for email change scenarios)
+      if (email && email.toLowerCase() !== user.email.toLowerCase()) {
+        await this.db
+          .updateTable('users')
+          .set({
+            email: targetEmail,
+            email_verified: false,
+            email_verified_at: null,
+            updated_at: new Date(),
+          })
+          .where('id', '=', userId)
+          .execute();
+      }
+
+      // Check if already verified (only if not changing email)
+      if (!email && user.email_verified) {
+        return ResponseBuilder.ok(true, 'Email already verified');
+      }
+
+      // Generate verification token
+      const crypto = await import('crypto');
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+      // Create verification token
+      const tokenResult = await this.createEmailVerificationToken(
+        userId,
+        targetEmail,
+        tokenHash,
+        24 * 60 * 60, // 24 hours
+      );
+
+      if (!tokenResult.success) {
+        return tokenResult;
+      }
+
+      // Return success with token in metadata for service layer to send email
+      return ResponseBuilder.ok(true, undefined, {
+        token,
+        email: targetEmail,
+        isNewEmail: email !== undefined && email.toLowerCase() !== user.email.toLowerCase(),
+      });
+    } catch (error) {
+      return new DatabaseError('sendVerificationEmail', error);
+    }
   }
+
   async verifyEmail(request: VerifyEmailRequest): AsyncResult<boolean> {
     try {
       const crypto = await import('crypto');
@@ -1893,30 +2006,535 @@ export class AuthRepository implements ISession, IToken, IAuth {
       return new DatabaseError('verifyEmail', error);
     }
   }
-  resendVerificationEmail(email: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async resendVerificationEmail(email: string): AsyncResult<boolean> {
+    try {
+      // Find user by email
+      const user = await this.db
+        .selectFrom('users')
+        .select(['id', 'email_verified', 'status'])
+        .where('email', '=', email.toLowerCase())
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      // Always return success to prevent email enumeration
+      if (!user) {
+        return ResponseBuilder.ok(true);
+      }
+
+      // Check if already verified
+      if (user.email_verified) {
+        return ResponseBuilder.ok(true); // Already verified, no need to send
+      }
+
+      // Check if account is active
+      if (user.status !== 'active' && user.status !== 'pending_verification') {
+        return ResponseBuilder.ok(true); // Don't send for inactive accounts
+      }
+
+      // Check for rate limiting - prevent spam
+      const recentTokens = await this.db
+        .selectFrom('email_verification_tokens')
+        .select(['created_at'])
+        .where('user_id', '=', user.id)
+        .where('email', '=', email.toLowerCase())
+        .where('created_at', '>', new Date(Date.now() - 5 * 60 * 1000)) // Last 5 minutes
+        .execute();
+
+      if (recentTokens.length >= 3) {
+        // Too many requests in the last 5 minutes
+        return new ValidationError({
+          email: [
+            'Too many verification emails requested. Please wait a few minutes before trying again.',
+          ],
+        });
+      }
+
+      // Check if there's an active (unused, not expired) token
+      const existingToken = await this.db
+        .selectFrom('email_verification_tokens')
+        .select(['id', 'token_hash', 'expires_at'])
+        .where('user_id', '=', user.id)
+        .where('email', '=', email.toLowerCase())
+        .where('verified_at', 'is', null)
+        .where('expires_at', '>', new Date())
+        .orderBy('created_at', 'desc')
+        .executeTakeFirst();
+
+      let token: string;
+
+      if (existingToken) {
+        // Reuse existing token if it's still valid
+        // In a real implementation, you'd need to retrieve the original token
+        // For now, we'll generate a new one
+        const crypto = await import('crypto');
+        token = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+        // Update the existing token with new hash and expiration
+        await this.db
+          .updateTable('email_verification_tokens')
+          .set({
+            token_hash: tokenHash,
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+            updated_at: new Date(),
+          })
+          .where('id', '=', existingToken.id)
+          .execute();
+      } else {
+        // Create new verification token
+        const crypto = await import('crypto');
+        token = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+        const tokenResult = await this.createEmailVerificationToken(
+          user.id,
+          email,
+          tokenHash,
+          24 * 60 * 60, // 24 hours
+        );
+
+        if (!tokenResult.success) {
+          return tokenResult;
+        }
+      }
+
+      // The actual email sending would be handled by the service layer
+      // Store the token in the metadata field instead
+      return ResponseBuilder.ok(true, undefined, { token });
+    } catch (error) {
+      return new DatabaseError('resendVerificationEmail', error);
+    }
   }
-  generateTwoFactorSecret(
+
+  async generateTwoFactorSecret(
     userId: string,
   ): AsyncResult<{ secret: string; qrCode: string; backupCodes: string[] }> {
-    throw new Error('Method not implemented.');
+    try {
+      // Check if user exists
+      const user = await this.db
+        .selectFrom('users')
+        .select(['id', 'email', 'first_name', 'last_name'])
+        .where('id', '=', userId)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!user) {
+        return new NotFoundError('User not found');
+      }
+
+      // Check if 2FA is already enabled
+      const securityRecord = await this.db
+        .selectFrom('user_security')
+        .select(['two_factor_enabled', 'two_factor_secret_id'])
+        .where('user_id', '=', userId)
+        .executeTakeFirst();
+
+      if (securityRecord?.two_factor_enabled) {
+        return new ValidationError({
+          twoFactor: ['Two-factor authentication is already enabled'],
+        });
+      }
+
+      // Generate new secret
+      const { authenticator } = await import('otplib');
+      const secret = authenticator.generateSecret();
+
+      // Generate QR code
+      const serviceName = 'FireNotifications'; // Your app name
+      const userLabel = user.email;
+      const otpauth = authenticator.keyuri(userLabel, serviceName, secret);
+
+      // Generate QR code as data URL
+      const qrcode = await import('qrcode');
+      const qrCode = await qrcode.toDataURL(otpauth);
+
+      // Store the secret (not enabled yet)
+      const secretId = uuidv4();
+      const now = new Date();
+
+      // If user already has a pending secret, delete it first
+      if (securityRecord?.two_factor_secret_id) {
+        await this.db
+          .deleteFrom('two_factor_secrets')
+          .where('id', '=', securityRecord.two_factor_secret_id)
+          .where('enabled', '=', false) // Only delete if not enabled
+          .execute();
+      }
+
+      // Create new secret record (not enabled yet)
+      await this.db
+        .insertInto('two_factor_secrets')
+        .values({
+          id: secretId,
+          user_id: userId,
+          secret: secret, // In production, encrypt this
+          backup_codes: [], // Will be generated when enabling
+          enabled: false,
+          enabled_at: null,
+          last_used_at: null,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      // Update or create user security record
+      if (securityRecord) {
+        await this.db
+          .updateTable('user_security')
+          .set({
+            two_factor_secret_id: secretId,
+            updated_at: now,
+          })
+          .where('user_id', '=', userId)
+          .execute();
+      } else {
+        await this.db
+          .insertInto('user_security')
+          .values({
+            user_id: userId,
+            failed_login_attempts: 0,
+            locked_until: null,
+            last_login_at: null,
+            last_login_ip: null,
+            two_factor_enabled: false,
+            two_factor_secret_id: secretId,
+            last_password_change_at: null,
+            password_history: sql`'[]'`,
+            security_questions: sql`'[]'`,
+            created_at: now,
+            updated_at: now,
+          })
+          .execute();
+      }
+
+      // Return the secret and QR code
+      // Note: We don't generate backup codes here - they're generated when 2FA is actually enabled
+      return ResponseBuilder.ok({
+        secret,
+        qrCode,
+        backupCodes: [], // Empty for now, will be provided when enableTwoFactor is called
+      });
+    } catch (error) {
+      return new DatabaseError('generateTwoFactorSecret', error);
+    }
   }
-  enableTwoFactor(
+
+  async enableTwoFactor(
     userId: string,
     totpCode: string,
     sessionId?: string,
   ): AsyncResult<{ backupCodes: string[] }> {
-    throw new Error('Method not implemented.');
+    try {
+      // Get user's security record
+      const securityRecord = await this.db
+        .selectFrom('user_security')
+        .select(['two_factor_secret_id', 'two_factor_enabled'])
+        .where('user_id', '=', userId)
+        .executeTakeFirst();
+
+      // Check if 2FA is already enabled
+      if (securityRecord?.two_factor_enabled) {
+        return new ValidationError({
+          twoFactor: ['Two-factor authentication is already enabled'],
+        });
+      }
+
+      // Get the pending secret (should have been created via generateTwoFactorSecret)
+      if (!securityRecord?.two_factor_secret_id) {
+        return new ValidationError({
+          twoFactor: ['No pending two-factor setup found. Please generate a secret first.'],
+        });
+      }
+
+      // Get the secret to verify the code
+      const secretRecord = await this.db
+        .selectFrom('two_factor_secrets')
+        .select(['secret', 'backup_codes'])
+        .where('id', '=', securityRecord.two_factor_secret_id)
+        .where('enabled', '=', false) // Should not be enabled yet
+        .executeTakeFirst();
+
+      if (!secretRecord) {
+        return new ValidationError({
+          twoFactor: ['Two-factor setup expired or not found'],
+        });
+      }
+
+      // Verify the TOTP code
+      const { authenticator } = await import('otplib');
+      authenticator.options = {
+        window: 2, // Allow some clock drift
+      };
+
+      const isValidCode = authenticator.verify({
+        token: totpCode,
+        secret: secretRecord.secret,
+      });
+
+      if (!isValidCode) {
+        return new ValidationError({
+          totpCode: ['Invalid verification code'],
+        });
+      }
+
+      // Generate plain text backup codes for user to save
+      const crypto = await import('crypto');
+      const bcrypt = await import('bcrypt');
+      const plainBackupCodes: string[] = [];
+      const hashedBackupCodes: string[] = [];
+
+      // Generate 8 backup codes
+      for (let i = 0; i < 8; i++) {
+        const code = crypto.randomBytes(4).toString('hex').toUpperCase();
+        plainBackupCodes.push(code);
+        const hashedCode = await bcrypt.hash(code, 10);
+        hashedBackupCodes.push(hashedCode);
+      }
+
+      // Enable 2FA in a transaction
+      await this.db.transaction().execute(async (trx) => {
+        // Update the secret with hashed backup codes and mark as enabled
+        await trx
+          .updateTable('two_factor_secrets')
+          .set({
+            backup_codes: hashedBackupCodes,
+            enabled: true,
+            enabled_at: new Date(),
+            last_used_at: new Date(),
+          })
+          .where('id', '=', securityRecord.two_factor_secret_id)
+          .execute();
+
+        // Update user security to mark 2FA as enabled
+        await trx
+          .updateTable('user_security')
+          .set({
+            two_factor_enabled: true,
+            updated_at: new Date(),
+          })
+          .where('user_id', '=', userId)
+          .execute();
+
+        // If session provided, mark it as MFA verified
+        if (sessionId) {
+          await trx
+            .updateTable('sessions')
+            .set({
+              is_mfa_verified: true,
+              updated_at: new Date(),
+            })
+            .where('id', '=', sessionId)
+            .execute();
+        }
+      });
+
+      // Return the plain backup codes for the user to save
+      return ResponseBuilder.ok({
+        backupCodes: plainBackupCodes,
+      });
+    } catch (error) {
+      return new DatabaseError('enableTwoFactor', error);
+    }
   }
-  disableTwoFactor(userId: string, password?: string, adminId?: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async disableTwoFactor(
+    userId: string,
+    password?: string,
+    adminId?: string,
+  ): AsyncResult<boolean> {
+    try {
+      // If not admin action, verify password
+      if (!adminId && password) {
+        // Get user's current password hash
+        const passwordResult = await this.db
+          .selectFrom('user_passwords')
+          .select(['password_hash'])
+          .where('user_id', '=', userId)
+          .orderBy('created_at', 'desc')
+          .executeTakeFirst();
+
+        if (!passwordResult) {
+          return new UnauthorizedError('Invalid password');
+        }
+
+        // Verify password
+        const bcrypt = await import('bcrypt');
+        const isValidPassword = await bcrypt.compare(password, passwordResult.password_hash);
+
+        if (!isValidPassword) {
+          return new UnauthorizedError('Invalid password');
+        }
+      } else if (!adminId && !password) {
+        // Require either password or admin action
+        return new UnauthorizedError('Password required to disable two-factor authentication');
+      }
+
+      // Get user's security record
+      const securityRecord = await this.db
+        .selectFrom('user_security')
+        .select(['two_factor_enabled', 'two_factor_secret_id'])
+        .where('user_id', '=', userId)
+        .executeTakeFirst();
+
+      if (!securityRecord || !securityRecord.two_factor_enabled) {
+        return ResponseBuilder.ok(false); // Already disabled
+      }
+
+      // Start transaction to disable 2FA
+      const result = await this.db.transaction().execute(async (trx) => {
+        // Update user_security
+        await trx
+          .updateTable('user_security')
+          .set({
+            two_factor_enabled: false,
+            two_factor_secret_id: null,
+            updated_at: new Date(),
+          })
+          .where('user_id', '=', userId)
+          .execute();
+
+        // Delete the two-factor secret if it exists
+        if (securityRecord.two_factor_secret_id) {
+          await trx
+            .deleteFrom('two_factor_secrets')
+            .where('id', '=', securityRecord.two_factor_secret_id)
+            .execute();
+        }
+
+        return true;
+      });
+
+      return ResponseBuilder.ok(result);
+    } catch (error) {
+      return new DatabaseError('disableTwoFactor', error);
+    }
   }
-  verifyTwoFactor(userId: string, code: string, sessionId?: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async verifyTwoFactor(userId: string, code: string, sessionId?: string): AsyncResult<boolean> {
+    try {
+      // Get user's two-factor secret
+      const securityRecord = await this.db
+        .selectFrom('user_security')
+        .select(['two_factor_enabled', 'two_factor_secret_id'])
+        .where('user_id', '=', userId)
+        .executeTakeFirst();
+
+      if (
+        !securityRecord ||
+        !securityRecord.two_factor_enabled ||
+        !securityRecord.two_factor_secret_id
+      ) {
+        return new ValidationError({ code: ['Two-factor authentication is not enabled'] });
+      }
+
+      // Get the secret
+      const secretRecord = await this.db
+        .selectFrom('two_factor_secrets')
+        .select(['secret', 'backup_codes'])
+        .where('id', '=', securityRecord.two_factor_secret_id)
+        .executeTakeFirst();
+
+      if (!secretRecord) {
+        return new InternalServerError('Two-factor secret not found');
+      }
+
+      let isValid = false;
+      let isBackupCode = false;
+
+      // First try to verify as TOTP code
+      // Using otplib instead of speakeasy
+      const { authenticator } = await import('otplib');
+
+      // Configure otplib for better compatibility
+      authenticator.options = {
+        window: 2, // Allow 2 time steps before/after for clock drift
+      };
+
+      const totpValid = authenticator.verify({
+        token: code,
+        secret: secretRecord.secret, // This should be decrypted in production
+      });
+
+      if (totpValid) {
+        isValid = true;
+      } else {
+        // Try backup codes if TOTP fails
+        const bcrypt = await import('bcrypt');
+        const backupCodes = secretRecord.backup_codes as string[];
+
+        for (const hashedBackupCode of backupCodes) {
+          const matches = await bcrypt.compare(code, hashedBackupCode);
+          if (matches) {
+            isValid = true;
+            isBackupCode = true;
+
+            // Remove used backup code
+            const updatedCodes = backupCodes.filter((c) => c !== hashedBackupCode);
+            await this.db
+              .updateTable('two_factor_secrets')
+              .set({
+                backup_codes: updatedCodes, // Kysely should handle JSON serialization
+                last_used_at: new Date(),
+              })
+              .where('id', '=', securityRecord.two_factor_secret_id)
+              .execute();
+
+            break;
+          }
+        }
+      }
+
+      if (!isValid) {
+        return new ValidationError({ code: ['Invalid verification code'] });
+      }
+
+      // Update last used timestamp
+      if (!isBackupCode) {
+        await this.db
+          .updateTable('two_factor_secrets')
+          .set({
+            last_used_at: new Date(),
+          })
+          .where('id', '=', securityRecord.two_factor_secret_id)
+          .execute();
+      }
+
+      // If session ID provided, mark session as MFA verified
+      if (sessionId) {
+        await this.db
+          .updateTable('sessions')
+          .set({
+            is_mfa_verified: true,
+            updated_at: new Date(),
+          })
+          .where('id', '=', sessionId)
+          .execute();
+      }
+
+      return ResponseBuilder.ok(true);
+    } catch (error) {
+      return new DatabaseError('verifyTwoFactor', error);
+    }
   }
-  isTwoFactorEnabled(userId: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async isTwoFactorEnabled(userId: string): AsyncResult<boolean> {
+    try {
+      const securityRecord = await this.db
+        .selectFrom('user_security')
+        .select(['two_factor_enabled'])
+        .where('user_id', '=', userId)
+        .executeTakeFirst();
+
+      // If no security record exists, 2FA is not enabled
+      const isEnabled = securityRecord?.two_factor_enabled || false;
+
+      return ResponseBuilder.ok(isEnabled);
+    } catch (error) {
+      return new DatabaseError('isTwoFactorEnabled', error);
+    }
   }
+
   linkAuthProvider(
     userId: string,
     provider: AuthProvider,
@@ -1925,33 +2543,378 @@ export class AuthRepository implements ISession, IToken, IAuth {
   ): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
-  unlinkAuthProvider(userId: string, provider: AuthProvider): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async unlinkAuthProvider(userId: string, provider: AuthProvider): AsyncResult<boolean> {
+    try {
+      // First check if this is the user's only auth method
+      const authProviderCount = await this.db
+        .selectFrom('user_auth_providers')
+        .select((eb) => eb.fn.count<string>('id').as('count'))
+        .where('user_id', '=', userId)
+        .executeTakeFirst();
+
+      const providerCount = Number(authProviderCount?.count || 0);
+
+      // Also check if user has a password
+      const hasPassword = await this.db
+        .selectFrom('user_passwords')
+        .select(['id'])
+        .where('user_id', '=', userId)
+        .orderBy('created_at', 'desc')
+        .executeTakeFirst();
+
+      // Prevent unlinking if this is the only auth method and no password
+      if (providerCount <= 1 && !hasPassword) {
+        return new ValidationError({
+          provider: [
+            'Cannot unlink the only authentication method. Please set a password or link another provider first.',
+          ],
+        });
+      }
+
+      // Check if the provider link exists
+      const existingLink = await this.db
+        .selectFrom('user_auth_providers')
+        .select(['id'])
+        .where('user_id', '=', userId)
+        .where('provider', '=', provider)
+        .executeTakeFirst();
+
+      if (!existingLink) {
+        return ResponseBuilder.ok(false);
+      }
+
+      // Delete the provider link
+      const result = await this.db
+        .deleteFrom('user_auth_providers')
+        .where('user_id', '=', userId)
+        .where('provider', '=', provider)
+        .execute();
+
+      const success = result.length > 0;
+
+      return ResponseBuilder.ok(success);
+    } catch (error) {
+      return new DatabaseError('unlinkAuthProvider', error);
+    }
   }
-  findUserByAuthProvider(provider: AuthProvider, providerUserId: string): AsyncResult<User | null> {
-    throw new Error('Method not implemented.');
+
+  async findUserByAuthProvider(
+    provider: AuthProvider,
+    providerUserId: string,
+  ): AsyncResult<User | null> {
+    try {
+      // Find the auth provider link
+      const authProvider = await this.db
+        .selectFrom('user_auth_providers')
+        .select(['user_id'])
+        .where('provider', '=', provider)
+        .where('provider_user_id', '=', providerUserId)
+        .executeTakeFirst();
+
+      if (!authProvider) {
+        return ResponseBuilder.ok(null);
+      }
+
+      // Get the user
+      const userResult = await this.db
+        .selectFrom('users')
+        .selectAll()
+        .where('id', '=', authProvider.user_id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!userResult) {
+        return ResponseBuilder.ok(null);
+      }
+
+      // Map to User entity
+      const user = this.mapToUser(userResult);
+
+      return ResponseBuilder.ok(user);
+    } catch (error) {
+      return new DatabaseError('findUserByAuthProvider', error);
+    }
   }
-  getUserAuthProviders(userId: string): AsyncResult<UserAuthProviderDB[]> {
-    throw new Error('Method not implemented.');
+  async getUserAuthProviders(userId: string): AsyncResult<UserAuthProviderDB[]> {
+    try {
+      const authProviders = await this.db
+        .selectFrom('user_auth_providers')
+        .selectAll()
+        .where('user_id', '=', userId)
+        .orderBy('linked_at', 'desc')
+        .execute();
+
+      // Cast the result to any first to avoid TypeScript inference issues
+      const providers: UserAuthProviderDB[] = (authProviders as any[]).map((row) => ({
+        id: row.id,
+        user_id: row.user_id,
+        provider: row.provider as AuthProvider,
+        provider_user_id: row.provider_user_id,
+
+        // Provider-specific data (already stored as JSON)
+        provider_data: row.provider_data || null,
+
+        // Tokens (encrypted)
+        access_token: row.access_token || null,
+        refresh_token: row.refresh_token || null,
+        token_expires_at: row.token_expires_at ? new Date(row.token_expires_at) : null,
+
+        // Tracking
+        linked_at: new Date(row.linked_at),
+        last_used_at: row.last_used_at ? new Date(row.last_used_at) : null,
+        is_primary: Boolean(row.is_primary),
+      }));
+
+      return ResponseBuilder.ok(providers);
+    } catch (error) {
+      return new DatabaseError('getUserAuthProviders', error);
+    }
   }
-  trackFailedLogin(email: string, ipAddress?: string, reason?: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async trackFailedLogin(email: string, ipAddress?: string, reason?: string): AsyncResult<boolean> {
+    try {
+      // 1. Find user by email
+      const user = await this.db
+        .selectFrom('users')
+        .select(['id'])
+        .where('email', '=', email.toLowerCase())
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!user) {
+        // Don't reveal if user exists - still return success
+        // You might want to log this attempt somewhere else for security monitoring
+        return ResponseBuilder.ok(true);
+      }
+
+      // 2. Get or create security record - select all columns we need
+      let securityRecord = await this.db
+        .selectFrom('user_security')
+        .selectAll() // Select all columns to have access to last_login_ip
+        .where('user_id', '=', user.id)
+        .executeTakeFirst();
+
+      const now = new Date();
+
+      if (!securityRecord) {
+        // Create new security record with first failed attempt
+        await this.db
+          .insertInto('user_security')
+          .values({
+            user_id: user.id,
+            failed_login_attempts: 1,
+            locked_until: null,
+            last_login_at: null,
+            last_login_ip: ipAddress || null,
+            two_factor_enabled: false,
+            two_factor_secret_id: null,
+            last_password_change_at: null,
+            password_history: sql`'[]'`,
+            security_questions: sql`'[]'`,
+            created_at: now,
+            updated_at: now,
+          })
+          .execute();
+
+        return ResponseBuilder.ok(true);
+      }
+
+      // 3. Increment failed attempts
+      const newFailedAttempts = (securityRecord.failed_login_attempts || 0) + 1;
+
+      // 4. Determine if account should be locked
+      let lockUntil = null;
+      if (newFailedAttempts >= 5) {
+        // Lock account for 30 minutes after 5 failed attempts
+        lockUntil = new Date(now.getTime() + 30 * 60 * 1000);
+      } else if (newFailedAttempts >= 10) {
+        // Lock account for 1 hour after 10 failed attempts
+        lockUntil = new Date(now.getTime() + 60 * 60 * 1000);
+      } else if (newFailedAttempts >= 15) {
+        // Lock account for 24 hours after 15 failed attempts
+        lockUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      }
+
+      // 5. Update security record
+      await this.db
+        .updateTable('user_security')
+        .set({
+          failed_login_attempts: newFailedAttempts,
+          locked_until: lockUntil,
+          last_login_ip: ipAddress || securityRecord.last_login_ip,
+          updated_at: now,
+        })
+        .where('user_id', '=', user.id)
+        .execute();
+
+      return ResponseBuilder.ok(true);
+    } catch (error) {
+      return new DatabaseError('trackFailedLogin', error);
+    }
   }
-  isAccountLocked(email: string): AsyncResult<{ locked: boolean; until?: Date }> {
-    throw new Error('Method not implemented.');
+
+  async isAccountLocked(email: string): AsyncResult<{ locked: boolean; until?: Date }> {
+    try {
+      // 1. Find user by email
+      const user = await this.db
+        .selectFrom('users')
+        .select(['id'])
+        .where('email', '=', email.toLowerCase())
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!user) {
+        // Return not locked for non-existent users to prevent email enumeration
+        return ResponseBuilder.ok({ locked: false });
+      }
+
+      // 2. Get security record
+      const securityRecord = await this.db
+        .selectFrom('user_security')
+        .select(['locked_until'])
+        .where('user_id', '=', user.id)
+        .executeTakeFirst();
+
+      if (!securityRecord || !securityRecord.locked_until) {
+        // No security record or no lock set
+        return ResponseBuilder.ok({ locked: false });
+      }
+
+      const now = new Date();
+      const lockUntil = new Date(securityRecord.locked_until);
+
+      // 3. Check if lock has expired
+      if (lockUntil <= now) {
+        // Lock has expired
+        return ResponseBuilder.ok({ locked: false });
+      }
+
+      // Account is locked
+      return ResponseBuilder.ok({
+        locked: true,
+        until: lockUntil,
+      });
+    } catch (error) {
+      return new DatabaseError('isAccountLocked', error);
+    }
   }
-  lockAccount(
+
+  async lockAccount(
     userId: string,
     reason: string,
     until?: Date,
     lockedBy?: string,
   ): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+    try {
+      // Default lock duration is 30 minutes if not specified
+      const lockUntil = until || new Date(Date.now() + 30 * 60 * 1000);
+
+      // Check if user exists
+      const user = await this.db
+        .selectFrom('users')
+        .select(['id', 'status'])
+        .where('id', '=', userId)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!user) {
+        return new NotFoundError('User not found');
+      }
+
+      // Check if user_security record exists
+      const securityRecord = await this.db
+        .selectFrom('user_security')
+        .select(['user_id'])
+        .where('user_id', '=', userId)
+        .executeTakeFirst();
+
+      if (securityRecord) {
+        // Update existing security record
+        const result = await this.db
+          .updateTable('user_security')
+          .set({
+            locked_until: lockUntil,
+            updated_at: new Date(),
+          })
+          .where('user_id', '=', userId)
+          .execute();
+
+        const success = result.length > 0;
+        return ResponseBuilder.ok(success);
+      } else {
+        // Create new security record with lock
+        await this.db
+          .insertInto('user_security')
+          .values({
+            user_id: userId,
+            failed_login_attempts: 0,
+            locked_until: lockUntil,
+            last_login_at: null,
+            last_login_ip: null,
+            two_factor_enabled: false,
+            two_factor_secret_id: null,
+            last_password_change_at: null,
+            password_history: sql`'[]'`,
+            security_questions: sql`'[]'`,
+            created_at: new Date(),
+            updated_at: new Date(),
+          })
+          .execute();
+
+        return ResponseBuilder.ok(true);
+      }
+
+      // Optionally, you could also:
+      // 1. Revoke all active sessions for this user
+      // 2. Add audit log entry with reason and lockedBy
+      // 3. Send notification to user about account lock
+    } catch (error) {
+      return new DatabaseError('lockAccount', error);
+    }
   }
-  unlockAccount(userId: string, unlockedBy?: string): AsyncResult<boolean> {
-    throw new Error('Method not implemented.');
+
+  async unlockAccount(userId: string, unlockedBy?: string): AsyncResult<boolean> {
+    try {
+      // Check if user_security record exists
+      const securityRecord = await this.db
+        .selectFrom('user_security')
+        .select(['user_id', 'locked_until'])
+        .where('user_id', '=', userId)
+        .executeTakeFirst();
+
+      if (!securityRecord) {
+        // No security record means account is not locked
+        return ResponseBuilder.ok(false);
+      }
+
+      // Check if account is actually locked
+      if (!securityRecord.locked_until || new Date(securityRecord.locked_until) <= new Date()) {
+        // Account is not locked or lock has already expired
+        return ResponseBuilder.ok(false);
+      }
+
+      // Unlock the account
+      const result = await this.db
+        .updateTable('user_security')
+        .set({
+          locked_until: null,
+          failed_login_attempts: 0, // Reset failed attempts
+          updated_at: new Date(),
+        })
+        .where('user_id', '=', userId)
+        .execute();
+
+      // Check if update was successful
+      const success = result.length > 0;
+
+      return ResponseBuilder.ok(success);
+    } catch (error) {
+      return new DatabaseError('unlockAccount', error);
+    }
   }
-  getUserAuthActivity(
+
+  async getUserAuthActivity(
     userId: string,
     limit?: number,
   ): AsyncResult<{
@@ -1959,7 +2922,54 @@ export class AuthRepository implements ISession, IToken, IAuth {
     activeSessions: number;
     failedAttempts: number;
   }> {
-    throw new Error('Method not implemented.');
+    try {
+      // 1. Get recent login sessions (successful logins)
+      const recentLoginsQuery = this.db
+        .selectFrom('sessions')
+        .select(['created_at', 'ip_address', 'device_name', 'device_type', 'user_agent'])
+        .where('user_id', '=', userId)
+        .orderBy('created_at', 'desc');
+
+      // Apply limit if provided, default to 10
+      const recentSessionsLimit = limit || 10;
+      const recentSessions = await recentLoginsQuery.limit(recentSessionsLimit).execute();
+
+      // Map to the expected format
+      const recentLogins = recentSessions.map((session) => ({
+        timestamp: new Date(session.created_at),
+        ip: session.ip_address || 'Unknown',
+        device: session.device_name || session.device_type || 'Unknown Device',
+      }));
+
+      // 2. Count active sessions (not revoked and not expired)
+      const now = new Date();
+      const activeSessionCount = await this.db
+        .selectFrom('sessions')
+        .select((eb) => eb.fn.count<string>('id').as('count'))
+        .where('user_id', '=', userId)
+        .where('revoked_at', 'is', null)
+        .where('expires_at', '>', now)
+        .executeTakeFirst();
+
+      const activeSessions = Number(activeSessionCount?.count || 0);
+
+      // 3. Get failed login attempts from user_security
+      const securityInfo = await this.db
+        .selectFrom('user_security')
+        .select(['failed_login_attempts'])
+        .where('user_id', '=', userId)
+        .executeTakeFirst();
+
+      const failedAttempts = securityInfo?.failed_login_attempts || 0;
+
+      return ResponseBuilder.ok({
+        recentLogins,
+        activeSessions,
+        failedAttempts,
+      });
+    } catch (error) {
+      return new DatabaseError('getUserAuthActivity', error);
+    }
   }
 
   private mapToSession(row: any): Session {
@@ -2069,7 +3079,7 @@ export class AuthRepository implements ISession, IToken, IAuth {
       userId: row.user_id,
       name: row.name,
       keyHash: row.key_hash,
-      keyPrefix: row.key_prefix, // This is a string, not JSON
+      keyPrefix: row.key_prefix,
 
       organizationId: row.organization_id,
 
@@ -2082,12 +3092,12 @@ export class AuthRepository implements ISession, IToken, IAuth {
       expiresAt: row.expires_at ? new Date(row.expires_at) : null,
       lastUsedAt: row.last_used_at ? new Date(row.last_used_at) : null,
       lastUsedIp: row.last_used_ip,
-      usageCount: Number(row.usage_count) || 0, // Convert to number
+      usageCount: Number(row.usage_count) || 0,
 
-      isActive: Boolean(row.is_active), // Convert tinyint to boolean
+      isActive: Boolean(row.is_active),
       revokedAt: row.revoked_at ? new Date(row.revoked_at) : null,
+      revokedBy: row.revoked_by || null, // Now included in the schema
       revokedReason: row.revoke_reason,
-      // Note: revokedBy exists in DB but not in ApiKey entity
 
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
