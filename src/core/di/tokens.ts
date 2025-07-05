@@ -1,4 +1,8 @@
 export const TOKENS = {
+  //core
+  Logger: Symbol.for('Logger'),
+  Config: Symbol.for('Config'),
+
   // Infrastructure
   Database: Symbol.for('Database'),
   RedisClient: Symbol.for('RedisClient'),

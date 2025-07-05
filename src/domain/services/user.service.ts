@@ -17,13 +17,26 @@ import { Cacheable, CacheInvalidate, CacheUpdate } from '../../infrastructure/ca
 import { getCacheService } from '../../infrastructure/cache/decorators/cache-helper';
 import { EventBus } from '../../infrastructure/events/event-bus';
 import { UserCreatedEvent, UserUpdatedEvent, UserDeletedEvent } from '../events/user';
+import { Injectable } from '../../core/di/decorators/injectable.decorator';
+import {
+  InjectCache,
+  InjectEventBus,
+  InjectLogger,
+  InjectUserRepository,
+} from '../../core/di/decorators/inject.decorator';
+import { CacheService } from '../../infrastructure/cache/cache.service';
+import { ILogger } from '../../shared/utils';
 
-@injectable()
+@Injectable()
 export class UserService {
   constructor(
-    @inject(TOKENS.UserRepository) private userRepo: IUser,
-    @inject(TOKENS.EventBus) private eventBus: EventBus,
-  ) {}
+    @InjectUserRepository() private userRepo: IUser,
+    @InjectCache() private cacheService: CacheService,
+    @InjectEventBus() private eventBus: EventBus,
+    @InjectLogger() private logger: ILogger,
+  ) {
+    this.logger.info('UserService initialized');
+  }
 
   async createUser(input: CreateUserInput, correlationId?: string): AsyncResult<User> {
     // Check email uniqueness
