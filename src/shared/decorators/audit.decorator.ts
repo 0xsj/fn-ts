@@ -21,7 +21,7 @@ export function Audit(
 
     descriptor.value = async function (...args: any[]) {
       const startTime = Date.now();
-      
+
       // Lazy resolution - only when method is called
       let analyticsService: AnalyticsService;
       try {
@@ -180,7 +180,7 @@ export function AuditWithContext(
 
     descriptor.value = async function (...args: any[]) {
       const startTime = Date.now();
-      
+
       // Lazy resolution - only when method is called
       let analyticsService: AnalyticsService;
       try {

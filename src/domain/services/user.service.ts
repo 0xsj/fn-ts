@@ -1,6 +1,12 @@
 // src/domain/services/user.service.ts
 import type { IUser } from '../interface/user.interface';
-import type { CreateUserInput, UpdateUserInput, User } from '../entities';
+import type {
+  CreateUserInput,
+  RegisterUserInput,
+  UpdateUserInput,
+  User,
+  UserPublic,
+} from '../entities';
 import type { AsyncResult } from '../../shared/response';
 import {
   ConflictError,
@@ -8,6 +14,7 @@ import {
   ResponseBuilder,
   InternalServerError,
   ok,
+  ValidationError,
 } from '../../shared/response';
 import { isSuccessResponse } from '../../shared/response';
 import { hashPassword, verifyPassword } from '../../shared/utils/crypto';
@@ -19,11 +26,14 @@ import { Inject, Injectable } from '../../core/di/decorators';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { ILogger } from '../../shared/utils';
 import { TOKENS } from '../../core/di/tokens';
+import { AuthService } from './auth.service';
+import { UserRegisteredEvent } from '../events/user/user-registered.event';
 
 @Injectable()
 export class UserService {
   constructor(
     @Inject(TOKENS.UserRepository) private userRepo: IUser,
+    @Inject() private authService: AuthService,
     @Inject() private cacheService: CacheService,
     @Inject() private eventBus: EventBus,
     @Inject(TOKENS.Logger) private logger: ILogger,
@@ -32,13 +42,11 @@ export class UserService {
   }
 
   async createUser(input: CreateUserInput, correlationId?: string): AsyncResult<User> {
-    // Check email uniqueness
     const existingEmail = await this.userRepo.existsByEmail(input.email, undefined, correlationId);
     if (isSuccessResponse(existingEmail) && existingEmail.body().data) {
       return new ConflictError('Email already exists', correlationId);
     }
 
-    // Check username uniqueness if provided
     if (input.username) {
       const existingUsername = await this.userRepo.existsByUsername(
         input.username,
@@ -60,16 +68,13 @@ export class UserService {
       correlationId,
     );
 
-    // Create password entry in user_passwords table
     if (isSuccessResponse(result)) {
       const user = result.body().data;
       if (user) {
         await this.userRepo.createUserPassword(user.id, passwordHash);
 
-        // Invalidate user list cache
         await this.invalidateUserCaches();
 
-        // Emit user created event with new fields
         await this.eventBus.emit(
           new UserCreatedEvent(
             {
@@ -81,7 +86,7 @@ export class UserService {
               displayName: user.displayName,
               type: user.type,
               status: user.status,
-              organizationId: user.organizationId,
+              organizationId: user.organizationId ?? null,
             },
             correlationId ? { correlationId, userId: user.id } : { userId: user.id },
           ),
@@ -395,6 +400,93 @@ export class UserService {
     return ResponseBuilder.ok(user, correlationId);
   }
 
+  // src/domain/services/user.service.ts - Add this method
+
+  async register(input: RegisterUserInput, correlationId?: string): AsyncResult<User> {
+    // Validate passwords match (though this should already be validated by schema)
+    if (input.password !== input.confirmPassword) {
+      return new ValidationError({ confirmPassword: ['Passwords do not match'] }, correlationId);
+    }
+
+    // Check terms acceptance
+    if (!input.acceptTerms) {
+      return new ValidationError({ acceptTerms: ['You must accept the terms'] }, correlationId);
+    }
+
+    // Check email uniqueness
+    const existingEmail = await this.userRepo.existsByEmail(input.email, undefined, correlationId);
+    if (isSuccessResponse(existingEmail) && existingEmail.body().data) {
+      return new ConflictError('Email already exists', correlationId);
+    }
+
+    // Check username uniqueness if provided
+    if (input.username) {
+      const existingUsername = await this.userRepo.existsByUsername(
+        input.username,
+        undefined,
+        correlationId,
+      );
+      if (isSuccessResponse(existingUsername) && existingUsername.body().data) {
+        return new ConflictError('Username already exists', correlationId);
+      }
+    }
+
+    // Hash password
+    const passwordHash = await hashPassword(input.password);
+
+    // Create user with registration defaults
+    const createInput: CreateUserInput & { passwordHash: string } = {
+      firstName: input.firstName,
+      lastName: input.lastName,
+      email: input.email,
+      username: input.username,
+      password: input.password,
+      passwordHash,
+      autoActivate: false, // Must verify email
+      sendWelcomeEmail: true,
+    };
+
+    const result = await this.userRepo.create(createInput, correlationId);
+
+    if (isSuccessResponse(result)) {
+      const user = result.body().data;
+      if (user) {
+        this.logger.info('User created successfully', { userId: user.id, email: user.email });
+
+        // Create password entry
+        await this.userRepo.createUserPassword(user.id, passwordHash);
+        this.logger.info('Password created for user', { userId: user.id });
+
+        // Send verification email
+        this.logger.info('Calling sendVerificationEmail', { userId: user.id });
+        const emailResult = await this.authService.sendVerificationEmail(user.id, correlationId);
+        this.logger.info('sendVerificationEmail result', {
+          userId: user.id,
+          success: isSuccessResponse(emailResult),
+        });
+
+        // Emit registration event
+        await this.eventBus.emit(
+          new UserRegisteredEvent(
+            {
+              userId: user.id,
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              registeredAt: new Date(),
+            },
+            correlationId ? { correlationId, userId: user.id } : { userId: user.id },
+          ),
+        );
+
+        // Invalidate caches
+        await this.invalidateUserCaches();
+      }
+    }
+
+    return result;
+  }
+
   // src/domain/services/user.service.ts
 
   // TODO: Password Management Functions
@@ -475,5 +567,21 @@ export class UserService {
   private async invalidateUserCaches(): Promise<void> {
     const cacheService = getCacheService();
     await cacheService.invalidateByTags(['users', 'user-list']);
+  }
+
+  toPublicUser(user: User): UserPublic {
+    const {
+      // Exclude these fields
+      cachedPermissions,
+      permissionsUpdatedAt,
+      totalLoginCount,
+      deactivatedReason,
+      deletedAt,
+      deletedBy,
+      // Include everything else
+      ...publicFields
+    } = user;
+
+    return publicFields as UserPublic;
   }
 }

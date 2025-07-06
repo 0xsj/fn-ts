@@ -8,6 +8,7 @@ import {
   isSuccessResponse,
   NotFoundError,
   ResponseBuilder,
+  SuccessResponse,
   UnauthorizedError,
   ValidationError,
 } from '../../shared/response';
@@ -1667,6 +1668,79 @@ export class AuthService {
         { sent: false },
         'Unable to process request. Please try again later.',
       );
+    }
+  }
+
+  // src/domain/services/auth.service.ts - Corrected sendVerificationEmail method
+
+  // In your AuthService.sendVerificationEmail, add more detailed logging:
+
+  async sendVerificationEmail(userId: string, correlationId?: string): AsyncResult<boolean> {
+    try {
+      this.logger.info('AuthService.sendVerificationEmail called', { userId, correlationId });
+
+      const result = await this.authRepo.sendVerificationEmail(userId);
+      this.logger.info('Repository result', {
+        success: isSuccessResponse(result),
+        hasResult: !!result,
+        resultType: result?.constructor?.name,
+      });
+
+      if (!isSuccessResponse(result)) {
+        this.logger.error('Repository sendVerificationEmail failed', { userId, error: result });
+        return result;
+      }
+
+      const response = result as SuccessResponse<boolean>;
+      this.logger.info('Response details', {
+        hasMeta: !!response.meta,
+        metaKeys: response.meta ? Object.keys(response.meta) : [],
+        meta: response.meta,
+      });
+
+      const token = response.meta?.token as string;
+      const email = response.meta?.email as string;
+
+      this.logger.info('Extracted token and email', {
+        hasToken: !!token,
+        tokenLength: token?.length,
+        hasEmail: !!email,
+        email,
+      });
+
+      if (token && email) {
+        const verificationUrl = `${process.env.APP_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
+
+        this.logger.info('Queueing email job', { email, verificationUrl });
+
+        const jobId = await this.queueManager.getEmailQueue().sendEmailJob({
+          to: { email },
+          subject: 'Verify Your Email',
+          template: 'email-verification',
+          data: {
+            verificationUrl,
+            expiresIn: '24 hours',
+          },
+        });
+
+        this.logger.info('Email job queued', { jobId, email });
+      } else {
+        this.logger.warn('Missing token or email', {
+          userId,
+          hasToken: !!token,
+          hasEmail: !!email,
+        });
+      }
+
+      return result;
+    } catch (error) {
+      this.logger.error('Exception in sendVerificationEmail', {
+        userId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      return new InternalServerError('Failed to send verification email', correlationId);
     }
   }
 

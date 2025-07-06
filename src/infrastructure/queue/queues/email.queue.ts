@@ -99,36 +99,47 @@ export class EmailQueue extends BaseQueue {
   /**
    * Render email template (placeholder - implement your template engine)
    */
+  // src/infrastructure/queue/queues/email.queue.ts - Update the renderTemplate method
+
   private async renderTemplate(data: EmailJobData): Promise<string> {
     // Simple template rendering - replace with your template engine
     const templates: Record<string, (data: any) => string> = {
       welcome: (data) => `
-        <h2>Welcome ${data.firstName}!</h2>
-        <p>Thank you for joining FireNotifications.</p>
-        <p>Your account has been created successfully.</p>
-        ${data.activationLink ? `<p><a href="${data.activationLink}">Activate your account</a></p>` : ''}
-      `,
+      <h2>Welcome ${data.firstName}!</h2>
+      <p>Thank you for joining FireNotifications.</p>
+      <p>Your account has been created successfully.</p>
+      ${data.activationLink ? `<p><a href="${data.activationLink}">Activate your account</a></p>` : ''}
+    `,
+      'email-verification': (data) => `
+      <h2>Verify Your Email</h2>
+      <p>Thanks for registering! Please verify your email address to complete your registration.</p>
+      <p><a href="${data.verificationUrl}" style="display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px;">Verify Email</a></p>
+      <p>Or copy and paste this link:</p>
+      <p>${data.verificationUrl}</p>
+      <p>This link will expire in ${data.expiresIn}.</p>
+      <p>If you didn't create an account, please ignore this email.</p>
+    `,
       'password-reset': (data) => `
-        <h2>Password Reset Request</h2>
-        <p>You requested to reset your password.</p>
-        <p><a href="${data.resetLink}">Reset your password</a></p>
-        <p>This link will expire in ${data.expiresIn}.</p>
-        <p>If you didn't request this, please ignore this email.</p>
-      `,
+      <h2>Password Reset Request</h2>
+      <p>You requested to reset your password.</p>
+      <p><a href="${data.resetLink}">Reset your password</a></p>
+      <p>This link will expire in ${data.expiresIn}.</p>
+      <p>If you didn't request this, please ignore this email.</p>
+    `,
       'login-notification': (data) => `
-        <h2>New Login Detected</h2>
-        <p>We detected a new login to your account.</p>
-        <p><strong>Time:</strong> ${data.loginTime}</p>
-        <p><strong>IP Address:</strong> ${data.ipAddress || 'Unknown'}</p>
-        <p><strong>Device:</strong> ${data.deviceName || 'Unknown'}</p>
-        <p>If this wasn't you, please secure your account immediately.</p>
-      `,
+      <h2>New Login Detected</h2>
+      <p>We detected a new login to your account.</p>
+      <p><strong>Time:</strong> ${data.loginTime}</p>
+      <p><strong>IP Address:</strong> ${data.ipAddress || 'Unknown'}</p>
+      <p><strong>Device:</strong> ${data.deviceName || 'Unknown'}</p>
+      <p>If this wasn't you, please secure your account immediately.</p>
+    `,
       'logout-notification': (data) => `
-        <h2>You've been logged out</h2>
-        <p>You have been successfully logged out from FireNotifications.</p>
-        <p><strong>Time:</strong> ${data.logoutTime}</p>
-        <p>Thanks for using our service!</p>
-      `,
+      <h2>You've been logged out</h2>
+      <p>You have been successfully logged out from FireNotifications.</p>
+      <p><strong>Time:</strong> ${data.logoutTime}</p>
+      <p>Thanks for using our service!</p>
+    `,
     };
 
     const template = templates[data.template || ''];

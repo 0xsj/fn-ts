@@ -4,7 +4,7 @@
   "description": "firenotifications",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/server.ts",
+    "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register -r dotenv/config src/server.ts",
     "dev:ts-node": "ts-node --transpile-only -r tsconfig-paths/register src/server.ts",
     "dev:nodemon": "nodemon",
     "build": "tsc",

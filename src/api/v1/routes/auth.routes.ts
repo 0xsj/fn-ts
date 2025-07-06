@@ -9,6 +9,8 @@ export function createAuthRoutes(): Router {
   const router = Router();
   const authController = container.resolve(AuthController);
 
+  router.get('/current-user', authMiddleware, authController.getCurrentUser.bind(authController));
+
   // Public routes (no auth required)
   router.post(
     '/login',
@@ -146,6 +148,16 @@ export function createAuthRoutes(): Router {
       strategy: 'fixed-window',
     }),
     authController.getSession.bind(authController),
+  );
+
+  router.post(
+    '/register',
+    // rateLimitMiddleware({
+    //   max: 3, // Strict limit for registration
+    //   windowMs: 60 * 60 * 1000, // 1 hour
+    //   strategy: 'fixed-window',
+    // }),
+    authController.register.bind(authController),
   );
 
   return router;

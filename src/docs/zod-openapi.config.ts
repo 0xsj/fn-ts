@@ -24,6 +24,7 @@ import {
   ResetPasswordRequestSchema,
   ForgotPasswordRequestSchema,
   ChangePasswordRequestSchema,
+  RegisterUserSchema,
 } from '../domain/entities';
 
 // ============================================
@@ -912,6 +913,99 @@ registry.registerPath({
     },
     401: {
       description: 'Unauthorized',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/auth/current-user',
+  description: 'Get current authenticated user profile',
+  summary: 'Get current user',
+  tags: ['Authentication'],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: 'Current user profile',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(UserPublicSchema),
+        },
+      },
+    },
+    401: {
+      description: 'Not authenticated',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: 'User not found',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/auth/register',
+  description: 'Register a new user account',
+  summary: 'User registration',
+  tags: ['Authentication'],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: RegisterUserSchema,
+        },
+      },
+      required: true,
+      description: 'Registration details',
+    },
+  },
+  responses: {
+    201: {
+      description: 'Registration successful',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(
+            z.object({
+              user: UserPublicSchema,
+              message: z.string(),
+            }),
+          ),
+        },
+      },
+    },
+    400: {
+      description: 'Invalid input data',
+      content: {
+        'application/json': {
+          schema: ValidationErrorSchema,
+        },
+      },
+    },
+    409: {
+      description: 'Email or username already exists',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+    429: {
+      description: 'Too many registration attempts',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,
