@@ -451,11 +451,19 @@ export class UserService {
     if (isSuccessResponse(result)) {
       const user = result.body().data;
       if (user) {
+        this.logger.info('User created successfully', { userId: user.id, email: user.email });
+
         // Create password entry
         await this.userRepo.createUserPassword(user.id, passwordHash);
+        this.logger.info('Password created for user', { userId: user.id });
 
         // Send verification email
-        await this.authService.sendVerificationEmail(user.id, correlationId);
+        this.logger.info('Calling sendVerificationEmail', { userId: user.id });
+        const emailResult = await this.authService.sendVerificationEmail(user.id, correlationId);
+        this.logger.info('sendVerificationEmail result', {
+          userId: user.id,
+          success: isSuccessResponse(emailResult),
+        });
 
         // Emit registration event
         await this.eventBus.emit(

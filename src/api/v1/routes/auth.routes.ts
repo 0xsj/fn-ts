@@ -152,11 +152,11 @@ export function createAuthRoutes(): Router {
 
   router.post(
     '/register',
-    rateLimitMiddleware({
-      max: 3, // Strict limit for registration
-      windowMs: 60 * 60 * 1000, // 1 hour
-      strategy: 'fixed-window',
-    }),
+    // rateLimitMiddleware({
+    //   max: 3, // Strict limit for registration
+    //   windowMs: 60 * 60 * 1000, // 1 hour
+    //   strategy: 'fixed-window',
+    // }),
     authController.register.bind(authController),
   );
 
