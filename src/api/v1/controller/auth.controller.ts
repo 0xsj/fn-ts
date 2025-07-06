@@ -1,6 +1,6 @@
 import type { Response, Request, NextFunction } from 'express';
 import { AuthService, UserService } from '../../../domain/services';
-import { sendError, sendOk } from '../../../shared/utils/response-helper';
+import { sendCreated, sendError, sendOk } from '../../../shared/utils/response-helper';
 import {
   isSuccessResponse,
   NotFoundError,
@@ -11,6 +11,7 @@ import { AuditContext } from '../../../domain/services/analytics.service';
 import { Injectable } from '../../../core/di/decorators/injectable.decorator';
 import { Inject, InjectLogger } from '../../../core/di/decorators';
 import { ILogger } from '../../../shared/utils';
+import { RegisterUserSchema } from '../../../domain/entities';
 
 @Injectable()
 export class AuthController {
@@ -392,6 +393,35 @@ export class AuthController {
         // Convert to public user (removes sensitive fields)
         const publicUser = this.userService.toPublicUser(user);
         sendOk(req, res, publicUser);
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async register(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const validation = RegisterUserSchema.safeParse(req.body);
+
+      if (!validation.success) {
+        const error = ValidationError.fromZodError(validation.error, req.context.correlationId);
+        return sendError(req, res, error);
+      }
+
+      const result = await this.userService.register(validation.data, req.context.correlationId);
+
+      if (isSuccessResponse(result)) {
+        const user = result.body().data;
+
+        // Convert to public user
+        const publicUser = this.userService.toPublicUser(user);
+
+        sendCreated(req, res, {
+          user: publicUser,
+          message: 'Registration successful. Please check your email to verify your account.',
+        });
       } else {
         sendError(req, res, result);
       }

@@ -8,6 +8,7 @@ import {
   isSuccessResponse,
   NotFoundError,
   ResponseBuilder,
+  SuccessResponse,
   UnauthorizedError,
   ValidationError,
 } from '../../shared/response';
@@ -1667,6 +1668,55 @@ export class AuthService {
         { sent: false },
         'Unable to process request. Please try again later.',
       );
+    }
+  }
+
+  // src/domain/services/auth.service.ts - Corrected sendVerificationEmail method
+
+  async sendVerificationEmail(userId: string, correlationId?: string): AsyncResult<boolean> {
+    try {
+      // Call the repository method
+      const result = await this.authRepo.sendVerificationEmail(userId);
+
+      if (!isSuccessResponse(result)) {
+        return result;
+      }
+
+      // Access metadata directly from the response object
+      const response = result as SuccessResponse<boolean>;
+      const token = response.meta?.token as string;
+      const email = response.meta?.email as string;
+
+      if (token && email) {
+        // Queue the verification email
+        const verificationUrl = `${process.env.APP_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
+
+        await this.queueManager.getEmailQueue().sendEmailJob({
+          to: { email },
+          subject: 'Verify Your Email',
+          template: 'email-verification',
+          data: {
+            verificationUrl,
+            expiresIn: '24 hours',
+          },
+        });
+
+        this.logger.info('Verification email queued', {
+          userId,
+          email,
+          correlationId,
+        });
+      }
+
+      return result;
+    } catch (error) {
+      this.logger.error('Failed to send verification email', {
+        userId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        correlationId,
+      });
+
+      return new InternalServerError('Failed to send verification email', correlationId);
     }
   }
 

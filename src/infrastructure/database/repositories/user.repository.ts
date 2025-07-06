@@ -561,6 +561,20 @@ export class UserRepository implements IUser {
     }
   }
 
+  async register(
+    input: CreateUserInput & { passwordHash: string },
+    correlationId?: string,
+  ): AsyncResult<User> {
+    const { organizationId, autoActivate, ...registrationFields } = input;
+
+    const registrationInput = {
+      ...registrationFields,
+      autoActivate: false,
+    };
+
+    return this.create(registrationInput, correlationId);
+  }
+
   private mapToEntity(row: any): User {
     try {
       // Direct mapping without the generic mapper

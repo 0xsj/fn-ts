@@ -9,18 +9,16 @@ export function createAuthRoutes(): Router {
   const router = Router();
   const authController = container.resolve(AuthController);
 
-  // src/api/v1/routes/auth.routes.ts - Add this route
-
   router.get('/current-user', authMiddleware, authController.getCurrentUser.bind(authController));
 
   // Public routes (no auth required)
   router.post(
     '/login',
-    // rateLimitMiddleware({
-    //   max: 5,
-    //   windowMs: 15 * 60 * 1000, // 15 minutes
-    //   strategy: 'fixed-window',
-    // }),
+    rateLimitMiddleware({
+      max: 5,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      strategy: 'fixed-window',
+    }),
     authController.login.bind(authController),
   );
 
@@ -150,6 +148,16 @@ export function createAuthRoutes(): Router {
       strategy: 'fixed-window',
     }),
     authController.getSession.bind(authController),
+  );
+
+  router.post(
+    '/register',
+    rateLimitMiddleware({
+      max: 3, // Strict limit for registration
+      windowMs: 60 * 60 * 1000, // 1 hour
+      strategy: 'fixed-window',
+    }),
+    authController.register.bind(authController),
   );
 
   return router;

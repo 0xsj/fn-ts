@@ -261,14 +261,27 @@ export const CreateUserSchema = z.object({
 });
 
 // For user registration
-export const RegisterUserSchema = CreateUserSchema.extend({
-  confirmPassword: z.string(),
-  acceptTerms: z.boolean(),
-  captchaToken: z.string().optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ['confirmPassword'],
-});
+export const RegisterUserSchema = z
+  .object({
+    // Only the fields users should provide
+    firstName: z.string().min(1).max(50),
+    lastName: z.string().min(1).max(50),
+    email: z.string().email().toLowerCase(),
+    password: PasswordSchema,
+    confirmPassword: z.string(),
+    username: z
+      .string()
+      .min(3)
+      .max(30)
+      .regex(/^[a-zA-Z0-9_-]+$/)
+      .optional(),
+    acceptTerms: z.boolean(),
+    captchaToken: z.string().optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
 
 export const UpdateUserSchema = z.object({
   firstName: z.string().min(1).max(50).optional(),
@@ -383,6 +396,14 @@ export const UserProfileSchema = UserPublicSchema.extend({
   // Activity info
   lastLoginAt: z.date().nullable(),
   activeSessions: z.number(),
+});
+
+export const RegisterUserInputSchema = z.object({
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  email: z.string().email().max(255),
+  password: z.string().min(8),
+  username: z.string().min(3).max(50).optional(),
 });
 
 // ============================================
