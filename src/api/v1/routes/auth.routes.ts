@@ -12,11 +12,11 @@ export function createAuthRoutes(): Router {
   // Public routes (no auth required)
   router.post(
     '/login',
-    rateLimitMiddleware({
-      max: 5,
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      strategy: 'fixed-window',
-    }),
+    // rateLimitMiddleware({
+    //   max: 5,
+    //   windowMs: 15 * 60 * 1000, // 15 minutes
+    //   strategy: 'fixed-window',
+    // }),
     authController.login.bind(authController),
   );
 

@@ -271,8 +271,6 @@ export class UserRepository implements IUser {
     }
   }
 
-  // src/infrastructure/database/repositories/user.repository.ts
-
   async create(
     input: CreateUserInput & { passwordHash: string },
     correlationId?: string,
@@ -280,7 +278,6 @@ export class UserRepository implements IUser {
     try {
       const now = new Date();
 
-      // Create UserDB object with all required fields and defaults
       const userDB: UserDB = {
         // Base fields
         id: uuidv4(),
@@ -310,7 +307,7 @@ export class UserRepository implements IUser {
         type: input.type ?? 'internal',
 
         // Organization
-        organization_id: input.organizationId ?? null,
+        organization_id: input.organizationId || null,
 
         // Profile
         avatar_url: null,
@@ -323,7 +320,6 @@ export class UserRepository implements IUser {
         locale: 'en',
         location_id: null,
 
-        // Emergency contact - properly formatted as JSON string
         emergency_contact: null,
 
         // Preferences - properly formatted as JSON object

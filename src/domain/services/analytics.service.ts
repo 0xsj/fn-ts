@@ -19,7 +19,7 @@ export interface AuditContext {
   correlationId?: string;
 }
 
-Injectable()
+@Injectable()
 export class AnalyticsService {
   constructor(@Inject(TOKENS.AnalyticsRepository) private analyticsRepo: IAnalytics) {}
 

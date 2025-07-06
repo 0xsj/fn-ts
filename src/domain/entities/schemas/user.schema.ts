@@ -40,7 +40,7 @@ export const UserDBSchema = SoftDeletableDBSchema.extend({
   type: UserTypeSchema.default('internal'),
 
   // Organization (for multi-tenancy)
-  organization_id: z.string().uuid().nullable(),
+  organization_id: z.string().uuid().nullable().optional(),
 
   // Profile
   avatar_url: z.string().url().nullable(),
@@ -117,7 +117,7 @@ export const UserSchema = SoftDeletableSchema.extend({
   status: UserStatusSchema.default('pending_verification'),
   type: UserTypeSchema.default('internal'),
 
-  organizationId: z.string().uuid().nullable(),
+  organizationId: z.string().uuid().nullable().optional(),
 
   avatarUrl: z.string().url().nullable(),
   title: z.string().nullable(),

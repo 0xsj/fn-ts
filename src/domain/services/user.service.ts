@@ -32,13 +32,11 @@ export class UserService {
   }
 
   async createUser(input: CreateUserInput, correlationId?: string): AsyncResult<User> {
-    // Check email uniqueness
     const existingEmail = await this.userRepo.existsByEmail(input.email, undefined, correlationId);
     if (isSuccessResponse(existingEmail) && existingEmail.body().data) {
       return new ConflictError('Email already exists', correlationId);
     }
 
-    // Check username uniqueness if provided
     if (input.username) {
       const existingUsername = await this.userRepo.existsByUsername(
         input.username,
@@ -60,16 +58,13 @@ export class UserService {
       correlationId,
     );
 
-    // Create password entry in user_passwords table
     if (isSuccessResponse(result)) {
       const user = result.body().data;
       if (user) {
         await this.userRepo.createUserPassword(user.id, passwordHash);
 
-        // Invalidate user list cache
         await this.invalidateUserCaches();
 
-        // Emit user created event with new fields
         await this.eventBus.emit(
           new UserCreatedEvent(
             {
@@ -81,7 +76,7 @@ export class UserService {
               displayName: user.displayName,
               type: user.type,
               status: user.status,
-              organizationId: user.organizationId,
+              organizationId: user.organizationId ?? null,
             },
             correlationId ? { correlationId, userId: user.id } : { userId: user.id },
           ),
