@@ -921,6 +921,41 @@ registry.registerPath({
   },
 });
 
+registry.registerPath({
+  method: 'get',
+  path: '/auth/current-user',
+  description: 'Get current authenticated user profile',
+  summary: 'Get current user',
+  tags: ['Authentication'],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: 'Current user profile',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(UserPublicSchema),
+        },
+      },
+    },
+    401: {
+      description: 'Not authenticated',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: 'User not found',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
 // ============================================
 // ORGANIZATION ENDPOINTS
 // ============================================

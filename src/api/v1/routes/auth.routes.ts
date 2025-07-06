@@ -9,6 +9,10 @@ export function createAuthRoutes(): Router {
   const router = Router();
   const authController = container.resolve(AuthController);
 
+  // src/api/v1/routes/auth.routes.ts - Add this route
+
+  router.get('/current-user', authMiddleware, authController.getCurrentUser.bind(authController));
+
   // Public routes (no auth required)
   router.post(
     '/login',

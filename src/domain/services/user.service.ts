@@ -1,6 +1,6 @@
 // src/domain/services/user.service.ts
 import type { IUser } from '../interface/user.interface';
-import type { CreateUserInput, UpdateUserInput, User } from '../entities';
+import type { CreateUserInput, UpdateUserInput, User, UserPublic } from '../entities';
 import type { AsyncResult } from '../../shared/response';
 import {
   ConflictError,
@@ -470,5 +470,21 @@ export class UserService {
   private async invalidateUserCaches(): Promise<void> {
     const cacheService = getCacheService();
     await cacheService.invalidateByTags(['users', 'user-list']);
+  }
+
+  toPublicUser(user: User): UserPublic {
+    const {
+      // Exclude these fields
+      cachedPermissions,
+      permissionsUpdatedAt,
+      totalLoginCount,
+      deactivatedReason,
+      deletedAt,
+      deletedBy,
+      // Include everything else
+      ...publicFields
+    } = user;
+
+    return publicFields as UserPublic;
   }
 }
