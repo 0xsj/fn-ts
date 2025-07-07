@@ -7,3 +7,17 @@ export * from './location.repository';
 export * from './notification.repository';
 export * from './operations.repository';
 export * from './organization.repository';
+export * from './analytics.repository';
+
+export {
+  UserRepositoryImpl,
+  AuthRepositoryImpl,
+  OrganizationRepositoryImpl,
+  AccessControlRepositoryImpl,
+  AnalyticsRepositoryImpl,
+  CommunicationRepositoryImpl,
+  FileRepositoryImpl,
+  LocationRepositoryImpl,
+  NotificationRepositoryImpl,
+  OperationsRepositoryImpl,
+} from './types';

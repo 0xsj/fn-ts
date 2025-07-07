@@ -21,7 +21,15 @@ export function Audit(
 
     descriptor.value = async function (...args: any[]) {
       const startTime = Date.now();
-      const analyticsService = DIContainer.resolve<AnalyticsService>(TOKENS.AnalyticsService);
+
+      // Lazy resolution - only when method is called
+      let analyticsService: AnalyticsService;
+      try {
+        analyticsService = DIContainer.resolve<AnalyticsService>(TOKENS.AnalyticsService);
+      } catch (error) {
+        console.warn('AnalyticsService not available, skipping audit', error);
+        return originalMethod.apply(this, args);
+      }
 
       // Extract entity ID
       let entityId: string = '';
@@ -172,7 +180,15 @@ export function AuditWithContext(
 
     descriptor.value = async function (...args: any[]) {
       const startTime = Date.now();
-      const analyticsService = DIContainer.resolve<AnalyticsService>(TOKENS.AnalyticsService);
+
+      // Lazy resolution - only when method is called
+      let analyticsService: AnalyticsService;
+      try {
+        analyticsService = DIContainer.resolve<AnalyticsService>(TOKENS.AnalyticsService);
+      } catch (error) {
+        console.warn('AnalyticsService not available, skipping audit', error);
+        return originalMethod.apply(this, args);
+      }
 
       // Resolve entity ID
       const entityId = options?.entityIdResolver

@@ -1,10 +1,10 @@
 // src/infrastructure/monitoring/metrics/collectors/business.collector.ts
-import { injectable } from 'tsyringe';
 import { PrometheusRegistry } from '../prometheus/prometheus-registry';
 import { UserService } from '../../../../domain/services/user.service';
 import { OrganizationService } from '../../../../domain/services/organization.service';
+import { Injectable, Inject } from '../../../../core/di/decorators';
 
-@injectable()
+@Injectable()
 export class BusinessCollector {
   private collectionInterval?: NodeJS.Timeout;
 

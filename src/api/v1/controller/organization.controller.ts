@@ -1,21 +1,16 @@
 // src/api/v1/controllers/organization.controller.ts
-import { injectable } from 'tsyringe';
 import type { Request, Response, NextFunction } from 'express';
 import { OrganizationService } from '../../../domain/services/organization.service';
-import { DIContainer } from '../../../core/di/container';
-import { TOKENS } from '../../../core/di/tokens';
 import { CreateOrganizationSchema, UpdateOrganizationSchema } from '../../../domain/entities';
 import { UnauthorizedError, ValidationError } from '../../../shared/response';
 import { sendError, sendOk, sendCreated } from '../../../shared/utils/response-helper';
 import { isSuccessResponse } from '../../../shared/response';
+import { Injectable } from '../../../core/di/decorators/injectable.decorator';
+import { Inject } from '../../../core/di/decorators/inject.decorator';
 
-@injectable()
+@Injectable()
 export class OrganizationController {
-  private organizationService: OrganizationService;
-
-  constructor() {
-    this.organizationService = DIContainer.resolve<OrganizationService>(TOKENS.OrganizationService);
-  }
+  constructor(@Inject() private organizationService: OrganizationService) {}
 
   /**
    * Create a new organization
@@ -80,10 +75,12 @@ export class OrganizationController {
   async getOrganizationBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { slug } = req.params;
+
       const result = await this.organizationService.getOrganizationBySlug(
         slug,
         req.context.correlationId,
       );
+
       if (isSuccessResponse(result)) {
         sendOk(req, res, result.body().data);
       } else {
@@ -93,4 +90,11 @@ export class OrganizationController {
       next(error);
     }
   }
+}
+function Inejct(): (
+  target: typeof OrganizationController,
+  propertyKey: undefined,
+  parameterIndex: 0,
+) => void {
+  throw new Error('Function not implemented.');
 }

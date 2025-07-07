@@ -1,17 +1,17 @@
 // src/infrastructure/queue/processors/email.processor.ts
-import { injectable, inject } from 'tsyringe';
 import { Job } from 'bullmq';
 import { BaseProcessor } from './base.processor';
 import { EmailJobData } from '../types';
 import { EmailService } from '../../integrations/email/email.service';
 import { TOKENS } from '../../../core/di/tokens';
 import { SendEmailOptions } from '../../integrations/email/types';
+import { Injectable, Inject } from '../../../core/di/decorators';
 
-@injectable()
+@Injectable()
 export class EmailProcessor extends BaseProcessor<EmailJobData> {
   name = 'EmailProcessor';
 
-  constructor(@inject(TOKENS.EmailService) private emailService: EmailService) {
+  constructor(@Inject(TOKENS.EmailService) private emailService: EmailService) {
     super();
   }
 

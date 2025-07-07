@@ -328,6 +328,7 @@ export const ApiKeyDBSchema = BaseEntityDBSchema.extend({
   // Status
   is_active: z.boolean().default(true),
   revoked_at: z.date().nullable(),
+  revoked_by: z.string().uuid().nullable(),
   revoked_reason: z.string().nullable(),
 });
 
@@ -352,6 +353,7 @@ export const ApiKeySchema = BaseEntitySchema.extend({
 
   isActive: z.boolean().default(true),
   revokedAt: z.date().nullable(),
+  revokedBy: z.string().uuid().nullable(),
   revokedReason: z.string().nullable(),
 });
 

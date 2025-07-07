@@ -7,8 +7,9 @@ import { DiskHealthIndicator } from './indicators/disk.indicator';
 import { MemoryHealthIndicator } from './indicators/memory.indicator';
 import { config } from '../../../core/config';
 import { logger } from '../../../shared/utils/logger';
+import { Injectable } from '../../../core/di/decorators/injectable.decorator';
 
-@injectable()
+@Injectable()
 export class HealthCheckService {
   private indicators: Map<string, HealthIndicator> = new Map();
   private startTime: Date;

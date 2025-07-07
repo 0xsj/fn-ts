@@ -1,11 +1,11 @@
 // src/infrastructure/queue/queue.manager.ts
-import { injectable } from 'tsyringe';
 import { EmailQueue } from './queues/email.queue';
 import { NotificationQueue } from './queues/notification.queue';
 import { QueueName } from './types';
 import { logger } from '../../shared/utils/logger';
+import { Injectable, Inject } from '../../core/di/decorators';
 
-@injectable()
+@Injectable()
 export class QueueManager {
   private queues: Map<string, any> = new Map();
   private initialized = false;

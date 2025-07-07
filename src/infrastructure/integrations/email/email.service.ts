@@ -8,8 +8,9 @@ import { config } from '../../../core/config';
 import { logger } from '../../../shared/utils/logger';
 import { ResponseBuilder, ValidationError, ExternalServiceError } from '../../../shared/response';
 import type { AsyncResult } from '../../../shared/response/types';
+import { Injectable } from '../../../core/di/decorators/injectable.decorator';
 
-@injectable()
+@Injectable()
 export class EmailService {
   private provider: IEmailProvider;
   private readonly providers: Map<string, IEmailProvider> = new Map();

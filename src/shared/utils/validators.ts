@@ -57,4 +57,12 @@ export const validators = {
     const hexRegex = /^[a-f0-9]{32,}$/i;
     return hexRegex.test(value);
   },
+
+  isValidIP(ip: string): boolean {
+    const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    const ipv6Regex = /^([\da-f]{1,4}:){7}[\da-f]{1,4}$/i;
+    const cidrRegex = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
+
+    return ipv4Regex.test(ip) || ipv6Regex.test(ip) || cidrRegex.test(ip);
+  },
 };
