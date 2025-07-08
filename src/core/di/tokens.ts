@@ -2,6 +2,7 @@ export const TOKENS = {
   //core
   Logger: Symbol.for('Logger'),
   Config: Symbol.for('Config'),
+  TransactionManager: Symbol.for('TransactionManager'),
 
   // Infrastructure
   Database: Symbol.for('Database'),
