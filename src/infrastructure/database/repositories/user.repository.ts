@@ -16,9 +16,18 @@ import { AsyncResult, DatabaseError, ok, ResponseBuilder } from '../../../shared
 import { mapper } from '../../../shared/utils/mapper';
 import { NamingConvention, MappingConfig } from '../../../shared/types/mapper.types';
 import { logger } from '../../../shared/utils';
+import { BaseRepository } from './base.repository';
+import { Inject } from '../../../core/di/decorators';
+import { TOKENS } from '../../../core/di/tokens';
+import { TransactionManager } from '../transaction/transaction-manager';
 
-export class UserRepository implements IUser {
-  constructor(private db: Kysely<Database>) {}
+export class UserRepository extends BaseRepository implements IUser {
+  constructor(
+    @Inject(TOKENS.Database) db: Kysely<Database>,
+    @Inject(TOKENS.TransactionManager) transactionManager?: TransactionManager,
+  ) {
+    super(db, transactionManager);
+  }
   async findByUsername(username: string, correlationId?: string): AsyncResult<User | null> {
     try {
       const row = await this.db

@@ -28,6 +28,7 @@ import { ILogger } from '../../shared/utils';
 import { TOKENS } from '../../core/di/tokens';
 import { AuthService } from './auth.service';
 import { UserRegisteredEvent } from '../events/user/user-registered.event';
+import { Transactional } from '../../infrastructure/database/transaction/transaction.decorator';
 
 @Injectable()
 export class UserService {
@@ -41,6 +42,7 @@ export class UserService {
     this.logger.info('UserService initialized');
   }
 
+  @Transactional()
   async createUser(input: CreateUserInput, correlationId?: string): AsyncResult<User> {
     const existingEmail = await this.userRepo.existsByEmail(input.email, undefined, correlationId);
     if (isSuccessResponse(existingEmail) && existingEmail.body().data) {
@@ -257,6 +259,7 @@ export class UserService {
     patterns: (id: string) => [`UserService:findUserById:${id}`],
     tags: ['users', 'user-list', 'user-org'],
   })
+  @Transactional()
   async deleteUser(id: string, correlationId?: string): AsyncResult<boolean> {
     const existingUser = await this.userRepo.findById(id, correlationId);
 
@@ -399,8 +402,6 @@ export class UserService {
 
     return ResponseBuilder.ok(user, correlationId);
   }
-
-  // src/domain/services/user.service.ts - Add this method
 
   async register(input: RegisterUserInput, correlationId?: string): AsyncResult<User> {
     // Validate passwords match (though this should already be validated by schema)

@@ -16,6 +16,7 @@ import {
   NotificationRepository,
   OperationsRepository,
 } from '../../../infrastructure/database/repositories';
+import { TransactionManager } from '../../../infrastructure/database/transaction/transaction-manager';
 
 export class RepositoryModule extends BaseModule {
   constructor() {
@@ -44,7 +45,8 @@ export class RepositoryModule extends BaseModule {
       container.register(token, {
         useFactory: (c) => {
           const db = c.resolve<Kysely<Database>>(TOKENS.Database);
-          return new RepositoryClass(db);
+          const transactionManager = c.resolve<TransactionManager>(TOKENS.TransactionManager);
+          return new RepositoryClass(db, transactionManager);
         },
       });
 
