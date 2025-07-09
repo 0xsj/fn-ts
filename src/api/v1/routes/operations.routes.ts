@@ -77,5 +77,21 @@ export function createOperationsRoutes(): Router {
     }
   });
 
+  router.post('/cron-jobs/public/:name/run', async (req, res) => {
+    try {
+      const scheduler = container.resolve<CronSchedulerService>(TOKENS.CronScheduler);
+      const result = await scheduler.runJob(req.params.name);
+      res.json({
+        success: true,
+        result,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to run job',
+      });
+    }
+  });
+
   return router;
 }
