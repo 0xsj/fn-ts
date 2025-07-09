@@ -35,25 +35,13 @@ export class CleanupJob {
   async cleanupTempFiles(): Promise<void> {
     this.logger.info('Starting temporary file cleanup');
 
-    // Delete files older than 24 hours from temp storage
     const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // First, let's check if the table exists and what columns it has
-    // For now, just do a simple delete based on created_at
     const result = await this.db
       .deleteFrom('files')
       .where('created_at', '<', cutoffDate)
       .executeTakeFirst();
 
     this.logger.info(`Deleted ${result.numDeletedRows ?? 0} old files`);
-  }
-
-  @Cron('0 0 * * 0', {
-    name: 'weekly-analytics-summary',
-  })
-  async generateWeeklySummary(): Promise<void> {
-    this.logger.info('Generating weekly analytics summary');
-    // Implementation for weekly report generation
-    // This is just a placeholder - implement based on your needs
   }
 }
