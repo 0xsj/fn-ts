@@ -56,4 +56,5 @@ export const TOKENS = {
   EmailProcessor: Symbol.for('EmailProcessor'),
   NotificationProcessor: Symbol.for('NotificationProcessor'),
   AnalyticsProcessor: Symbol.for('AnalyticsProcessor'),
+  CronScheduler: Symbol.for('CronScheduler'),
 } as const;
