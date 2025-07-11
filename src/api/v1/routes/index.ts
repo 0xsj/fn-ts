@@ -5,6 +5,7 @@ import { createQueueRoutes } from './queue.routes';
 import { createAuthRoutes } from './auth.routes';
 import { createOrganizationRoutes } from './organization.routes';
 import { logger } from '../../../shared/utils/logger';
+import { createOperationsRoutes } from './operations.routes';
 
 export function createV1Routes(): Router {
   const router = Router();
@@ -53,6 +54,17 @@ export function createV1Routes(): Router {
     logger.error('Failed to create organization routes', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
+  }
+
+  try {
+    logger.info('Creating operations routes...');
+    router.use('/operations', createOperationsRoutes());
+    logger.info('Operations routes created successfully');
+  } catch (error) {
+    logger.error('Failed to create operations routes', {
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
     throw error;
   }

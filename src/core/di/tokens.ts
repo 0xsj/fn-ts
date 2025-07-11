@@ -2,6 +2,7 @@ export const TOKENS = {
   //core
   Logger: Symbol.for('Logger'),
   Config: Symbol.for('Config'),
+  TransactionManager: Symbol.for('TransactionManager'),
 
   // Infrastructure
   Database: Symbol.for('Database'),
@@ -55,4 +56,5 @@ export const TOKENS = {
   EmailProcessor: Symbol.for('EmailProcessor'),
   NotificationProcessor: Symbol.for('NotificationProcessor'),
   AnalyticsProcessor: Symbol.for('AnalyticsProcessor'),
+  CronScheduler: Symbol.for('CronScheduler'),
 } as const;
