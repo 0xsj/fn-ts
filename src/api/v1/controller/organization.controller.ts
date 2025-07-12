@@ -90,6 +90,32 @@ export class OrganizationController {
       next(error);
     }
   }
+  async updateOrganization(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const validation = UpdateOrganizationSchema.safeParse(req.body);
+
+      if (!validation.success) {
+        const error = ValidationError.fromZodError(validation.error, req.context.correlationId);
+        return sendError(req, res, error);
+      }
+
+      const result = await this.organizationService.updateOrganization(
+        id,
+        validation.data,
+        req.context.correlationId,
+      );
+
+      if (isSuccessResponse(result)) {
+        const organization = result.body().data;
+        sendOk(req, res, organization);
+      } else {
+        sendError(req, res, result);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 function Inejct(): (
   target: typeof OrganizationController,
