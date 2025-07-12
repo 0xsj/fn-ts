@@ -52,12 +52,20 @@ export interface SMSJobData {
 }
 
 export interface NotificationJobData {
-  userId: string;
   type: 'email' | 'sms' | 'push' | 'in-app';
+  userId: string;
   title: string;
   message: string;
   data?: Record<string, any>;
   correlationId?: string;
+
+  // ✅ Include contact details directly
+  contact?: {
+    email?: string;
+    phone?: string;
+    name?: string;
+    pushTokens?: string[];
+  };
 }
 
 export interface ProcessingJobData {
