@@ -16,7 +16,7 @@ export class OrganizationService {
     @Inject() private eventBus: EventBus,
     @Inject(TOKENS.Logger) private logger: ILogger,
   ) {
-    this.logger.info('OrganizationService Intialized');
+    this.logger.info('OrganizationService Initialized');
   }
 
   /**
@@ -95,5 +95,52 @@ export class OrganizationService {
     }
 
     return result;
+  }
+
+  /**
+   * Update an existing organization
+   */
+  async updateOrganization(
+    id: string,
+    updates: UpdateOrganizationInput,
+    correlationId?: string,
+  ): AsyncResult<Organization> {
+    this.logger.info('Updating organization', {
+      organizationId: id,
+      fieldsBeingUpdated: Object.keys(updates),
+      correlationId,
+    });
+
+    const result = await this.orgRepo.updateOrganization(id, updates, correlationId);
+
+    if (isSuccessResponse(result)) {
+      const organization = result.body().data;
+
+      if (!organization) {
+        return new NotFoundError('Organization not found', correlationId);
+      }
+
+      this.logger.info('Organization updated successfully', {
+        organizationId: organization.id,
+        correlationId,
+      });
+
+      return ResponseBuilder.ok(organization, correlationId);
+    }
+
+    this.logger.error('Failed to update organization', {
+      organizationId: id,
+      errorMessage: result.message,
+      errorCode: result.code,
+      errorKind: result.kind,
+      correlationId,
+    });
+
+    return result;
+  }
+
+  // Helper method for audit decorator to get "before" state
+  async findById(id: string, correlationId?: string): AsyncResult<Organization | null> {
+    return this.getOrganizationById(id, correlationId);
   }
 }

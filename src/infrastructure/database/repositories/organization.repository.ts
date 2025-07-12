@@ -14,6 +14,7 @@ import {
   AsyncResult,
   ConflictError,
   DatabaseError,
+  NotFoundError,
   ResponseBuilder,
 } from '../../../shared/response';
 import { v4 as uuidv4 } from 'uuid';
@@ -233,11 +234,92 @@ export class OrganizationRepository implements IOrganization {
   findOrganizationsByOwner(ownerId: string): AsyncResult<Organization[]> {
     throw new Error('Method not implemented.');
   }
-  updateOrganization(
+  /**
+   *
+   * @param id
+   * @param updates
+   * @param correlationId
+   * @returns
+   *
+   * TODO: organizations in general, should have a pointer to address / location. refactor out JSON later.
+   */
+  async updateOrganization(
     id: string,
     updates: UpdateOrganizationInput,
+    correlationId?: string,
   ): AsyncResult<Organization | null> {
-    throw new Error('Method not implemented.');
+    try {
+      // First, check if organization exists and is not deleted
+      const existing = await this.db
+        .selectFrom('organizations')
+        .selectAll()
+        .where('id', '=', id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!existing) {
+        return new NotFoundError('Organization not found', correlationId);
+      }
+
+      // Build update object with only provided fields
+      const updateData: Record<string, any> = {
+        updated_at: new Date(),
+      };
+
+      // Basic organization fields
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.displayName !== undefined) updateData.display_name = updates.displayName;
+      if (updates.description !== undefined) updateData.description = updates.description;
+      if (updates.email !== undefined) updateData.email = updates.email;
+      if (updates.phone !== undefined) updateData.phone = updates.phone;
+      if (updates.website !== undefined) updateData.website = updates.website;
+
+      // Handle address updates - merge with existing
+      if (updates.address) {
+        const currentAddress = existing.address || {};
+        const updatedAddress = {
+          street_address: updates.address.streetAddress ?? currentAddress.street_address ?? null,
+          city: updates.address.city ?? currentAddress.city ?? null,
+          state: updates.address.state ?? currentAddress.state ?? null,
+          postal_code: updates.address.postalCode ?? currentAddress.postal_code ?? null,
+          country: updates.address.country ?? currentAddress.country ?? null,
+        };
+        updateData.address = sql`${JSON.stringify(updatedAddress)}`;
+      }
+
+      // Perform the update (MySQL doesn't support RETURNING)
+      const updateResult = await this.db
+        .updateTable('organizations')
+        .set(updateData)
+        .where('id', '=', id)
+        .where('deleted_at', 'is', null)
+        .execute();
+
+      const affectedRows = Number((updateResult as any)[0]?.numUpdatedRows ?? 0n);
+
+      if (affectedRows === 0) {
+        return new NotFoundError(
+          'Organization not found or was deleted during update',
+          correlationId,
+        );
+      }
+
+      // Fetch the updated organization
+      const updatedRow = await this.db
+        .selectFrom('organizations')
+        .selectAll()
+        .where('id', '=', id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!updatedRow) {
+        return new NotFoundError('Organization not found after update', correlationId);
+      }
+
+      return ResponseBuilder.ok(this.mapToEntity(updatedRow), correlationId);
+    } catch (error) {
+      return new DatabaseError('updateOrganization', error, correlationId);
+    }
   }
   deleteOrganization(id: string, deletedBy: string, immediate?: boolean): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
