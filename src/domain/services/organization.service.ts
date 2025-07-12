@@ -8,7 +8,6 @@ import { EventBus } from '../../infrastructure/events/event-bus';
 import { Inject } from '../../core/di/decorators';
 import { ILogger } from '../../shared/utils';
 import { TOKENS } from '../../core/di/tokens';
-import { AuditUpdate } from '../../shared/decorators/audit.decorator';
 
 @Injectable()
 export class OrganizationService {
@@ -17,7 +16,7 @@ export class OrganizationService {
     @Inject() private eventBus: EventBus,
     @Inject(TOKENS.Logger) private logger: ILogger,
   ) {
-    this.logger.info('OrganizationService Intialized');
+    this.logger.info('OrganizationService Initialized');
   }
 
   /**
@@ -99,16 +98,8 @@ export class OrganizationService {
   }
 
   /**
-   * update an existing organization
-   */
-
-  /**
    * Update an existing organization
    */
-  @AuditUpdate('organization', {
-    entityIdArgIndex: 0,
-    trackChanges: true,
-  })
   async updateOrganization(
     id: string,
     updates: UpdateOrganizationInput,
@@ -116,6 +107,7 @@ export class OrganizationService {
   ): AsyncResult<Organization> {
     this.logger.info('Updating organization', {
       organizationId: id,
+      fieldsBeingUpdated: Object.keys(updates),
       correlationId,
     });
 
@@ -145,5 +137,10 @@ export class OrganizationService {
     });
 
     return result;
+  }
+
+  // Helper method for audit decorator to get "before" state
+  async findById(id: string, correlationId?: string): AsyncResult<Organization | null> {
+    return this.getOrganizationById(id, correlationId);
   }
 }
