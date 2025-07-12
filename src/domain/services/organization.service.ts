@@ -8,6 +8,7 @@ import { EventBus } from '../../infrastructure/events/event-bus';
 import { Inject } from '../../core/di/decorators';
 import { ILogger } from '../../shared/utils';
 import { TOKENS } from '../../core/di/tokens';
+import { AuditUpdate } from '../../shared/decorators/audit.decorator';
 
 @Injectable()
 export class OrganizationService {
@@ -93,6 +94,55 @@ export class OrganizationService {
       }
       return ResponseBuilder.ok(organization, correlationId);
     }
+
+    return result;
+  }
+
+  /**
+   * update an existing organization
+   */
+
+  /**
+   * Update an existing organization
+   */
+  @AuditUpdate('organization', {
+    entityIdArgIndex: 0,
+    trackChanges: true,
+  })
+  async updateOrganization(
+    id: string,
+    updates: UpdateOrganizationInput,
+    correlationId?: string,
+  ): AsyncResult<Organization> {
+    this.logger.info('Updating organization', {
+      organizationId: id,
+      correlationId,
+    });
+
+    const result = await this.orgRepo.updateOrganization(id, updates, correlationId);
+
+    if (isSuccessResponse(result)) {
+      const organization = result.body().data;
+
+      if (!organization) {
+        return new NotFoundError('Organization not found', correlationId);
+      }
+
+      this.logger.info('Organization updated successfully', {
+        organizationId: organization.id,
+        correlationId,
+      });
+
+      return ResponseBuilder.ok(organization, correlationId);
+    }
+
+    this.logger.error('Failed to update organization', {
+      organizationId: id,
+      errorMessage: result.message,
+      errorCode: result.code,
+      errorKind: result.kind,
+      correlationId,
+    });
 
     return result;
   }

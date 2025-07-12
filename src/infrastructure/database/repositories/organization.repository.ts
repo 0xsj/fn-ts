@@ -240,8 +240,8 @@ export class OrganizationRepository implements IOrganization {
    * @param updates
    * @param correlationId
    * @returns
-   * 
-   * TODO: organizations in general, should have a pointer to address / location. refactor out JSON later. 
+   *
+   * TODO: organizations in general, should have a pointer to address / location. refactor out JSON later.
    */
   async updateOrganization(
     id: string,
