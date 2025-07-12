@@ -1142,6 +1142,90 @@ registry.registerPath({
   },
 });
 
+registry.registerPath({
+  method: 'put',
+  path: '/organizations/{id}',
+  description: 'Update organization details',
+  summary: 'Update organization',
+  tags: ['Organizations'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      id: z.string().uuid().openapi({
+        description: 'Organization ID',
+        example: '123e4567-e89b-12d3-a456-426614174000',
+      }),
+    }),
+    body: {
+      content: {
+        'application/json': {
+          schema: UpdateOrganizationSchema.openapi({
+            description: 'Organization update data',
+            example: {
+              name: 'Updated Organization Name',
+              displayName: 'Updated Display Name',
+              description: 'Updated organization description',
+              email: 'contact@updatedorg.com',
+              phone: '+1-555-0123',
+              website: 'https://updatedorg.com',
+              address: {
+                streetAddress: '456 Updated Street',
+                city: 'New City',
+                state: 'NY',
+                postalCode: '12345',
+                country: 'United States',
+              },
+            },
+          }),
+        },
+      },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: 'Organization updated successfully',
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema(OrganizationSchema),
+        },
+      },
+    },
+    400: {
+      description: 'Validation error',
+      content: {
+        'application/json': {
+          schema: ValidationErrorSchema,
+        },
+      },
+    },
+    401: {
+      description: 'Unauthorized',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: 'Organization not found',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+    429: {
+      description: 'Rate limit exceeded',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
 // ============================================
 // HEALTH ENDPOINTS
 // ============================================

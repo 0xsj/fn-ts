@@ -23,6 +23,7 @@ export interface IOrganization {
   updateOrganization(
     id: string,
     updates: UpdateOrganizationInput,
+    correlationId?: string,
   ): AsyncResult<Organization | null>;
   deleteOrganization(id: string, deletedBy: string, immediate?: boolean): AsyncResult<boolean>;
   restoreOrganization(id: string): AsyncResult<boolean>;
