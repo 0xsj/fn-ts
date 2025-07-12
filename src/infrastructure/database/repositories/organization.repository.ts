@@ -287,20 +287,33 @@ export class OrganizationRepository implements IOrganization {
         updateData.address = sql`${JSON.stringify(updatedAddress)}`;
       }
 
-      // Perform the update
-      const updatedRow = await this.db
+      // Perform the update (MySQL doesn't support RETURNING)
+      const updateResult = await this.db
         .updateTable('organizations')
         .set(updateData)
         .where('id', '=', id)
         .where('deleted_at', 'is', null)
-        .returningAll()
-        .executeTakeFirst();
+        .execute();
 
-      if (!updatedRow) {
+      const affectedRows = Number((updateResult as any)[0]?.numUpdatedRows ?? 0n);
+
+      if (affectedRows === 0) {
         return new NotFoundError(
           'Organization not found or was deleted during update',
           correlationId,
         );
+      }
+
+      // Fetch the updated organization
+      const updatedRow = await this.db
+        .selectFrom('organizations')
+        .selectAll()
+        .where('id', '=', id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+
+      if (!updatedRow) {
+        return new NotFoundError('Organization not found after update', correlationId);
       }
 
       return ResponseBuilder.ok(this.mapToEntity(updatedRow), correlationId);
@@ -308,7 +321,6 @@ export class OrganizationRepository implements IOrganization {
       return new DatabaseError('updateOrganization', error, correlationId);
     }
   }
-
   deleteOrganization(id: string, deletedBy: string, immediate?: boolean): AsyncResult<boolean> {
     throw new Error('Method not implemented.');
   }
