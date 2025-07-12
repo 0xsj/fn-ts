@@ -30,19 +30,15 @@ export class NotificationQueue extends BaseQueue {
           case 'email':
             await this.handleEmailNotification(job.data);
             break;
-
           case 'sms':
             await this.handleSMSNotification(job.data);
             break;
-
           case 'push':
             await this.handlePushNotification(job.data);
             break;
-
           case 'in-app':
             await this.handleInAppNotification(job.data);
             break;
-
           default:
             throw new Error(`Unknown notification type: ${job.data.type}`);
         }
@@ -73,16 +69,15 @@ export class NotificationQueue extends BaseQueue {
         attempts: 3,
       },
     });
-
     return job.id!;
   }
 
   private async handleEmailNotification(data: NotificationJobData): Promise<void> {
-    // Get user email from userId (in real app, fetch from database)
-    const userEmail = 'user@example.com'; // TODO: Fetch from database
+    // ✅ Revert to simple placeholder for now
+    const userEmail = 'user@example.com'; // TODO: Get from caller
 
     await this.emailQueue.sendEmailJob({
-      to: userEmail,
+      to: { email: userEmail },
       subject: data.title,
       template: 'notification',
       data: {
@@ -95,7 +90,6 @@ export class NotificationQueue extends BaseQueue {
   }
 
   private async handleSMSNotification(data: NotificationJobData): Promise<void> {
-    // TODO: Implement SMS sending (Twilio, etc.)
     logger.info('SMS notification would be sent', {
       userId: data.userId,
       message: data.message,
@@ -103,7 +97,6 @@ export class NotificationQueue extends BaseQueue {
   }
 
   private async handlePushNotification(data: NotificationJobData): Promise<void> {
-    // TODO: Implement push notification (FCM, APNS, etc.)
     logger.info('Push notification would be sent', {
       userId: data.userId,
       title: data.title,
@@ -112,7 +105,6 @@ export class NotificationQueue extends BaseQueue {
   }
 
   private async handleInAppNotification(data: NotificationJobData): Promise<void> {
-    // TODO: Store in database for in-app notifications
     logger.info('In-app notification would be stored', {
       userId: data.userId,
       title: data.title,
@@ -121,6 +113,6 @@ export class NotificationQueue extends BaseQueue {
   }
 
   protected getConcurrency(): number {
-    return 20; // Process more notifications concurrently
+    return 20;
   }
 }
