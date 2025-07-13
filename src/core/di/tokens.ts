@@ -23,6 +23,7 @@ export const TOKENS = {
   LocationRepository: Symbol.for('LocationRepository'),
   FileRepository: Symbol.for('FileRepository'),
   OperationsRepository: Symbol.for('OperationsRepository'),
+  CollectionRepository: Symbol.for('CollectionsRepository'),
 
   // Services
   AnalyticsService: Symbol.for('AnalyticsService'),
@@ -35,6 +36,7 @@ export const TOKENS = {
   LocationService: Symbol.for('LocationService'),
   FileService: Symbol.for('FileService'),
   OperationsService: Symbol.for('OperationsService'),
+  CollectionService: Symbol.for('CollectionService'),
 
   // Supporting Services
   HealthCheckService: Symbol.for('HealthCheckService'),
