@@ -8,4 +8,4 @@ export * from './operations.service';
 export * from './organization.service';
 export * from './user.service';
 export * from './analytics.service';
-export * from './collection.service'
+export * from './collection.service';

@@ -15,6 +15,7 @@ import {
   LocationRepository,
   NotificationRepository,
   OperationsRepository,
+  CollectionsRepository,
 } from '../../../infrastructure/database/repositories';
 import { TransactionManager } from '../../../infrastructure/database/transaction/transaction-manager';
 
@@ -38,6 +39,7 @@ export class RepositoryModule extends BaseModule {
       { token: TOKENS.LocationRepository, class: LocationRepository },
       { token: TOKENS.NotificationRepository, class: NotificationRepository },
       { token: TOKENS.OperationsRepository, class: OperationsRepository },
+      { token: TOKENS.CollectionRepository, class: CollectionsRepository },
     ];
 
     // Register each repository with the same pattern
