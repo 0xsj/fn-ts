@@ -8,6 +8,7 @@ export * from './notification.repository';
 export * from './operations.repository';
 export * from './organization.repository';
 export * from './analytics.repository';
+export * from './collections.repository';
 
 export {
   UserRepositoryImpl,
