@@ -9,3 +9,4 @@ export * from './notification.schema';
 export * from './operations.schema';
 export * from './organization.schema';
 export * from './user.schema';
+export * from './collection.schema';
