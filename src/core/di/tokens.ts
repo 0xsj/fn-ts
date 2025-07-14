@@ -59,4 +59,10 @@ export const TOKENS = {
   NotificationProcessor: Symbol.for('NotificationProcessor'),
   AnalyticsProcessor: Symbol.for('AnalyticsProcessor'),
   CronScheduler: Symbol.for('CronScheduler'),
+
+  // websockets
+  SocketServer: Symbol.for('SocketServer'),
+  SocketService: Symbol.for('SocketService'),
+  PresenceService: Symbol.for('PresenceService'),
+  RoomService: Symbol.for('RoomService'),
 } as const;
