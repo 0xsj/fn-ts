@@ -144,30 +144,7 @@ export const SystemMaintenanceSchema = z.object({
 });
 
 // ============================================
-// Socket Event Payload Union
-// ============================================
-export const SocketEventPayloadSchema = z.union([
-  AuthLoginSchema,
-  AuthRefreshSchema,
-  AuthSuccessSchema,
-  PresenceJoinSchema,
-  PresenceStatusUpdateSchema,
-  DataSubscribeSchema,
-  DataUnsubscribeSchema,
-  DataRequestSchema,
-  DataUpdateSchema,
-  DataResponseSchema,
-  NotificationMarkReadSchema,
-  NotificationNewSchema,
-  NotificationUpdatedSchema,
-  NotificationDeletedSchema,
-  NotificationCountSchema,
-  SystemHealthSchema,
-  SystemMaintenanceSchema,
-]);
-
-// ============================================
-// Type Exports
+// Type Exports (removed the conflicting SocketEventPayload)
 // ============================================
 export type SocketEventMeta = z.infer<typeof SocketEventMetaSchema>;
 export type SocketError = z.infer<typeof SocketErrorSchema>;
@@ -197,4 +174,18 @@ export type NotificationCount = z.infer<typeof NotificationCountSchema>;
 export type SystemHealth = z.infer<typeof SystemHealthSchema>;
 export type SystemMaintenance = z.infer<typeof SystemMaintenanceSchema>;
 
-export type SocketEventPayload = z.infer<typeof SocketEventPayloadSchema>;
+// ============================================
+// Schema Maps for Validation
+// ============================================
+export const EventSchemaMap = {
+  'auth:login': AuthLoginSchema,
+  'auth:refresh': AuthRefreshSchema,
+  'presence:join': PresenceJoinSchema,
+  'presence:status': PresenceStatusUpdateSchema,
+  'data:subscribe': DataSubscribeSchema,
+  'data:unsubscribe': DataUnsubscribeSchema,
+  'data:request': DataRequestSchema,
+  'notification:mark-read': NotificationMarkReadSchema,
+} as const;
+
+export type ValidatedEventName = keyof typeof EventSchemaMap;
