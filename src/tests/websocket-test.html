@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.socket.io; script-src-attr 'unsafe-inline'; object-src 'none';"
+    />
+    <title>WebSocket Test - FireNotifications</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .status {
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 8px;
+        font-weight: bold;
+      }
+      .connected {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .disconnected {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .connecting {
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+      }
+      .messages {
+        height: 400px;
+        overflow-y: scroll;
+        border: 2px solid #ddd;
+        padding: 15px;
+        margin: 15px 0;
+        background: white;
+        border-radius: 5px;
+      }
+      .controls {
+        margin: 15px 0;
+        background: white;
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+      }
+      button {
+        margin: 5px;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      .btn-primary {
+        background: #007bff;
+        color: white;
+      }
+      .btn-success {
+        background: #28a745;
+        color: white;
+      }
+      .btn-warning {
+        background: #ffc107;
+        color: black;
+      }
+      .btn-danger {
+        background: #dc3545;
+        color: white;
+      }
+      input {
+        padding: 10px;
+        margin: 5px;
+        width: 300px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      .message {
+        margin: 5px 0;
+        padding: 8px;
+        border-radius: 4px;
+        border-left: 4px solid #007bff;
+        background: #f8f9fa;
+      }
+      .message.error {
+        border-left-color: #dc3545;
+        background: #fff5f5;
+      }
+      .message.success {
+        border-left-color: #28a745;
+        background: #f0fff4;
+      }
+      .debug-info {
+        background: #e9ecef;
+        padding: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
+        font-family: monospace;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔥 FireNotifications WebSocket Test</h1>
+
+    <div class="debug-info">
+      <strong>Server:</strong> <span id="serverUrl">http://localhost:3000</span><br />
+      <strong>Socket.IO Path:</strong> <span id="socketPath">/socket.io</span><br />
+      <strong>Current URL:</strong> <span id="currentUrl"></span>
+    </div>
+
+    <div id="status" class="status disconnected">🔴 Disconnected</div>
+
+    <div class="controls">
+      <h3>Connection Controls</h3>
+      <button class="btn-primary" onclick="connect()">🔌 Connect</button>
+      <button class="btn-danger" onclick="disconnect()">🔌 Disconnect</button>
+      <button class="btn-success" onclick="ping()">🏓 Ping</button>
+      <button class="btn-warning" onclick="testAuth()">🔐 Test Auth</button>
+    </div>
+
+    <div class="controls">
+      <h3>Custom Tests</h3>
+      <input type="text" id="tokenInput" placeholder="JWT Token (optional)" />
+      <button class="btn-primary" onclick="authenticate()">🔐 Authenticate</button>
+      <br /><br />
+      <input type="text" id="messageInput" placeholder='{"event": "system:ping", "data": {}}' />
+      <button class="btn-primary" onclick="sendCustomMessage()">📤 Send Custom</button>
+    </div>
+
+    <h3>Messages & Debug Info:</h3>
+    <div id="messages" class="messages"></div>
+
+    <div class="controls">
+      <button class="btn-warning" onclick="clearMessages()">🧹 Clear Messages</button>
+      <button class="btn-primary" onclick="checkServer()">🏥 Check Server Health</button>
+    </div>
+
+    <!-- Load Socket.IO from CDN as fallback -->
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script>
+      let socket = null;
+      const statusEl = document.getElementById('status');
+      const messagesEl = document.getElementById('messages');
+
+      // Update current URL info
+      document.getElementById('currentUrl').textContent = window.location.href;
+
+      function addMessage(message, type = 'info') {
+        const div = document.createElement('div');
+        div.className = `message ${type}`;
+        div.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      function updateStatus(status, text) {
+        statusEl.className = `status ${status}`;
+        statusEl.textContent = text;
+      }
+
+      function clearMessages() {
+        messagesEl.innerHTML = '';
+        addMessage('Messages cleared', 'info');
+      }
+
+      async function checkServer() {
+        try {
+          addMessage('🔍 Checking server health...', 'info');
+          const response = await fetch('/health');
+          const health = await response.json();
+
+          if (health.checks && health.checks.websocket) {
+            const ws = health.checks.websocket;
+            addMessage(
+              `📊 WebSocket Health: ${ws.status}`,
+              ws.status === 'healthy' ? 'success' : 'error',
+            );
+            if (ws.details) {
+              addMessage(
+                `🔧 Config: enabled=${ws.details.enabled}, path=${ws.details.path}`,
+                'info',
+              );
+              if (ws.details.totalConnections !== undefined) {
+                addMessage(`👥 Connections: ${ws.details.totalConnections}`, 'info');
+              }
+            }
+          } else {
+            addMessage('❌ No WebSocket health info found', 'error');
+          }
+        } catch (error) {
+          addMessage(`❌ Failed to check server: ${error.message}`, 'error');
+        }
+      }
+
+      function connect() {
+        if (socket) {
+          addMessage('Already connected or connecting', 'error');
+          return;
+        }
+
+        updateStatus('connecting', '🟡 Connecting...');
+        addMessage('🔌 Attempting to connect to WebSocket...', 'info');
+        addMessage(
+          `🎯 Target: ${window.location.protocol}//${window.location.host}/socket.io`,
+          'info',
+        );
+
+        // Create socket connection
+        socket = io({
+          transports: ['websocket', 'polling'],
+          timeout: 20000,
+          forceNew: true,
+        });
+
+        // Connection events
+        socket.on('connect', () => {
+          updateStatus('connected', '🟢 Connected!');
+          addMessage(`✅ Connected successfully! Socket ID: ${socket.id}`, 'success');
+          addMessage(`🔗 Transport: ${socket.io.engine.transport.name}`, 'info');
+        });
+
+        socket.on('disconnect', (reason) => {
+          updateStatus('disconnected', '🔴 Disconnected');
+          addMessage(`❌ Disconnected: ${reason}`, 'error');
+          socket = null;
+        });
+
+        socket.on('connect_error', (error) => {
+          updateStatus('disconnected', '🔴 Connection Failed');
+          addMessage(`❌ Connection error: ${error.message}`, 'error');
+          addMessage(`🔍 Error type: ${error.type}`, 'error');
+          if (error.description) {
+            addMessage(`📝 Description: ${error.description}`, 'error');
+          }
+          socket = null;
+        });
+
+        // System events
+        socket.on('system:pong', () => {
+          addMessage('🏓 Pong received!', 'success');
+        });
+
+        socket.on('system:error', (data) => {
+          addMessage(`❌ System error: ${data.message}`, 'error');
+        });
+
+        socket.on('system:health', (data) => {
+          addMessage(`💓 Health status: ${data.status}`, 'info');
+        });
+
+        // Auth events
+        socket.on('auth:success', (data) => {
+          addMessage(`✅ Authenticated as: ${data.user.email}`, 'success');
+        });
+
+        socket.on('auth:error', (data) => {
+          addMessage(`❌ Auth error: ${data.message} (${data.code})`, 'error');
+        });
+
+        socket.on('auth:expired', () => {
+          addMessage('⏰ Authentication expired', 'error');
+        });
+
+        // Presence events
+        socket.on('presence:user-online', (data) => {
+          addMessage(`👋 User online: ${data.userId}`, 'info');
+        });
+
+        socket.on('presence:user-offline', (data) => {
+          addMessage(`👋 User offline: ${data.userId}`, 'info');
+        });
+
+        // Catch all events for debugging
+        socket.onAny((eventName, ...args) => {
+          addMessage(`📨 Event received: ${eventName} - ${JSON.stringify(args)}`, 'info');
+        });
+
+        // Debug transport upgrade
+        socket.io.on('upgrade', () => {
+          addMessage(`🚀 Transport upgraded to: ${socket.io.engine.transport.name}`, 'success');
+        });
+      }
+
+      function disconnect() {
+        if (socket) {
+          socket.disconnect();
+          socket = null;
+          updateStatus('disconnected', '🔴 Disconnected');
+          addMessage('🔌 Manually disconnected', 'info');
+        }
+      }
+
+      function ping() {
+        if (socket && socket.connected) {
+          addMessage('🏓 Sending ping...', 'info');
+          socket.emit('system:ping');
+        } else {
+          addMessage('❌ Not connected - cannot ping', 'error');
+        }
+      }
+
+      function testAuth() {
+        if (socket && socket.connected) {
+          addMessage('🔐 Testing auth with dummy token...', 'info');
+          socket.emit('auth:login', { token: 'dummy-token-for-testing' });
+        } else {
+          addMessage('❌ Not connected - cannot test auth', 'error');
+        }
+      }
+
+      function authenticate() {
+        const token = document.getElementById('tokenInput').value;
+        if (socket && socket.connected && token) {
+          addMessage(`🔐 Authenticating with provided token...`, 'info');
+          socket.emit('auth:login', { token });
+        } else if (!socket || !socket.connected) {
+          addMessage('❌ Not connected', 'error');
+        } else {
+          addMessage('❌ No token provided', 'error');
+        }
+      }
+
+      function sendCustomMessage() {
+        const input = document.getElementById('messageInput').value;
+        if (socket && socket.connected && input) {
+          try {
+            const parsed = JSON.parse(input);
+            addMessage(`📤 Sending: ${input}`, 'info');
+            socket.emit(parsed.event, parsed.data);
+          } catch (e) {
+            addMessage(
+              '❌ Invalid JSON format. Use: {"event": "eventName", "data": {...}}',
+              'error',
+            );
+          }
+          document.getElementById('messageInput').value = '';
+        } else if (!socket || !socket.connected) {
+          addMessage('❌ Not connected', 'error');
+        } else {
+          addMessage('❌ No message provided', 'error');
+        }
+      }
+
+      // Auto-load info on page load
+      window.onload = () => {
+        addMessage(
+          '🔥 WebSocket test page loaded. Click "Check Server Health" first, then "Connect"',
+          'info',
+        );
+        addMessage(`ℹ️ Using Socket.IO version: ${io.version}`, 'info');
+        checkServer();
+      };
+    </script>
+  </body>
+</html>

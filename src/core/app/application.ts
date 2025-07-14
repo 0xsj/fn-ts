@@ -4,10 +4,14 @@ import express, { Application as ExpressApp } from 'express';
 import { DIContainer } from '../di/container';
 import { logger } from '../../shared/utils/logger';
 import { Shutdown } from './shutdown';
+import { config } from '../config';
+import { SocketServer } from '../../infrastructure/websocket/server/socket.server';
+import { TOKENS } from '../di/tokens';
 
 export class Application {
   private app: ExpressApp;
   private server: Server | null = null;
+  private socketServer: SocketServer | null = null;
   private shutdown: Shutdown;
   private initialized = false;
 
@@ -19,7 +23,6 @@ export class Application {
   /**
    * Initialize the application
    */
-  // src/core/app/application.ts
   async initialize(): Promise<void> {
     if (this.initialized) {
       logger.warn('Application already initialized');
@@ -71,6 +74,32 @@ export class Application {
         });
       });
 
+      // Initialize WebSocket server if enabled
+      if (config.websocket.enabled) {
+        try {
+          this.socketServer = DIContainer.resolve<SocketServer>(TOKENS.SocketServer);
+          await this.socketServer.initialize(this.server);
+
+          logger.info('WebSocket server initialized', {
+            path: config.websocket.path,
+            url: `ws://${host}:${port}${config.websocket.path}`,
+          });
+        } catch (error) {
+          logger.error('Failed to initialize WebSocket server', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+
+          // Decide if WebSocket failure should crash the app
+          if (config.app.env === 'production') {
+            throw error; // Fail hard in production
+          } else {
+            logger.warn('Continuing without WebSocket server in development');
+          }
+        }
+      } else {
+        logger.info('WebSocket server disabled by configuration');
+      }
+
       // Setup graceful shutdown
       this.setupShutdownHandlers();
 
@@ -95,6 +124,13 @@ export class Application {
    * Stop the application
    */
   async stop(): Promise<void> {
+    // Register WebSocket shutdown if it exists
+    if (this.socketServer) {
+      this.shutdown.registerHandler(async () => {
+        await this.socketServer!.shutdown();
+      });
+    }
+
     await this.shutdown.gracefulShutdown();
   }
 
@@ -102,6 +138,11 @@ export class Application {
    * Setup shutdown handlers
    */
   private setupShutdownHandlers(): void {
+    // Set server for shutdown handler
+    if (this.server) {
+      this.shutdown.setServer(this.server);
+    }
+
     // Handle graceful shutdown on SIGTERM and SIGINT
     process.on('SIGTERM', () => {
       logger.info('SIGTERM received, starting graceful shutdown...');
@@ -137,6 +178,13 @@ export class Application {
    */
   getServer(): Server | null {
     return this.server;
+  }
+
+  /**
+   * Get WebSocket server instance
+   */
+  getSocketServer(): SocketServer | null {
+    return this.socketServer;
   }
 
   /**

@@ -16,12 +16,13 @@ import {
   MonitoringModule,
   CoreModule,
   ControllerModule,
+  OperationsModule,
+  WebSocketModule,
 } from './modules';
 import { BaseModule } from './modules/base.module';
 import { RedisClient } from '../../infrastructure/cache/redis.client';
 import { QueueManager } from '../../infrastructure/queue/queue.manager';
 import { MetricsService } from '../../infrastructure/monitoring/metrics/metrics.service';
-import { OperationsModule } from './modules/operations.module';
 
 export class DIContainer {
   private static initialized = false;
@@ -35,6 +36,7 @@ export class DIContainer {
     new OperationsModule(),
     new IntegrationModule(), // Email, Push services
     new QueueModule(), // Depends on Redis from Cache
+    new WebSocketModule(), // Add this - depends on config
     new MonitoringModule(), // Depends on Services, Queue
     new ControllerModule(),
   ];
