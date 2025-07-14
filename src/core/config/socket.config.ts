@@ -1,10 +1,6 @@
 // src/core/config/websocket.config.ts
 import { z } from 'zod';
-import {
-  EnvironmentSchema,
-  DurationSchema,
-  parseDuration,
-} from '../../../core/config/config.schema';
+import { EnvironmentSchema, DurationSchema, parseDuration } from './config.schema';
 
 const WebSocketConfigSchema = z.object({
   // Basic settings
