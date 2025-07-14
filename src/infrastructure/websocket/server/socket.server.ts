@@ -3,45 +3,54 @@ import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
-import { config } from '../../../core/config';
 import { logger } from '../../../shared/utils/logger';
 import { SocketEvents, SocketContext } from '../types';
-import { Injectable } from '../../../core/di/decorators';
+import { Injectable, Inject } from '../../../core/di/decorators';
+import { TOKENS } from '../../../core/di/tokens';
 
 @Injectable()
 export class SocketServer {
   private io: SocketIOServer | null = null;
   private connectedSockets = new Map<string, SocketContext>();
   private initialized = false;
+  private enabled = false;
+
+  constructor(@Inject(TOKENS.Config) private config: any) {
+    this.enabled = this.config.websocket.enabled;
+    if (!this.enabled) {
+      logger.info('WebSocket server disabled by configuration');
+    }
+  }
 
   /**
    * Initialize the Socket.IO server
    */
-  async initialize(httpServer: HttpServer): Promise<SocketIOServer> {
-    if (this.initialized && this.io) {
+  async initialize(httpServer: HttpServer): Promise<SocketIOServer | null> {
+    if (this.initialized) {
       return this.io;
     }
 
-    if (!config.websocket.enabled) {
-      logger.info('WebSocket server disabled by configuration');
-      throw new Error('WebSocket server is disabled');
+    if (!this.enabled) {
+      logger.info('WebSocket server disabled, skipping initialization');
+      this.initialized = true;
+      return null;
     }
 
     logger.info('Initializing WebSocket server...');
 
     // Create Socket.IO server
     this.io = new SocketIOServer<SocketEvents>(httpServer, {
-      path: config.websocket.path,
-      cors: config.websocket.cors,
-      pingTimeout: config.websocket.pingTimeout,
-      pingInterval: config.websocket.pingInterval,
-      maxHttpBufferSize: config.websocket.maxHttpBufferSize,
-      allowEIO3: config.websocket.allowEIO3,
+      path: this.config.websocket.path,
+      cors: this.config.websocket.cors,
+      pingTimeout: this.config.websocket.pingTimeout,
+      pingInterval: this.config.websocket.pingInterval,
+      maxHttpBufferSize: this.config.websocket.maxHttpBufferSize,
+      allowEIO3: this.config.websocket.allowEIO3,
       transports: ['websocket', 'polling'],
     });
 
     // Setup Redis adapter if enabled
-    if (config.websocket.redis.enabled) {
+    if (this.config.websocket.redis.enabled) {
       await this.setupRedisAdapter();
     }
 
@@ -51,34 +60,50 @@ export class SocketServer {
 
     this.initialized = true;
     logger.info('WebSocket server initialized successfully', {
-      path: config.websocket.path,
-      redisEnabled: config.websocket.redis.enabled,
+      path: this.config.websocket.path,
+      redisEnabled: this.config.websocket.redis.enabled,
     });
 
     return this.io;
   }
 
   /**
+   * Check if WebSocket server is enabled
+   */
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  /**
+   * Check if WebSocket server is running
+   */
+  isRunning(): boolean {
+    return this.enabled && this.initialized && this.io !== null;
+  }
+
+  /**
    * Setup Redis adapter for horizontal scaling
    */
   private async setupRedisAdapter(): Promise<void> {
+    if (!this.enabled || !this.io) return;
+
     try {
       const pubClient = createClient({
         socket: {
-          host: config.websocket.redis.host,
-          port: config.websocket.redis.port,
+          host: this.config.websocket.redis.host,
+          port: this.config.websocket.redis.port,
         },
-        password: config.websocket.redis.password,
-        database: config.websocket.redis.db,
+        password: this.config.websocket.redis.password,
+        database: this.config.websocket.redis.db,
       });
 
       const subClient = pubClient.duplicate();
 
       await Promise.all([pubClient.connect(), subClient.connect()]);
 
-      this.io!.adapter(
+      this.io.adapter(
         createAdapter(pubClient, subClient, {
-          key: config.websocket.redis.keyPrefix,
+          key: this.config.websocket.redis.keyPrefix,
         }),
       );
 
@@ -93,12 +118,12 @@ export class SocketServer {
    * Setup middleware for authentication, rate limiting, etc.
    */
   private setupMiddleware(): void {
-    if (!this.io) return;
+    if (!this.enabled || !this.io) return;
 
     // Authentication middleware
     this.io.use(async (socket: Socket, next) => {
       try {
-        if (config.websocket.auth.required) {
+        if (this.config.websocket.auth.required) {
           // We'll implement this in the auth middleware file
           // For now, just log the connection attempt
           logger.debug('Socket authentication required', {
@@ -129,7 +154,7 @@ export class SocketServer {
    * Setup core event handlers
    */
   private setupEventHandlers(): void {
-    if (!this.io) return;
+    if (!this.enabled || !this.io) return;
 
     this.io.on('connection', (socket: Socket) => {
       this.handleConnection(socket);
@@ -142,6 +167,8 @@ export class SocketServer {
    * Handle new socket connection
    */
   private handleConnection(socket: Socket): void {
+    if (!this.enabled) return;
+
     const socketContext: SocketContext = {
       socketId: socket.id,
       permissions: [],
@@ -153,7 +180,7 @@ export class SocketServer {
 
     this.connectedSockets.set(socket.id, socketContext);
 
-    if (config.websocket.logging.logConnections) {
+    if (this.config.websocket.logging.logConnections) {
       logger.info('Socket connected', {
         socketId: socket.id,
         ip: socketContext.ipAddress,
@@ -183,6 +210,8 @@ export class SocketServer {
    * Setup event handlers for individual socket
    */
   private setupSocketEventHandlers(socket: Socket, context: SocketContext): void {
+    if (!this.enabled) return;
+
     // System events
     socket.on('system:ping', () => {
       socket.emit('system:pong');
@@ -221,9 +250,11 @@ export class SocketServer {
    * Handle socket disconnection
    */
   private handleDisconnection(socket: Socket, reason: string): void {
+    if (!this.enabled) return;
+
     const context = this.connectedSockets.get(socket.id);
 
-    if (config.websocket.logging.logDisconnections) {
+    if (this.config.websocket.logging.logDisconnections) {
       logger.info('Socket disconnected', {
         socketId: socket.id,
         reason,
@@ -253,6 +284,8 @@ export class SocketServer {
    * Handle user going offline
    */
   private handleUserOffline(userId: string, socketId: string): void {
+    if (!this.enabled || !this.io) return;
+
     // Check if user has other active connections
     const userSockets = Array.from(this.connectedSockets.values()).filter(
       (ctx) => ctx.userId === userId && ctx.socketId !== socketId,
@@ -260,8 +293,8 @@ export class SocketServer {
 
     if (userSockets.length === 0) {
       // User is completely offline
-      if (config.websocket.presence.enabled) {
-        this.io?.emit('presence:user-offline', { userId });
+      if (this.config.websocket.presence.enabled) {
+        this.io.emit('presence:user-offline', { userId });
       }
     }
   }
@@ -277,7 +310,8 @@ export class SocketServer {
    * Get connected socket by ID
    */
   getSocket(socketId: string): Socket | undefined {
-    return this.io?.sockets.sockets.get(socketId);
+    if (!this.enabled || !this.io) return undefined;
+    return this.io.sockets.sockets.get(socketId);
   }
 
   /**
@@ -291,6 +325,7 @@ export class SocketServer {
    * Get all connected sockets for a user
    */
   getUserSockets(userId: string): SocketContext[] {
+    if (!this.enabled) return [];
     return Array.from(this.connectedSockets.values()).filter((ctx) => ctx.userId === userId);
   }
 
@@ -298,13 +333,15 @@ export class SocketServer {
    * Broadcast to all connected clients
    */
   broadcast(event: string, data: any): void {
-    this.io?.emit(event, data);
+    if (!this.enabled || !this.io) return;
+    this.io.emit(event, data);
   }
 
   /**
    * Send to specific user (all their connections)
    */
   sendToUser(userId: string, event: string, data: any): void {
+    if (!this.enabled) return;
     const userSockets = this.getUserSockets(userId);
     userSockets.forEach((ctx) => {
       const socket = this.getSocket(ctx.socketId);
@@ -316,6 +353,7 @@ export class SocketServer {
    * Send to specific socket
    */
   sendToSocket(socketId: string, event: string, data: any): void {
+    if (!this.enabled) return;
     const socket = this.getSocket(socketId);
     socket?.emit(event, data);
   }
@@ -327,7 +365,17 @@ export class SocketServer {
     totalConnections: number;
     authenticatedUsers: number;
     uniqueUsers: number;
+    enabled: boolean;
   } {
+    if (!this.enabled) {
+      return {
+        totalConnections: 0,
+        authenticatedUsers: 0,
+        uniqueUsers: 0,
+        enabled: false,
+      };
+    }
+
     const contexts = Array.from(this.connectedSockets.values());
     const authenticatedContexts = contexts.filter((ctx) => ctx.userId);
     const uniqueUsers = new Set(authenticatedContexts.map((ctx) => ctx.userId)).size;
@@ -336,6 +384,7 @@ export class SocketServer {
       totalConnections: contexts.length,
       authenticatedUsers: authenticatedContexts.length,
       uniqueUsers,
+      enabled: true,
     };
   }
 
@@ -343,7 +392,10 @@ export class SocketServer {
    * Graceful shutdown
    */
   async shutdown(): Promise<void> {
-    if (!this.io) return;
+    if (!this.enabled || !this.io) {
+      logger.info('WebSocket server not running, nothing to shut down');
+      return;
+    }
 
     logger.info('Shutting down WebSocket server...');
 

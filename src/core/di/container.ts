@@ -16,13 +16,13 @@ import {
   MonitoringModule,
   CoreModule,
   ControllerModule,
+  OperationsModule,
+  WebSocketModule,
 } from './modules';
 import { BaseModule } from './modules/base.module';
 import { RedisClient } from '../../infrastructure/cache/redis.client';
 import { QueueManager } from '../../infrastructure/queue/queue.manager';
 import { MetricsService } from '../../infrastructure/monitoring/metrics/metrics.service';
-import { OperationsModule } from './modules/operations.module';
-import { WebSocketModule } from './modules/websocket.module';
 
 export class DIContainer {
   private static initialized = false;

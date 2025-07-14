@@ -9,3 +9,5 @@ export * from './search.module';
 export * from './service.module';
 export * from './core.module';
 export * from './controller.module';
+export * from './websocket.module';
+export * from './operations.module';

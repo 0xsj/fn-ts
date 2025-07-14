@@ -14,27 +14,22 @@ export class WebSocketModule extends BaseModule {
     try {
       this.log('Registering WebSocket services...');
 
-      // Only register if WebSocket is enabled
-      if (!config.websocket.enabled) {
-        this.log('WebSocket disabled by configuration, skipping registration');
-        return;
-      }
-
-      // Register SocketServer as singleton
+      // Always register SocketServer, but it can be disabled internally
       container.registerSingleton(TOKENS.SocketServer, SocketServer);
       this.log('Registered SocketServer');
 
-      // We'll add more services later:
-      // container.registerSingleton(TOKENS.SocketService, SocketService);
-      // container.registerSingleton(TOKENS.PresenceService, PresenceService);
-      // container.registerSingleton(TOKENS.RoomService, RoomService);
+      // Register other services if enabled
+      if (config.websocket.enabled) {
+        this.log('WebSocket enabled - registering additional services');
+        // Add other websocket services here when you create them
+      } else {
+        this.log('WebSocket disabled - SocketServer registered but not started');
+      }
 
       this.log('WebSocket services registered successfully');
     } catch (error) {
       this.logError('Failed to register WebSocket services', error);
-
-      // WebSocket is optional, so we don't throw
-      this.log('Continuing without WebSocket services...');
+      throw error; // Don't silently fail if required by other services
     }
   }
 }

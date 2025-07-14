@@ -14,11 +14,25 @@ import { createSwaggerRoutes } from './docs/swagger.routes';
 import { createPrometheusRoutes } from './infrastructure/monitoring/metrics/prometheus.routes';
 import { prometheusMiddleware } from './infrastructure/monitoring/metrics/prometheus/prometheus-middleware';
 import { setupBullBoard } from './infrastructure/queue/bull-board'; // Add this import
+import { createWebSocketTestRoutes } from './docs/websocket.routes';
 
 const app: Application = express();
 
 // Basic middleware
-app.use(helmet());
+// app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://cdn.socket.io'],
+        scriptSrcAttr: ["'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        objectSrc: ["'none'"],
+      },
+    },
+  }),
+);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -28,6 +42,7 @@ app.use(contextMiddleware);
 app.use(responseLoggerMiddleware);
 app.use(requestLoggerMiddleware);
 app.use(prometheusMiddleware());
+app.use('/docs', createWebSocketTestRoutes());
 
 // src/app.ts
 export async function initializeApp(): Promise<void> {
