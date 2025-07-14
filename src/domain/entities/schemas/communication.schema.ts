@@ -11,7 +11,6 @@ export const ThreadDBSchema = BaseEntityDBSchema.extend({
   type: z.enum(['incident', 'direct', 'group', 'support', 'broadcast']),
 
   // Related entities
-  incident_id: z.string().uuid().nullable(),
   organization_id: z.string().uuid().nullable(),
 
   // Creator

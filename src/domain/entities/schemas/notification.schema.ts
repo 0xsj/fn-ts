@@ -34,7 +34,6 @@ export const NotificationDBSchema = BaseEntityDBSchema.extend({
   status: NotificationStatusSchema.default('pending'),
 
   // Related entities
-  incident_id: z.string().uuid().nullable(),
   thread_id: z.string().uuid().nullable(),
   organization_id: z.string().uuid().nullable(),
 
